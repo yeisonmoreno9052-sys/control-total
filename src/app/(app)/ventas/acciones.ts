@@ -113,7 +113,8 @@ export async function cerrarCajaAccion(_: EstadoAccion, formulario: FormData): P
   if (contado === null || contado < 0) return { error: "Escribe cuánto efectivo contaste.", campos: { contado: "Revisa el valor." } };
   const r = await cerrarCaja(ctx, String(formulario.get("cajaId") ?? ""), contado, String(formulario.get("nota") ?? ""));
   if (!r.ok) return { error: r.error, campos: r.campos };
-  revalidatePath("/ventas", "layout");
+  // Sin revalidar aquí: la página se volvería a dibujar sin caja abierta y se perdería
+  // el mensaje de "Caja cerrada". Al tocar "Listo" se carga la pantalla de ventas al día.
   return { ok: true, mensaje: r.diferencia === null ? undefined : String(r.diferencia) };
 }
 
