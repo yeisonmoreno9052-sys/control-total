@@ -47,6 +47,7 @@ export default async function PaginaCaja() {
               <Fila nombre="Ventas en efectivo" valor={resumen.ventasEfectivo} />
               {!!resumen.anulacionesEfectivo && <Fila nombre="Anulaciones en efectivo" valor={-resumen.anulacionesEfectivo} />}
               {!!resumen.devolucionesEfectivo && <Fila nombre="Devoluciones en efectivo" valor={-resumen.devolucionesEfectivo} />}
+              {!!resumen.pagosProveedores && <Fila nombre="Pagos a proveedores en efectivo" valor={-resumen.pagosProveedores} />}
               <div className="flex justify-between border-t pt-2 text-base font-semibold">
                 <dt>Efectivo esperado</dt>
                 <dd className="tabular-nums">{formatearPesos(resumen.esperado)}</dd>
