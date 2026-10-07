@@ -28,8 +28,8 @@ Para verlo en el celular: con el computador y el celular en el mismo wifi, abre 
 
 ## Publicar en Railway
 
-El repositorio ya trae `railway.json`: Railway construye la app, corre `scripts/preparar-base.sh`
-(aplica las migraciones y, solo si existe `SEED_CONTRASENA`, crea los usuarios de prueba) y la arranca.
+Railway construye la app con `npm run build` y la arranca con `npm start`. Antes de arrancar, npm corre
+`scripts/preparar-base.sh` (aplica las migraciones y, solo si existe `SEED_CONTRASENA`, crea los usuarios de prueba).
 
 1. En [railway.com](https://railway.com) crea un proyecto con **Deploy from GitHub repo** y elige `control-total`.
 2. En el mismo proyecto agrega **Database → PostgreSQL**.

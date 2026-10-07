@@ -1,5 +1,5 @@
 #!/bin/sh
-# Corre en cada despliegue, antes de arrancar la app nueva.
+# Corre antes de arrancar la app (npm lo llama solo con "prestart").
 set -e
 
 # Aplica las migraciones pendientes. Nunca borra datos.

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "prestart": "sh scripts/preparar-base.sh",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
