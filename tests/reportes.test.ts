@@ -20,6 +20,10 @@ import {
   ventasPorDia,
   ventasPorMedio,
 } from "@/lib/datos/reportes";
+import ExcelJS from "exceljs";
+import { armarReporte } from "@/lib/reportes/armar";
+import { reporteAExcel } from "@/lib/reportes/excel";
+import { calcularPeriodo } from "@/lib/reportes/periodos";
 import { anularVenta, registrarDevolucion, registrarVenta } from "@/lib/datos/ventas";
 import { esquemaProducto } from "@/lib/inventario/esquemas";
 import { diaEnBogota } from "@/lib/formato";
@@ -63,7 +67,11 @@ beforeEach(async () => {
   await prisma.negocio.update({ where: { id: e.motos.id }, data: { regimen: "Responsable de IVA" } });
   await prisma.negocio.update({ where: { id: e.ferreteria.id }, data: { regimen: "No responsable de IVA" } });
   A = await producto(e.motos.id, { codigo: "A", nombre: "Bujía", costo: "250", precioVenta: "1000", porcentajeIva: 19 }, "20");
-  B = await producto(e.ferreteria.id, { codigo: "B", nombre: "Brocha", costo: "600", precioVenta: "1000", porcentajeIva: 0 }, "20");
+  B = await producto(
+    e.ferreteria.id,
+    { codigo: "B", nombre: "Brocha", costo: "600", precioVenta: "1000", porcentajeIva: 0 },
+    "20",
+  );
   await abrirCaja(e.ctx.admin, e.motos.id, 0);
   await abrirCaja(e.ctx.admin, e.ferreteria.id, 0);
 
@@ -102,7 +110,14 @@ describe("utilidad", () => {
 
   it("no responsable de IVA: lo cobrado y el costo completos", async () => {
     const r = await resumenVentas(e.ctx.admin, [e.ferreteria.id], hoy(), hoy());
-    expect(r).toMatchObject({ ventas: 1, totalVendido: 5000, ventasNetas: 5000, ivaResponsable: 0, costo: 3000, utilidadBruta: 2000 });
+    expect(r).toMatchObject({
+      ventas: 1,
+      totalVendido: 5000,
+      ventasNetas: 5000,
+      ivaResponsable: 0,
+      costo: 3000,
+      utilidadBruta: 2000,
+    });
     expect(r.margen).toBe(40);
   });
 
@@ -155,7 +170,11 @@ describe("reportes de ventas y productos", () => {
   });
 
   it("más vendidos, menos vendidos y sin ventas", async () => {
-    const C = await producto(e.motos.id, { codigo: "C", nombre: "Cadena", costo: "1000", precioVenta: "2000", porcentajeIva: 19 }, "5");
+    const C = await producto(
+      e.motos.id,
+      { codigo: "C", nombre: "Cadena", costo: "1000", precioVenta: "2000", porcentajeIva: 19 },
+      "5",
+    );
     const todos = negociosDelReporte(e.ctx.admin, "todos", null);
     const mas = await productosVendidos(e.ctx.admin, todos, hoy(), hoy(), "total");
     expect(mas.map((p) => [p.codigo, p.cantidad, p.total])).toEqual([
@@ -180,6 +199,28 @@ describe("reportes de ventas y productos", () => {
   it("stock bajo", async () => {
     await prisma.producto.update({ where: { id: A }, data: { stockMinimo: 20 } });
     expect(await stockBajo(e.ctx.admin, [e.motos.id])).toBe(1);
+  });
+});
+
+describe("exportar", () => {
+  it("el Excel se abre y trae los mismos totales que la pantalla", async () => {
+    const reporte = await armarReporte(e.ctx.admin, "utilidad", [e.motos.id], "Repuestos de moto", calcularPeriodo("hoy"));
+    const libro = new ExcelJS.Workbook();
+    await libro.xlsx.load((await reporteAExcel(reporte, "Camila")) as unknown as ExcelJS.Buffer);
+    expect(libro.worksheets.map((h) => h.name)).toEqual(["Resumen", "Estado de resultados", "Utilidad bruta por día"]);
+    const resumen = libro.getWorksheet("Resumen")!;
+    const fila = resumen.getRows(1, resumen.rowCount)!.find((r) => r.getCell(1).value === "Utilidad bruta");
+    expect(fila?.getCell(2).value).toBe(3781);
+    const estado = libro.getWorksheet("Estado de resultados")!;
+    expect(estado.getRow(estado.rowCount).values).toEqual([undefined, "Utilidad neta", 3781]);
+  });
+
+  it("todas las vistas se arman sin error", async () => {
+    for (const vista of ["ventas", "utilidad", "productos", "inventario", "gastos"] as const) {
+      const r = await armarReporte(e.ctx.admin, vista, [e.motos.id, e.ferreteria.id], "Todos", calcularPeriodo("mes"));
+      expect(r.tablas.length).toBeGreaterThan(0);
+      await reporteAExcel(r, "Camila");
+    }
   });
 });
 
