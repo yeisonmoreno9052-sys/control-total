@@ -131,6 +131,8 @@ export function FormularioFactura({
   const [lineas, setLineas] = useState<Linea[]>(inicial?.lineas ?? []);
   const [dialogo, setDialogo] = useState<"proveedor" | "producto" | null>(null);
   const [textoNuevo, setTextoNuevo] = useState("");
+  // Cambiarla reinicia el buscador (lo deja vacío después de crear un producto).
+  const [claveBuscador, setClaveBuscador] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -171,7 +173,17 @@ export function FormularioFactura({
     }
   }, [clave, proveedorId, numero, fecha, tipo, medio, desdeCaja, referencia, vencimiento, nota, lineas]);
 
-  const enfocarCantidad = (productoId: string) => setTimeout(() => document.getElementById(`cantidad-${productoId}`)?.focus(), 0);
+  // Después de agregar un producto, el cursor pasa a su cantidad, ya con la línea en pantalla.
+  // La marca se cambia junto con las líneas, así que al correr el efecto la línea ya existe.
+  const [porEnfocar, setPorEnfocar] = useState<{ id: string } | null>(null);
+  useEffect(() => {
+    if (!porEnfocar) return;
+    const campo = document.getElementById(`cantidad-${porEnfocar.id}`);
+    if (campo instanceof HTMLInputElement) {
+      campo.focus();
+      campo.select();
+    }
+  }, [porEnfocar]);
 
   const agregar = useCallback((p: ProductoCompra) => {
     setAviso(null);
@@ -190,7 +202,7 @@ export function FormularioFactura({
             },
           ],
     );
-    enfocarCantidad(p.id);
+    setPorEnfocar({ id: p.id });
   }, []);
 
   const cambiar = (id: string, cambios: Partial<Linea>) => {
@@ -298,7 +310,7 @@ export function FormularioFactura({
                   </option>
                 ))}
               </NativeSelect>
-              <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => setDialogo("proveedor")}>
+              <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => setDialogo("proveedor")} aria-label="Nuevo proveedor">
                 <UserPlus /> <span className="hidden sm:inline">Nuevo</span>
               </Button>
             </div>
@@ -332,7 +344,7 @@ export function FormularioFactura({
               <PackagePlus /> Producto nuevo
             </Button>
           </div>
-          <Buscador refInput={buscador} alElegir={agregar} alAvisar={setAviso} />
+          <Buscador key={claveBuscador} refInput={buscador} alElegir={agregar} alAvisar={setAviso} />
           {aviso && <p className="text-sm text-destructive">{aviso}</p>}
 
           {lineas.length === 0 ? (
@@ -485,7 +497,7 @@ export function FormularioFactura({
           margen={margenNegocio}
           onCreado={(p) => {
             setDialogo(null);
-            if (buscador.current) buscador.current.value = "";
+            setClaveBuscador((n) => n + 1);
             agregar(p);
           }}
         />

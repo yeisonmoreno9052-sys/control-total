@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { History, Pencil, SlidersHorizontal } from "lucide-react";
+import { History, Pencil, SlidersHorizontal, Truck } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { historialComprasProducto } from "@/lib/datos/compras";
 import { listarMovimientos, obtenerProducto } from "@/lib/datos/productos";
-import { formatearFecha, formatearHora, formatearPesos } from "@/lib/formato";
+import { formatearDia, formatearFecha, formatearHora, formatearPesos } from "@/lib/formato";
 import { formatearCantidad } from "@/lib/inventario/cantidades";
 import { calcularMargen } from "@/lib/inventario/precios";
 import { CONDICIONES, MOTIVOS_AJUSTE, TIPOS_MOVIMIENTO, UNIDADES } from "@/lib/inventario/unidades";
-import { exigirModulo } from "@/lib/modulos";
+import { exigirModulo, tieneModulo } from "@/lib/modulos";
 import { puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,8 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
   if (!producto) return <NoEncontrado />;
   const gestiona = puedeGestionar(ctx);
   const { movimientos, total } = await listarMovimientos(ctx, id);
+  // El historial de compras muestra costos: solo para quien gestiona.
+  const compras = gestiona && tieneModulo(ctx, "PROVEEDORES") ? await historialComprasProducto(ctx, id) : [];
   const unidad = UNIDADES[producto.unidad];
   const margen = producto.costo !== undefined ? calcularMargen(producto.costo, producto.precioVenta) : null;
 
@@ -96,6 +99,34 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
         <Fila titulo="IVA">{producto.porcentajeIva} %</Fila>
         {producto.descripcion && <Fila titulo="Descripción">{producto.descripcion}</Fila>}
       </dl>
+
+      {compras.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Truck className="size-5 text-muted-foreground" /> Compras
+          </h2>
+          <ul className="divide-y rounded-xl border">
+            {compras.map((c) => (
+              <li key={c.id} className={cn(c.anulada && "opacity-60")}>
+                <Link href={`/proveedores/facturas/${c.facturaId}`} className="flex items-center gap-3 p-4 hover:bg-muted/40">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="truncate font-medium">
+                      {c.proveedor} · factura {c.numero}
+                      {c.anulada && <span className="ml-2 text-sm text-destructive">Anulada</span>}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatearDia(c.fecha)} · {formatearCantidad(c.cantidad)} {unidad.corto} a {formatearPesos(c.costoUnitario)}
+                    </p>
+                  </div>
+                  <p className="text-right text-sm text-muted-foreground tabular-nums">
+                    Costo {formatearPesos(c.costoAntes)} → <span className="font-medium text-foreground">{formatearPesos(c.costoDespues)}</span>
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
