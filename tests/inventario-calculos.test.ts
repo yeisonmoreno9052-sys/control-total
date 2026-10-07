@@ -41,6 +41,8 @@ describe("pesos", () => {
     expect(leerPesos("13.000,50")).toBe(13001);
     expect(leerPesos("13,000")).toBe(13000);
     expect(leerPesos("doce")).toBeNull();
+    expect(leerPesos("15.6")).toBeNull(); // ambiguo: mejor pedir que lo corrija
+    expect(leerPesos("12000,5")).toBe(12001);
   });
 });
 
@@ -50,9 +52,12 @@ describe("margen y precio sugerido", () => {
     expect(calcularMargen(10000, 13000)).toEqual({ ganancia: 3000, porcentaje: 30 });
   });
 
-  it("redondea el precio sugerido hacia arriba a los $ 100", () => {
+  it("redondea el precio sugerido hacia arriba: a $ 50 si es pequeño, a $ 100 desde $ 1.000", () => {
     expect(precioSugerido(10031, 30)).toBe(13100); // 13.040,3 → 13.100
     expect(precioSugerido(250, 60)).toBe(400);
+    expect(precioSugerido(500, 30)).toBe(650);
+    expect(precioSugerido(60, 30)).toBe(100); // 78 → 100
+    expect(precioSugerido(700, 30)).toBe(950); // 910 → 950
     expect(precioSugerido(0, 30)).toBe(0);
   });
 

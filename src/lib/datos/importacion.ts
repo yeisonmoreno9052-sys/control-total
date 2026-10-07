@@ -77,7 +77,8 @@ type FilaCruda = { numero: number; valores: Partial<Record<Clave, string>> };
 
 function celdaATexto(valor: ExcelJS.CellValue): string {
   if (valor === null || valor === undefined) return "";
-  if (typeof valor === "number") return String(valor);
+  // Números de Excel con decimales → coma decimal, como se escriben en Colombia.
+  if (typeof valor === "number") return String(valor).replace(".", ",");
   if (typeof valor === "string") return valor.trim();
   if (typeof valor === "boolean") return valor ? "si" : "no";
   if (valor instanceof Date) return valor.toISOString();

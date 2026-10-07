@@ -13,10 +13,13 @@ export function leerPesos(texto: string | number | null | undefined): number | n
   if (!t) return null;
   // "13.000,50" o "13000,5": los centavos se redondean (el dinero se maneja en pesos enteros).
   const coma = t.match(/^(.*),(\d{1,2})$/);
-  if (coma) t = `${coma[1].replace(/\./g, "")}.${coma[2]}`;
-  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
+  if (coma) {
+    if (!/^\d{1,3}(\.\d{3})*$|^\d+$/.test(coma[1])) return null;
+    t = `${coma[1].replace(/\./g, "")}.${coma[2]}`;
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");
   else if (/^\d{1,3}(,\d{3})+$/.test(t)) t = t.replace(/,/g, "");
-  if (!/^\d+(\.\d+)?$/.test(t)) return null;
+  // En pesos el punto es separador de miles: "15.6" es ambiguo y se rechaza.
+  else if (!/^\d+$/.test(t)) return null;
   return Math.round(Number(t));
 }
 
