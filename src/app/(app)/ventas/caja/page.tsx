@@ -48,6 +48,8 @@ export default async function PaginaCaja() {
               {!!resumen.anulacionesEfectivo && <Fila nombre="Anulaciones en efectivo" valor={-resumen.anulacionesEfectivo} />}
               {!!resumen.devolucionesEfectivo && <Fila nombre="Devoluciones en efectivo" valor={-resumen.devolucionesEfectivo} />}
               {!!resumen.pagosProveedores && <Fila nombre="Pagos a proveedores en efectivo" valor={-resumen.pagosProveedores} />}
+              {!!resumen.ingresosEfectivo && <Fila nombre="Otros ingresos en efectivo" valor={resumen.ingresosEfectivo} />}
+              {!!resumen.egresosEfectivo && <Fila nombre="Egresos en efectivo (nómina, arriendo…)" valor={-resumen.egresosEfectivo} />}
               <div className="flex justify-between border-t pt-2 text-base font-semibold">
                 <dt>Efectivo esperado</dt>
                 <dd className="tabular-nums">{formatearPesos(resumen.esperado)}</dd>

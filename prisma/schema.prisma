@@ -68,6 +68,7 @@ model Empresa {
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
   adjuntosFactura    AdjuntoFactura[]
+  movimientosCaja    MovimientoCaja[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
@@ -111,6 +112,7 @@ model Negocio {
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
   adjuntosFactura    AdjuntoFactura[]
+  movimientosCaja    MovimientoCaja[]
 
   @@index([empresaId])
 }
@@ -128,20 +130,22 @@ model Usuario {
   creadoEn       DateTime @default(now())
   actualizadoEn  DateTime @updatedAt
 
-  empresa          Empresa?               @relation(fields: [empresaId], references: [id])
-  negocios         UsuarioNegocio[]
-  movimientos      MovimientoInventario[]
-  auditorias       Auditoria[]
-  ventas           Venta[]                @relation("VentaCajero")
-  ventasAnuladas   Venta[]                @relation("VentaAnulador")
-  devoluciones     Devolucion[]
-  cajasAbiertas    Caja[]                 @relation("CajaApertura")
-  cajasCerradas    Caja[]                 @relation("CajaCierre")
-  facturasCompra   FacturaCompra[]        @relation("FacturaRegistro")
-  facturasAnuladas FacturaCompra[]        @relation("FacturaAnulador")
-  abonosFactura    AbonoFactura[]         @relation("AbonoRegistro")
-  abonosAnulados   AbonoFactura[]         @relation("AbonoAnulador")
-  adjuntosFactura  AdjuntoFactura[]
+  empresa                 Empresa?               @relation(fields: [empresaId], references: [id])
+  negocios                UsuarioNegocio[]
+  movimientos             MovimientoInventario[]
+  auditorias              Auditoria[]
+  ventas                  Venta[]                @relation("VentaCajero")
+  ventasAnuladas          Venta[]                @relation("VentaAnulador")
+  devoluciones            Devolucion[]
+  cajasAbiertas           Caja[]                 @relation("CajaApertura")
+  cajasCerradas           Caja[]                 @relation("CajaCierre")
+  facturasCompra          FacturaCompra[]        @relation("FacturaRegistro")
+  facturasAnuladas        FacturaCompra[]        @relation("FacturaAnulador")
+  abonosFactura           AbonoFactura[]         @relation("AbonoRegistro")
+  abonosAnulados          AbonoFactura[]         @relation("AbonoAnulador")
+  movimientosCaja         MovimientoCaja[]       @relation("MovimientoCajaRegistro")
+  movimientosCajaAnulados MovimientoCaja[]       @relation("MovimientoCajaAnulador")
+  adjuntosFactura         AdjuntoFactura[]
 
   @@index([empresaId])
 }
@@ -379,14 +383,15 @@ model Caja {
   diferencia   Int?
   nota         String?
 
-  empresa       Empresa        @relation(fields: [empresaId], references: [id])
-  negocio       Negocio        @relation(fields: [negocioId], references: [id])
-  abiertaPor    Usuario        @relation("CajaApertura", fields: [abiertaPorId], references: [id])
-  cerradaPor    Usuario?       @relation("CajaCierre", fields: [cerradaPorId], references: [id])
-  ventas        Venta[]        @relation("VentaCaja")
-  anulaciones   Venta[]        @relation("VentaCajaAnulacion")
+  empresa       Empresa          @relation(fields: [empresaId], references: [id])
+  negocio       Negocio          @relation(fields: [negocioId], references: [id])
+  abiertaPor    Usuario          @relation("CajaApertura", fields: [abiertaPorId], references: [id])
+  cerradaPor    Usuario?         @relation("CajaCierre", fields: [cerradaPorId], references: [id])
+  ventas        Venta[]          @relation("VentaCaja")
+  anulaciones   Venta[]          @relation("VentaCajaAnulacion")
   devoluciones  Devolucion[]
   abonosFactura AbonoFactura[]
+  movimientos   MovimientoCaja[]
 
   @@unique([negocioId, fecha])
   @@index([empresaId])
@@ -394,41 +399,41 @@ model Caja {
 
 /// Una venta registrada no se edita ni se borra: se anula o se le hace una devolución.
 model Venta {
-  id              String      @id @default(cuid())
-  empresaId       String
-  negocioId       String
-  cajaId          String
-  usuarioId       String
-  clienteId       String?
+  id                 String      @id @default(cuid())
+  empresaId          String
+  negocioId          String
+  cajaId             String
+  usuarioId          String
+  clienteId          String?
   /// Consecutivo del negocio, sin huecos ni repeticiones.
-  consecutivo     Int
+  consecutivo        Int
   /// Suma de cantidad × precio, antes de descuentos.
-  subtotal        Int
-  descuento       Int
-  base            Int
-  iva             Int
-  total           Int
+  subtotal           Int
+  descuento          Int
+  base               Int
+  iva                Int
+  total              Int
   /// Efectivo que entregó el cliente y cambio que se le dio.
-  recibido        Int?
-  cambio          Int?
-  estado          EstadoVenta @default(REGISTRADA)
-  anuladaEn       DateTime?
-  anuladaPorId    String?
-  anuladaEnCajaId String?
-  motivoAnulacion String?
-  creadoEn        DateTime    @default(now())
+  recibido           Int?
+  cambio             Int?
+  estado             EstadoVenta @default(REGISTRADA)
+  anuladaEn          DateTime?
+  anuladaPorId       String?
+  anuladaEnCajaId    String?
+  motivoAnulacion    String?
+  creadoEn           DateTime    @default(now())
   /// Ventas hechas sin internet: código que generó el computador (evita subirla dos veces),
   /// número que salió en el recibo provisional y cuándo llegó al servidor.
   idLocal            String?
   numeroProvisional  String?
-  sinConexion        Boolean   @default(false)
+  sinConexion        Boolean     @default(false)
   sincronizadaEn     DateTime?
   /// Por qué quedó en otra caja, o qué productos quedaron en negativo, para que lo revise el administrador.
   notaSincronizacion String?
   // Reservado para facturación electrónica (DIAN). Vacío por ahora.
-  feEstado        String?
-  feIdentificador String?
-  feRespuesta     Json?
+  feEstado           String?
+  feIdentificador    String?
+  feRespuesta        Json?
 
   empresa       Empresa        @relation(fields: [empresaId], references: [id])
   negocio       Negocio        @relation(fields: [negocioId], references: [id])
@@ -698,5 +703,59 @@ model AdjuntoFactura {
   usuario Usuario       @relation(fields: [usuarioId], references: [id])
 
   @@index([facturaId])
+  @@index([empresaId])
+}
+
+// ─── Fase 4: ingresos y egresos ─────────────────────────────────────────────
+
+enum TipoMovimientoCaja {
+  INGRESO
+  EGRESO
+}
+
+enum CategoriaMovimientoCaja {
+  NOMINA
+  ARRIENDO
+  SERVICIOS
+  TRANSPORTE
+  INSUMOS
+  IMPUESTOS
+  RETIRO_DUENO
+  OTRO_EGRESO
+  APORTE
+  OTRO_INGRESO
+}
+
+/// Plata que entra o sale y no es una venta (nómina, arriendo, retiros…). No se borra: se anula.
+model MovimientoCaja {
+  id              String                  @id @default(cuid())
+  empresaId       String
+  negocioId       String
+  tipo            TipoMovimientoCaja
+  categoria       CategoriaMovimientoCaja
+  /// Día del movimiento, en hora de Bogotá.
+  fecha           DateTime                @db.Date
+  valor           Int
+  medio           MedioPago
+  /// En nómina: a quién se le pagó.
+  pagadoA         String?
+  nota            String?
+  /// Si fue en efectivo y salió (o entró) en la caja de ese día.
+  cajaId          String?
+  usuarioId       String
+  anulado         Boolean                 @default(false)
+  anuladoEn       DateTime?
+  anuladoPorId    String?
+  motivoAnulacion String?
+  creadoEn        DateTime                @default(now())
+
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  negocio    Negocio  @relation(fields: [negocioId], references: [id])
+  caja       Caja?    @relation(fields: [cajaId], references: [id])
+  usuario    Usuario  @relation("MovimientoCajaRegistro", fields: [usuarioId], references: [id])
+  anuladoPor Usuario? @relation("MovimientoCajaAnulador", fields: [anuladoPorId], references: [id])
+
+  @@index([negocioId, fecha])
+  @@index([cajaId])
   @@index([empresaId])
 }

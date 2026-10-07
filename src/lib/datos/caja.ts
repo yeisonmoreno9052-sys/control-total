@@ -5,6 +5,8 @@
 //   + efectivo de las ventas hechas en esta caja
 //   − efectivo de las ventas anuladas mientras esta caja estaba abierta
 //   − devoluciones pagadas en efectivo desde esta caja
+//   − pagos a proveedores en efectivo que salieron de esta caja
+//   + ingresos en efectivo − egresos en efectivo (nómina, arriendo, retiros…) de esta caja
 import { diaEnBogota, fechaDeHoy } from "@/lib/formato";
 import { exigirGestion, puedeGestionar } from "@/lib/permisos";
 import { datosDe } from "./alcance";
@@ -88,6 +90,8 @@ export type ResumenCaja = {
   anulacionesEfectivo: number;
   devolucionesEfectivo: number;
   pagosProveedores: number;
+  ingresosEfectivo: number;
+  egresosEfectivo: number;
   esperado: number;
 };
 
@@ -99,7 +103,7 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
   });
   if (!caja) return null;
 
-  const [pagos, anulados, devoluciones, ventas, proveedores] = await Promise.all([
+  const [pagos, anulados, devoluciones, ventas, proveedores, movimientos] = await Promise.all([
     db.pagoVenta.groupBy({
       by: ["medio"],
       where: { empresaId: ctx.empresaId, venta: { cajaId } },
@@ -119,12 +123,20 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
       where: { empresaId: ctx.empresaId, cajaId, medio: "EFECTIVO", anulado: false },
       _sum: { valor: true },
     }),
+    db.movimientoCaja.groupBy({
+      by: ["tipo"],
+      where: { empresaId: ctx.empresaId, cajaId, medio: "EFECTIVO", anulado: false },
+      _sum: { valor: true },
+    }),
   ]);
   const porMedio = (medio: string) => pagos.find((p) => p.medio === medio)?._sum.valor ?? 0;
   const ventasEfectivo = porMedio("EFECTIVO");
   const anulacionesEfectivo = anulados._sum.valor ?? 0;
   const devolucionesEfectivo = devoluciones._sum.total ?? 0;
   const pagosProveedores = proveedores._sum.valor ?? 0;
+  const porTipo = (tipo: string) => movimientos.find((m) => m.tipo === tipo)?._sum.valor ?? 0;
+  const ingresosEfectivo = porTipo("INGRESO");
+  const egresosEfectivo = porTipo("EGRESO");
   return {
     base: caja.base,
     ventas,
@@ -133,7 +145,16 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
     anulacionesEfectivo,
     devolucionesEfectivo,
     pagosProveedores,
-    esperado: caja.base + ventasEfectivo - anulacionesEfectivo - devolucionesEfectivo - pagosProveedores,
+    ingresosEfectivo,
+    egresosEfectivo,
+    esperado:
+      caja.base +
+      ventasEfectivo -
+      anulacionesEfectivo -
+      devolucionesEfectivo -
+      pagosProveedores +
+      ingresosEfectivo -
+      egresosEfectivo,
   };
 }
 

@@ -52,7 +52,7 @@ const MODELOS: Record<string, ReglaModelo> = {
     relaciones: [
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
-      "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura",
+      "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
     ],
   },
   Negocio: {
@@ -61,7 +61,7 @@ const MODELOS: Record<string, ReglaModelo> = {
     relaciones: [
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
-      "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura",
+      "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
     ],
   },
   Usuario: {
@@ -70,7 +70,7 @@ const MODELOS: Record<string, ReglaModelo> = {
     relaciones: [
       "empresa", "negocios", "movimientos", "auditorias",
       "ventas", "ventasAnuladas", "devoluciones", "cajasAbiertas", "cajasCerradas",
-      "facturasCompra", "facturasAnuladas", "abonosFactura", "abonosAnulados", "adjuntosFactura",
+      "facturasCompra", "facturasAnuladas", "abonosFactura", "abonosAnulados", "adjuntosFactura", "movimientosCaja", "movimientosCajaAnulados",
     ],
   },
   UsuarioNegocio: {
@@ -112,7 +112,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Caja: {
     filtro: deNegocios,
     alCrear: null,
-    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura"],
+    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura", "movimientos"],
     porNegocio: true,
     soloLectura: true,
   },
@@ -186,6 +186,13 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "factura", "usuario", "anuladoPor", "caja"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  MovimientoCaja: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "caja", "usuario", "anuladoPor"],
     porNegocio: true,
     soloLectura: true,
   },
