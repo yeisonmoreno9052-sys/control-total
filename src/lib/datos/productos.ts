@@ -224,3 +224,65 @@ export async function listarMovimientos(ctx: Contexto, productoId: string, pagin
     paginas: Math.max(1, Math.ceil(total / POR_PAGINA)),
   };
 }
+
+/** Lo que la caja necesita de un producto. Sin costo: el cajero no lo ve. */
+export type ProductoCaja = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  precioVenta: number;
+  porcentajeIva: number;
+  unidad: string;
+  fraccionado: boolean;
+  stock: string;
+};
+
+const CAMPOS_CAJA = {
+  id: true, codigo: true, nombre: true, precioVenta: true, porcentajeIva: true, unidad: true, fraccionado: true, stock: true,
+} as const;
+
+/**
+ * Búsqueda de la caja. Si el texto es exactamente un código o código de barras
+ * (lo que manda el lector), devuelve ese producto en `exacto` para agregarlo de una.
+ */
+export async function buscarParaVenta(ctx: Contexto, negocioId: string, texto: string) {
+  const q = texto.trim().slice(0, 100);
+  if (!q) return { exacto: null, resultados: [] as ProductoCaja[] };
+  const datos = datosDe(ctx);
+  const aCaja = (p: { stock: { toString(): string } } & Omit<ProductoCaja, "stock">): ProductoCaja => ({
+    ...p,
+    stock: p.stock.toString(),
+  });
+
+  const exacto = await datos.producto.findFirst({
+    where: { negocioId, activo: true, OR: [{ codigoBarras: q }, { codigo: { equals: q, mode: "insensitive" } }] },
+    select: CAMPOS_CAJA,
+  });
+  if (exacto) return { exacto: aCaja(exacto), resultados: [aCaja(exacto)] };
+
+  const palabras = q.split(/\s+/).filter(Boolean).slice(0, 6);
+  const filas = await datos.producto.findMany({
+    where: {
+      negocioId,
+      activo: true,
+      OR: [
+        { codigo: { startsWith: q, mode: "insensitive" } },
+        { AND: palabras.map((p) => ({ nombre: { contains: p, mode: "insensitive" as const } })) },
+      ],
+    },
+    select: CAMPOS_CAJA,
+    orderBy: [{ nombre: "asc" }, { id: "asc" }],
+    take: 8,
+  });
+  return { exacto: null, resultados: filas.map(aCaja) };
+}
+
+/** Precios y stock actuales de los productos del carrito (al recargar la caja o si cambiaron). */
+export async function productosParaVenta(ctx: Contexto, negocioId: string, ids: string[]): Promise<ProductoCaja[]> {
+  if (!ids.length) return [];
+  const filas = await datosDe(ctx).producto.findMany({
+    where: { negocioId, activo: true, id: { in: ids.slice(0, 300) } },
+    select: CAMPOS_CAJA,
+  });
+  return filas.map((p) => ({ ...p, stock: p.stock.toString() }));
+}
