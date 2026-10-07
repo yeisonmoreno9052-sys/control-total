@@ -1,0 +1,108 @@
+// Esquema de Control Total.
+// Jerarquía: Empresa → Negocio → todo lo demás.
+// Toda tabla de negocio lleva empresaId (y negocioId cuando aplica).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Rol {
+  ADMINISTRADOR
+  SOCIO
+  CAJERO
+  SUPERADMIN
+}
+
+enum EstadoSuscripcion {
+  ACTIVA
+  SUSPENDIDA
+}
+
+enum Modulo {
+  INVENTARIO
+  VENTAS
+  PROVEEDORES
+  CAJA
+  REPORTES
+}
+
+/// Cliente de EMY TELECOM (ej. "Camila").
+model Empresa {
+  id                String            @id @default(cuid())
+  nombre            String
+  nit               String?
+  telefono          String?
+  correo            String?
+  direccion         String?
+  logoUrl           String?
+  estadoSuscripcion EstadoSuscripcion @default(ACTIVA)
+  modulosActivos    Modulo[]          @default([INVENTARIO, VENTAS, PROVEEDORES, CAJA, REPORTES])
+  activo            Boolean           @default(true)
+  creadoEn          DateTime          @default(now())
+  actualizadoEn     DateTime          @updatedAt
+
+  negocios        Negocio[]
+  usuarios        Usuario[]
+  usuarioNegocios UsuarioNegocio[]
+}
+
+/// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
+model Negocio {
+  id            String   @id @default(cuid())
+  empresaId     String
+  nombre        String
+  direccion     String?
+  tipo          String?
+  // Datos fiscales, preparados para facturación electrónica (DIAN).
+  nit           String?
+  razonSocial   String?
+  regimen       String?
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  empresa  Empresa          @relation(fields: [empresaId], references: [id])
+  usuarios UsuarioNegocio[]
+
+  @@index([empresaId])
+}
+
+model Usuario {
+  id             String   @id @default(cuid())
+  /// Vacío solo para el superadmin de EMY TELECOM.
+  empresaId      String?
+  /// Nombre con el que inicia sesión. Único en todo el sistema.
+  usuario        String   @unique
+  nombre         String
+  hashContrasena String
+  rol            Rol
+  activo         Boolean  @default(true)
+  creadoEn       DateTime @default(now())
+  actualizadoEn  DateTime @updatedAt
+
+  empresa  Empresa?         @relation(fields: [empresaId], references: [id])
+  negocios UsuarioNegocio[]
+
+  @@index([empresaId])
+}
+
+/// Negocios a los que tiene acceso un socio o cajero.
+/// El administrador ve todos los negocios de su empresa sin asignación.
+model UsuarioNegocio {
+  empresaId String
+  usuarioId String
+  negocioId String
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+
+  @@id([usuarioId, negocioId])
+  @@index([empresaId])
+  @@index([negocioId])
+}

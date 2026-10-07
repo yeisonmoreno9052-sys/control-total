@@ -1,0 +1,17 @@
+# Base de datos local para desarrollo. Se enciende con: docker compose up -d
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: control
+      POSTGRES_PASSWORD: control
+      POSTGRES_DB: control_total
+    ports:
+      - "5432:5432"
+    volumes:
+      - datos:/var/lib/postgresql/data
+      - ./docker/crear-base-pruebas.sql:/docker-entrypoint-initdb.d/crear-base-pruebas.sql:ro
+
+volumes:
+  datos:
