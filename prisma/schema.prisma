@@ -118,17 +118,24 @@ model Negocio {
 }
 
 model Usuario {
-  id             String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   /// Vacío solo para el superadmin de EMY TELECOM.
-  empresaId      String?
+  empresaId             String?
   /// Nombre con el que inicia sesión. Único en todo el sistema.
-  usuario        String   @unique
-  nombre         String
-  hashContrasena String
-  rol            Rol
-  activo         Boolean  @default(true)
-  creadoEn       DateTime @default(now())
-  actualizadoEn  DateTime @updatedAt
+  usuario               String    @unique
+  nombre                String
+  hashContrasena        String
+  rol                   Rol
+  activo                Boolean   @default(true)
+  /// Contraseña temporal puesta por el administrador: debe cambiarla al entrar.
+  debeCambiarContrasena Boolean   @default(false)
+  /// Intentos fallidos seguidos; al llegar a 5 se bloquea 15 minutos.
+  intentosFallidos      Int       @default(0)
+  bloqueadoHasta        DateTime?
+  /// Sube al desactivar o restablecer la contraseña: cierra las sesiones abiertas.
+  versionSesion         Int       @default(0)
+  creadoEn              DateTime  @default(now())
+  actualizadoEn         DateTime  @updatedAt
 
   empresa                 Empresa?               @relation(fields: [empresaId], references: [id])
   negocios                UsuarioNegocio[]

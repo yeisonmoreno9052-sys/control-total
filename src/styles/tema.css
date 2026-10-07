@@ -1,55 +1,71 @@
 /*
-  Tema de marca de Control Total.
-  Los colores de EMY TELECOM son PROVISIONALES: cuando llegue el manual de
-  identidad en PDF, cambia solo los valores de --marca-* y todo el sistema
-  se actualiza.
+  Tema de Control Total: "Índigo noche".
+  Control Total tiene su propia marca (no usa los colores de EMY TELECOM).
+  Para cambiar los colores de todo el sistema, cambia solo los valores de --marca-*.
 */
 :root {
   /* Colores de marca */
-  --marca-azul: #1f4e9a;
-  --marca-azul-claro: #e8eef8;
-  --marca-azul-oscuro: #163a73;
-  --marca-gris: #5b6472;
-  --marca-gris-claro: #f3f4f6;
-  --marca-gris-borde: #e2e5ea;
+  --marca-indigo: #4f46e5;
+  --marca-indigo-claro: #eef0ff;
+  --marca-indigo-oscuro: #3730a3;
+  --marca-violeta: #7c3aed;
+  --marca-noche: #111633;
+  --marca-gris: #5d6378;
+  --marca-gris-claro: #f3f4f9;
+  --marca-gris-borde: #e3e5ef;
 
   /* Tokens de la interfaz (los usa shadcn/ui) */
   --background: #ffffff;
-  --foreground: #1c2330;
+  --foreground: #161a33;
   --card: #ffffff;
-  --card-foreground: #1c2330;
+  --card-foreground: #161a33;
   --popover: #ffffff;
-  --popover-foreground: #1c2330;
-  --primary: var(--marca-azul);
+  --popover-foreground: #161a33;
+  --primary: var(--marca-indigo);
   --primary-foreground: #ffffff;
   --secondary: var(--marca-gris-claro);
-  --secondary-foreground: #1c2330;
+  --secondary-foreground: #161a33;
   --muted: var(--marca-gris-claro);
   --muted-foreground: var(--marca-gris);
-  --accent: var(--marca-azul-claro);
-  --accent-foreground: var(--marca-azul-oscuro);
-  --destructive: #c62828;
+  --accent: var(--marca-indigo-claro);
+  --accent-foreground: var(--marca-indigo-oscuro);
+  --destructive: #d92d4a;
   --border: var(--marca-gris-borde);
   --input: var(--marca-gris-borde);
-  --ring: var(--marca-azul);
+  --ring: var(--marca-indigo);
   --radius: 0.75rem;
+
+  /* Menú lateral oscuro */
+  --menu: var(--marca-noche);
+  --menu-foreground: #a9aed0;
+  --menu-activo: rgb(129 140 248 / 0.18);
+  --menu-activo-foreground: #ffffff;
+  --menu-borde: rgb(255 255 255 / 0.08);
+
+  /* Tarjeta principal (ventas de hoy, botón de cobrar grande) */
+  --destacado-desde: #4338ca;
+  --destacado-hasta: #6d28d9;
 }
 
 .dark {
-  --marca-azul: #6e9be0;
-  --marca-azul-claro: #1b2a44;
-  --marca-azul-oscuro: #c9daf5;
-  --marca-gris: #9aa3b2;
-  --marca-gris-claro: #1d232d;
-  --marca-gris-borde: #2c3440;
+  --marca-indigo: #8b93ff;
+  --marca-indigo-claro: #1e2150;
+  --marca-indigo-oscuro: #d3d6ff;
+  --marca-noche: #0a0d22;
+  --marca-gris: #9ca2bf;
+  --marca-gris-claro: #1a1e3a;
+  --marca-gris-borde: #2a2f52;
 
-  --background: #12161d;
-  --foreground: #e8ebf0;
-  --card: #171c24;
-  --card-foreground: #e8ebf0;
-  --popover: #171c24;
-  --popover-foreground: #e8ebf0;
-  --primary-foreground: #0d1320;
-  --secondary-foreground: #e8ebf0;
-  --destructive: #ef6b6b;
+  --background: #0f1229;
+  --foreground: #e9eaf5;
+  --card: #141834;
+  --card-foreground: #e9eaf5;
+  --popover: #141834;
+  --popover-foreground: #e9eaf5;
+  --primary-foreground: #0d1020;
+  --secondary-foreground: #e9eaf5;
+  --destructive: #ff6b81;
+
+  --destacado-desde: #3730a3;
+  --destacado-hasta: #5b21b6;
 }

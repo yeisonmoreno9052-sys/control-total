@@ -12,17 +12,26 @@ export type ContextoConNegocio = Contexto & {
   negocioActivoId: string | null;
 };
 
-/**
- * Contexto del usuario que hace la petición. Se usa al inicio de cada página
- * y acción del servidor. Si no hay sesión válida, manda a /ingresar.
- */
-export const obtenerContexto = cache(async (): Promise<ContextoConNegocio> => {
+/** Contexto de la sesión sin exigir el cambio de contraseña (solo para esa pantalla). */
+export const obtenerContextoParaCambio = cache(async () => {
   const sesion = await auth();
   const usuarioId = sesion?.user?.id;
   if (!usuarioId) redirect("/ingresar");
 
   const ctx = await cargarContexto(usuarioId);
-  if (!ctx) redirect("/salir");
+  // Usuario desactivado, o la contraseña se restableció: esta sesión ya no sirve.
+  if (!ctx || ctx.versionSesion !== (sesion.user?.versionSesion ?? 0)) redirect("/salir");
+  return ctx;
+});
+
+/**
+ * Contexto del usuario que hace la petición. Se usa al inicio de cada página
+ * y acción del servidor. Si no hay sesión válida, manda a /ingresar; si tiene
+ * una contraseña temporal, a crearla.
+ */
+export const obtenerContexto = cache(async (): Promise<ContextoConNegocio> => {
+  const ctx = await obtenerContextoParaCambio();
+  if (ctx.debeCambiarContrasena) redirect("/crear-contrasena");
 
   const elegido = (await cookies()).get(COOKIE_NEGOCIO)?.value;
   const negocioActivoId =

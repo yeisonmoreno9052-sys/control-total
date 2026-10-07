@@ -1,7 +1,8 @@
 import { exigirRol } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import type { Contexto } from "./contexto";
-import type { Resultado } from "./inventario";
+import { prisma } from "./cliente";
+import { registrarAuditoria, type Resultado } from "./inventario";
 
 /** Datos de la empresa del usuario para el encabezado y los recibos. */
 export async function obtenerEmpresa(ctx: Contexto) {
@@ -42,8 +43,18 @@ export async function guardarLogo(ctx: Contexto, bytes: Uint8Array | null): Prom
     tipo = tipoDeImagen(bytes);
     if (!tipo) return { ok: false, error: "El logo debe ser una imagen PNG, JPG o WEBP." };
   }
-  await datosDe(ctx).empresa.updateMany({
-    data: { logo: bytes ? Buffer.from(bytes) : null, logoTipo: tipo },
+  await prisma.$transaction(async (tx) => {
+    await tx.empresa.update({
+      where: { id: ctx.empresaId },
+      data: { logo: bytes ? Buffer.from(bytes) : null, logoTipo: tipo },
+    });
+    await registrarAuditoria(tx, ctx, {
+      negocioId: null,
+      accion: "CAMBIO_LOGO",
+      entidad: "Empresa",
+      entidadId: ctx.empresaId,
+      detalle: { quitado: !bytes },
+    });
   });
   return { ok: true, id: ctx.empresaId };
 }

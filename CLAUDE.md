@@ -99,7 +99,7 @@ No se implementa ahora (la clienta la quiere en 2–3 años), pero el diseño no
 
 ## 7. Diseño visual
 
-- **Marca:** azul y gris (colores de EMY TELECOM). Los valores exactos salen del manual de identidad en PDF; mientras no estén cargados, definir los colores como tokens en un solo archivo de tema para cambiarlos en un minuto.
+- **Marca:** Control Total tiene identidad propia, aparte de EMY TELECOM (decisión de Yeison, 07/10/2026): paleta "Índigo noche" (índigo y violeta, menú lateral azul noche). Los colores viven como tokens en un solo archivo de tema (`src/styles/tema.css`) para cambiarlos en un minuto.
 - Estilo sobrio y limpio: mucho espacio en blanco, una sola tipografía, bordes suaves, sin degradados llamativos ni adornos.
 - Modo claro por defecto; modo oscuro opcional.
 - Botones y campos grandes en la pantalla de venta (pensada para dedo en pantalla táctil).

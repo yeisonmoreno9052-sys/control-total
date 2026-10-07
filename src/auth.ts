@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import { authConfig } from "./auth.config";
@@ -8,6 +8,11 @@ const esquemaIngreso = z.object({
   usuario: z.string().trim().min(1).max(60),
   contrasena: z.string().min(1).max(200),
 });
+
+/** Demasiados intentos fallidos: el formulario muestra un mensaje distinto. */
+class UsuarioBloqueado extends CredentialsSignin {
+  code = "bloqueado";
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -23,8 +28,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credenciales) {
         const datos = esquemaIngreso.safeParse(credenciales);
         if (!datos.success) return null;
-        const usuario = await verificarCredenciales(datos.data.usuario, datos.data.contrasena);
-        return usuario ? { id: usuario.id, name: usuario.nombre } : null;
+        const r = await verificarCredenciales(datos.data.usuario, datos.data.contrasena);
+        if (!r.ok) {
+          if (r.motivo === "bloqueado") throw new UsuarioBloqueado();
+          return null;
+        }
+        return { id: r.id, name: r.nombre, versionSesion: r.versionSesion };
       },
     }),
   ],
