@@ -49,25 +49,35 @@ model Empresa {
   negocios        Negocio[]
   usuarios        Usuario[]
   usuarioNegocios UsuarioNegocio[]
+  categorias      Categoria[]
+  productos       Producto[]
+  movimientos     MovimientoInventario[]
+  auditorias      Auditoria[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
 model Negocio {
-  id            String   @id @default(cuid())
-  empresaId     String
-  nombre        String
-  direccion     String?
-  tipo          String?
+  id             String   @id @default(cuid())
+  empresaId      String
+  nombre         String
+  direccion      String?
+  tipo           String?
   // Datos fiscales, preparados para facturación electrónica (DIAN).
-  nit           String?
-  razonSocial   String?
-  regimen       String?
-  activo        Boolean  @default(true)
-  creadoEn      DateTime @default(now())
-  actualizadoEn DateTime @updatedAt
+  nit            String?
+  razonSocial    String?
+  regimen        String?
+  /// Margen sugerido por defecto, en % sobre el costo. Las categorías pueden tener el suyo.
+  margenSugerido Decimal  @default(30) @db.Decimal(6, 2)
+  activo         Boolean  @default(true)
+  creadoEn       DateTime @default(now())
+  actualizadoEn  DateTime @updatedAt
 
-  empresa  Empresa          @relation(fields: [empresaId], references: [id])
-  usuarios UsuarioNegocio[]
+  empresa     Empresa                @relation(fields: [empresaId], references: [id])
+  usuarios    UsuarioNegocio[]
+  categorias  Categoria[]
+  productos   Producto[]
+  movimientos MovimientoInventario[]
+  auditorias  Auditoria[]
 
   @@index([empresaId])
 }
@@ -85,8 +95,10 @@ model Usuario {
   creadoEn       DateTime @default(now())
   actualizadoEn  DateTime @updatedAt
 
-  empresa  Empresa?         @relation(fields: [empresaId], references: [id])
-  negocios UsuarioNegocio[]
+  empresa     Empresa?               @relation(fields: [empresaId], references: [id])
+  negocios    UsuarioNegocio[]
+  movimientos MovimientoInventario[]
+  auditorias  Auditoria[]
 
   @@index([empresaId])
 }
@@ -105,4 +117,147 @@ model UsuarioNegocio {
   @@id([usuarioId, negocioId])
   @@index([empresaId])
   @@index([negocioId])
+}
+
+// ─── Inventario (Fase 1) ────────────────────────────────────────────────────
+
+enum UnidadMedida {
+  UNIDAD
+  METRO
+  CENTIMETRO
+  KILO
+  GRAMO
+  LIBRA
+  LITRO
+  GALON
+}
+
+enum CondicionProducto {
+  NUEVO
+  DE_SEGUNDA
+}
+
+enum TipoMovimiento {
+  CREACION
+  AJUSTE
+  IMPORTACION
+  COMPRA
+  VENTA
+  ANULACION
+  DEVOLUCION
+}
+
+enum MotivoAjuste {
+  CONTEO
+  DANO
+  PERDIDA
+  OTRO
+}
+
+model Categoria {
+  id             String   @id @default(cuid())
+  empresaId      String
+  negocioId      String
+  nombre         String
+  /// Margen sugerido de la categoría, en % sobre el costo. Vacío = usa el del negocio.
+  margenSugerido Decimal? @db.Decimal(6, 2)
+  activo         Boolean  @default(true)
+  creadoEn       DateTime @default(now())
+  actualizadoEn  DateTime @updatedAt
+
+  empresa   Empresa    @relation(fields: [empresaId], references: [id])
+  negocio   Negocio    @relation(fields: [negocioId], references: [id])
+  productos Producto[]
+
+  @@unique([negocioId, nombre])
+  @@index([empresaId])
+}
+
+model Producto {
+  id            String            @id @default(cuid())
+  empresaId     String
+  negocioId     String
+  categoriaId   String?
+  /// Código o referencia interna. Único dentro del negocio.
+  codigo        String
+  codigoBarras  String?
+  nombre        String
+  descripcion   String?
+  /// Costo promedio ponderado, en pesos enteros.
+  costo         Int               @default(0)
+  /// Precio de venta al público (IVA incluido), en pesos enteros.
+  precioVenta   Int
+  /// Cantidades con hasta 3 decimales (2,5 m · 0,350 kg).
+  stock         Decimal           @default(0) @db.Decimal(14, 3)
+  stockMinimo   Decimal           @default(0) @db.Decimal(14, 3)
+  unidad        UnidadMedida      @default(UNIDAD)
+  /// Si se puede vender en cantidades con decimales.
+  fraccionado   Boolean           @default(false)
+  /// Porcentaje de IVA: 0, 5 o 19.
+  porcentajeIva Int               @default(0)
+  condicion     CondicionProducto @default(NUEVO)
+  activo        Boolean           @default(true)
+  creadoEn      DateTime          @default(now())
+  actualizadoEn DateTime          @updatedAt
+
+  empresa     Empresa                @relation(fields: [empresaId], references: [id])
+  negocio     Negocio                @relation(fields: [negocioId], references: [id])
+  categoria   Categoria?             @relation(fields: [categoriaId], references: [id])
+  movimientos MovimientoInventario[]
+
+  @@unique([negocioId, codigo])
+  @@unique([negocioId, codigoBarras])
+  @@index([empresaId])
+  @@index([negocioId, nombre])
+  @@index([categoriaId])
+  // Búsqueda rápida por partes del nombre o del código ("tornillo 1/4").
+  @@index([nombre(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_nombre_trgm_idx")
+  @@index([codigo(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_codigo_trgm_idx")
+}
+
+/// Toda entrada o salida de stock. El stock de un producto es la suma de sus movimientos.
+model MovimientoInventario {
+  id           String         @id @default(cuid())
+  empresaId    String
+  negocioId    String
+  productoId   String
+  usuarioId    String
+  tipo         TipoMovimiento
+  motivo       MotivoAjuste?
+  nota         String?
+  /// Positiva si entra, negativa si sale.
+  cantidad     Decimal        @db.Decimal(14, 3)
+  stockAntes   Decimal        @db.Decimal(14, 3)
+  stockDespues Decimal        @db.Decimal(14, 3)
+  creadoEn     DateTime       @default(now())
+
+  empresa  Empresa  @relation(fields: [empresaId], references: [id])
+  negocio  Negocio  @relation(fields: [negocioId], references: [id])
+  producto Producto @relation(fields: [productoId], references: [id])
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([productoId, creadoEn])
+  @@index([negocioId, creadoEn])
+  @@index([empresaId])
+}
+
+/// Quién hizo qué y cuándo en acciones sensibles.
+model Auditoria {
+  id        String   @id @default(cuid())
+  empresaId String
+  negocioId String?
+  usuarioId String
+  /// AJUSTE_STOCK, CAMBIO_PRECIO, IMPORTACION, ANULACION_VENTA, CAMBIO_PERMISOS…
+  accion    String
+  entidad   String
+  entidadId String?
+  detalle   Json
+  creadoEn  DateTime @default(now())
+
+  empresa Empresa  @relation(fields: [empresaId], references: [id])
+  negocio Negocio? @relation(fields: [negocioId], references: [id])
+  usuario Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId, creadoEn])
+  @@index([negocioId, creadoEn])
 }

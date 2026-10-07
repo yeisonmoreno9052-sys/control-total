@@ -33,29 +33,70 @@ type ReglaModelo = {
   relaciones: string[];
   /** El modelo tiene negocioId: al crear o editar debe ser un negocio permitido. */
   porNegocio?: boolean;
+  /** Desde la app solo se lee (historiales que no se pueden alterar). */
+  soloLectura?: boolean;
+  /** Se permite borrar de verdad. Por defecto no: se usa borrado lógico (activo = false). */
+  borrable?: boolean;
 };
+
+const deEmpresa = (ctx: Contexto) => ({ empresaId: ctx.empresaId });
+const deNegocios = (ctx: Contexto) => ({
+  empresaId: ctx.empresaId,
+  negocioId: { in: ctx.negociosPermitidos },
+});
 
 const MODELOS: Record<string, ReglaModelo> = {
   Empresa: {
     filtro: (ctx) => ({ id: ctx.empresaId }),
     alCrear: null,
-    relaciones: ["negocios", "usuarios", "usuarioNegocios"],
+    relaciones: ["negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias"],
   },
   Negocio: {
     filtro: (ctx) => ({ empresaId: ctx.empresaId, id: { in: ctx.negociosPermitidos } }),
-    alCrear: (ctx) => ({ empresaId: ctx.empresaId }),
-    relaciones: ["empresa", "usuarios"],
+    alCrear: deEmpresa,
+    relaciones: ["empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias"],
   },
   Usuario: {
-    filtro: (ctx) => ({ empresaId: ctx.empresaId }),
-    alCrear: (ctx) => ({ empresaId: ctx.empresaId }),
-    relaciones: ["empresa", "negocios"],
+    filtro: deEmpresa,
+    alCrear: deEmpresa,
+    relaciones: ["empresa", "negocios", "movimientos", "auditorias"],
   },
   UsuarioNegocio: {
-    filtro: (ctx) => ({ empresaId: ctx.empresaId, negocioId: { in: ctx.negociosPermitidos } }),
-    alCrear: (ctx) => ({ empresaId: ctx.empresaId }),
+    filtro: deNegocios,
+    alCrear: deEmpresa,
     relaciones: ["empresa", "usuario", "negocio"],
     porNegocio: true,
+    borrable: true,
+  },
+  Categoria: {
+    filtro: deNegocios,
+    alCrear: deEmpresa,
+    relaciones: ["empresa", "negocio", "productos"],
+    porNegocio: true,
+  },
+  Producto: {
+    filtro: deNegocios,
+    alCrear: deEmpresa,
+    relaciones: ["empresa", "negocio", "categoria", "movimientos"],
+    porNegocio: true,
+  },
+  // Los movimientos y la auditoría solo se escriben desde inventario.ts,
+  // dentro de una transacción; desde la app solo se leen.
+  MovimientoInventario: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "producto", "usuario"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  Auditoria: {
+    filtro: (ctx) => ({
+      empresaId: ctx.empresaId,
+      OR: [{ negocioId: null }, { negocioId: { in: ctx.negociosPermitidos } }],
+    }),
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "usuario"],
+    soloLectura: true,
   },
 };
 
@@ -140,6 +181,14 @@ export function datosDe(ctx: Contexto) {
         async $allOperations({ model, operation, args, query }) {
           const regla = MODELOS[model];
           if (!regla) throw new AccesoDenegado(`el modelo ${model} no tiene reglas de acceso`);
+
+          const esBorrado = operation === "delete" || operation === "deleteMany";
+          if (esBorrado && !regla.borrable) {
+            throw new AccesoDenegado(`${model} no se borra; se desactiva`);
+          }
+          if (regla.soloLectura && !DE_LECTURA.has(operation)) {
+            throw new AccesoDenegado(`${model} es de solo lectura`);
+          }
 
           const a = { ...(args as Donde) };
           revisarRelaciones(model, regla, a);
