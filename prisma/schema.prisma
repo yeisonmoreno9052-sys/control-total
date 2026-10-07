@@ -40,44 +40,67 @@ model Empresa {
   correo            String?
   direccion         String?
   logoUrl           String?
+  /// Logo de la empresa (encabezado y recibos). Se guarda en la base porque el servidor no conserva archivos.
+  logo              Bytes?
+  logoTipo          String?
   estadoSuscripcion EstadoSuscripcion @default(ACTIVA)
   modulosActivos    Modulo[]          @default([INVENTARIO, VENTAS, PROVEEDORES, CAJA, REPORTES])
   activo            Boolean           @default(true)
   creadoEn          DateTime          @default(now())
   actualizadoEn     DateTime          @updatedAt
 
-  negocios        Negocio[]
-  usuarios        Usuario[]
-  usuarioNegocios UsuarioNegocio[]
-  categorias      Categoria[]
-  productos       Producto[]
-  movimientos     MovimientoInventario[]
-  auditorias      Auditoria[]
+  negocios           Negocio[]
+  usuarios           Usuario[]
+  usuarioNegocios    UsuarioNegocio[]
+  categorias         Categoria[]
+  productos          Producto[]
+  movimientos        MovimientoInventario[]
+  auditorias         Auditoria[]
+  clientes           Cliente[]
+  cajas              Caja[]
+  ventas             Venta[]
+  detalleVentas      DetalleVenta[]
+  pagoVentas         PagoVenta[]
+  devolucions        Devolucion[]
+  detalleDevolucions DetalleDevolucion[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
 model Negocio {
-  id             String   @id @default(cuid())
-  empresaId      String
-  nombre         String
-  direccion      String?
-  tipo           String?
+  id                    String   @id @default(cuid())
+  empresaId             String
+  nombre                String
+  direccion             String?
+  tipo                  String?
   // Datos fiscales, preparados para facturación electrónica (DIAN).
-  nit            String?
-  razonSocial    String?
-  regimen        String?
+  nit                   String?
+  razonSocial           String?
+  regimen               String?
+  telefono              String?
+  /// Texto al pie del recibo ("Gracias por su compra").
+  mensajeRecibo         String?
+  /// Último consecutivo usado. Se incrementa dentro de la misma transacción de la venta.
+  consecutivoVenta      Int      @default(0)
+  consecutivoDevolucion Int      @default(0)
   /// Margen sugerido por defecto, en % sobre el costo. Las categorías pueden tener el suyo.
-  margenSugerido Decimal  @default(30) @db.Decimal(6, 2)
-  activo         Boolean  @default(true)
-  creadoEn       DateTime @default(now())
-  actualizadoEn  DateTime @updatedAt
+  margenSugerido        Decimal  @default(30) @db.Decimal(6, 2)
+  activo                Boolean  @default(true)
+  creadoEn              DateTime @default(now())
+  actualizadoEn         DateTime @updatedAt
 
-  empresa     Empresa                @relation(fields: [empresaId], references: [id])
-  usuarios    UsuarioNegocio[]
-  categorias  Categoria[]
-  productos   Producto[]
-  movimientos MovimientoInventario[]
-  auditorias  Auditoria[]
+  empresa            Empresa                @relation(fields: [empresaId], references: [id])
+  usuarios           UsuarioNegocio[]
+  categorias         Categoria[]
+  productos          Producto[]
+  movimientos        MovimientoInventario[]
+  auditorias         Auditoria[]
+  clientes           Cliente[]
+  cajas              Caja[]
+  ventas             Venta[]
+  detallesVenta      DetalleVenta[]
+  pagosVenta         PagoVenta[]
+  devoluciones       Devolucion[]
+  detallesDevolucion DetalleDevolucion[]
 
   @@index([empresaId])
 }
@@ -95,10 +118,15 @@ model Usuario {
   creadoEn       DateTime @default(now())
   actualizadoEn  DateTime @updatedAt
 
-  empresa     Empresa?               @relation(fields: [empresaId], references: [id])
-  negocios    UsuarioNegocio[]
-  movimientos MovimientoInventario[]
-  auditorias  Auditoria[]
+  empresa        Empresa?               @relation(fields: [empresaId], references: [id])
+  negocios       UsuarioNegocio[]
+  movimientos    MovimientoInventario[]
+  auditorias     Auditoria[]
+  ventas         Venta[]                @relation("VentaCajero")
+  ventasAnuladas Venta[]                @relation("VentaAnulador")
+  devoluciones   Devolucion[]
+  cajasAbiertas  Caja[]                 @relation("CajaApertura")
+  cajasCerradas  Caja[]                 @relation("CajaCierre")
 
   @@index([empresaId])
 }
@@ -200,10 +228,12 @@ model Producto {
   creadoEn      DateTime          @default(now())
   actualizadoEn DateTime          @updatedAt
 
-  empresa     Empresa                @relation(fields: [empresaId], references: [id])
-  negocio     Negocio                @relation(fields: [negocioId], references: [id])
-  categoria   Categoria?             @relation(fields: [categoriaId], references: [id])
-  movimientos MovimientoInventario[]
+  empresa            Empresa                @relation(fields: [empresaId], references: [id])
+  negocio            Negocio                @relation(fields: [negocioId], references: [id])
+  categoria          Categoria?             @relation(fields: [categoriaId], references: [id])
+  movimientos        MovimientoInventario[]
+  detallesVenta      DetalleVenta[]
+  detallesDevolucion DetalleDevolucion[]
 
   @@unique([negocioId, codigo])
   @@unique([negocioId, codigoBarras])
@@ -260,4 +290,237 @@ model Auditoria {
 
   @@index([empresaId, creadoEn])
   @@index([negocioId, creadoEn])
+}
+
+// ─── Ventas (Fase 2) ────────────────────────────────────────────────────────
+
+enum EstadoVenta {
+  REGISTRADA
+  ANULADA
+  CON_DEVOLUCION
+}
+
+/// Medios de pago. Para agregar tarjeta basta con sumar un valor aquí.
+enum MedioPago {
+  EFECTIVO
+  TRANSFERENCIA
+}
+
+enum TipoDocumento {
+  CC
+  NIT
+  CE
+  PASAPORTE
+  TI
+  OTRO
+}
+
+enum EstadoCaja {
+  ABIERTA
+  CERRADA
+}
+
+/// Cliente opcional de la venta. Es de cada negocio: no se comparte entre locales.
+model Cliente {
+  id              String         @id @default(cuid())
+  empresaId       String
+  negocioId       String
+  tipoDocumento   TipoDocumento?
+  numeroDocumento String?
+  nombre          String
+  telefono        String?
+  correo          String?
+  direccion       String?
+  activo          Boolean        @default(true)
+  creadoEn        DateTime       @default(now())
+  actualizadoEn   DateTime       @updatedAt
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+  ventas  Venta[]
+
+  @@unique([negocioId, tipoDocumento, numeroDocumento])
+  @@index([empresaId])
+  @@index([negocioId, nombre])
+}
+
+/// Caja del día de un negocio: base al abrir y conteo al cerrar.
+model Caja {
+  id           String     @id @default(cuid())
+  empresaId    String
+  negocioId    String
+  /// Día de la caja, en hora de Bogotá.
+  fecha        DateTime   @db.Date
+  estado       EstadoCaja @default(ABIERTA)
+  base         Int
+  abiertaPorId String
+  abiertaEn    DateTime   @default(now())
+  cerradaPorId String?
+  cerradaEn    DateTime?
+  /// Efectivo que debería haber al cerrar: base + ventas en efectivo − salidas de efectivo.
+  esperado     Int?
+  contado      Int?
+  diferencia   Int?
+  nota         String?
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id])
+  negocio      Negocio      @relation(fields: [negocioId], references: [id])
+  abiertaPor   Usuario      @relation("CajaApertura", fields: [abiertaPorId], references: [id])
+  cerradaPor   Usuario?     @relation("CajaCierre", fields: [cerradaPorId], references: [id])
+  ventas       Venta[]      @relation("VentaCaja")
+  anulaciones  Venta[]      @relation("VentaCajaAnulacion")
+  devoluciones Devolucion[]
+
+  @@unique([negocioId, fecha])
+  @@index([empresaId])
+}
+
+/// Una venta registrada no se edita ni se borra: se anula o se le hace una devolución.
+model Venta {
+  id              String      @id @default(cuid())
+  empresaId       String
+  negocioId       String
+  cajaId          String
+  usuarioId       String
+  clienteId       String?
+  /// Consecutivo del negocio, sin huecos ni repeticiones.
+  consecutivo     Int
+  /// Suma de cantidad × precio, antes de descuentos.
+  subtotal        Int
+  descuento       Int
+  base            Int
+  iva             Int
+  total           Int
+  /// Efectivo que entregó el cliente y cambio que se le dio.
+  recibido        Int?
+  cambio          Int?
+  estado          EstadoVenta @default(REGISTRADA)
+  anuladaEn       DateTime?
+  anuladaPorId    String?
+  anuladaEnCajaId String?
+  motivoAnulacion String?
+  creadoEn        DateTime    @default(now())
+  // Reservado para facturación electrónica (DIAN). Vacío por ahora.
+  feEstado        String?
+  feIdentificador String?
+  feRespuesta     Json?
+
+  empresa       Empresa        @relation(fields: [empresaId], references: [id])
+  negocio       Negocio        @relation(fields: [negocioId], references: [id])
+  caja          Caja           @relation("VentaCaja", fields: [cajaId], references: [id])
+  usuario       Usuario        @relation("VentaCajero", fields: [usuarioId], references: [id])
+  cliente       Cliente?       @relation(fields: [clienteId], references: [id])
+  anuladaPor    Usuario?       @relation("VentaAnulador", fields: [anuladaPorId], references: [id])
+  anuladaEnCaja Caja?          @relation("VentaCajaAnulacion", fields: [anuladaEnCajaId], references: [id])
+  detalles      DetalleVenta[]
+  pagos         PagoVenta[]
+  devoluciones  Devolucion[]
+
+  @@unique([negocioId, consecutivo])
+  @@index([empresaId])
+  @@index([negocioId, creadoEn])
+  @@index([cajaId])
+}
+
+/// Línea de la venta. Guarda nombre, precio y costo del momento de la venta.
+model DetalleVenta {
+  id               String       @id @default(cuid())
+  empresaId        String
+  negocioId        String
+  ventaId          String
+  productoId       String
+  codigo           String
+  nombre           String
+  unidad           UnidadMedida
+  cantidad         Decimal      @db.Decimal(14, 3)
+  cantidadDevuelta Decimal      @default(0) @db.Decimal(14, 3)
+  precioUnitario   Int
+  costoUnitario    Int
+  porcentajeIva    Int
+  /// cantidad × precio, antes de descuentos.
+  subtotal         Int
+  /// Descuento de la línea más su parte del descuento general.
+  descuento        Int
+  base             Int
+  iva              Int
+  total            Int
+
+  empresa   Empresa             @relation(fields: [empresaId], references: [id])
+  negocio   Negocio             @relation(fields: [negocioId], references: [id])
+  venta     Venta               @relation(fields: [ventaId], references: [id])
+  producto  Producto            @relation(fields: [productoId], references: [id])
+  devueltos DetalleDevolucion[]
+
+  @@index([ventaId])
+  @@index([productoId])
+  @@index([empresaId])
+}
+
+model PagoVenta {
+  id         String    @id @default(cuid())
+  empresaId  String
+  negocioId  String
+  ventaId    String
+  medio      MedioPago
+  valor      Int
+  referencia String?
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+  venta   Venta   @relation(fields: [ventaId], references: [id])
+
+  @@index([ventaId])
+  @@index([empresaId])
+}
+
+/// Devolución parcial o total: documento aparte ligado a la venta.
+model Devolucion {
+  id          String    @id @default(cuid())
+  empresaId   String
+  negocioId   String
+  ventaId     String
+  cajaId      String
+  usuarioId   String
+  consecutivo Int
+  motivo      String
+  /// Por dónde sale el dinero que se le devuelve al cliente.
+  medio       MedioPago
+  base        Int
+  iva         Int
+  total       Int
+  creadoEn    DateTime  @default(now())
+
+  empresa  Empresa             @relation(fields: [empresaId], references: [id])
+  negocio  Negocio             @relation(fields: [negocioId], references: [id])
+  venta    Venta               @relation(fields: [ventaId], references: [id])
+  caja     Caja                @relation(fields: [cajaId], references: [id])
+  usuario  Usuario             @relation(fields: [usuarioId], references: [id])
+  detalles DetalleDevolucion[]
+
+  @@unique([negocioId, consecutivo])
+  @@index([ventaId])
+  @@index([cajaId])
+  @@index([empresaId])
+}
+
+model DetalleDevolucion {
+  id             String  @id @default(cuid())
+  empresaId      String
+  negocioId      String
+  devolucionId   String
+  detalleVentaId String
+  productoId     String
+  cantidad       Decimal @db.Decimal(14, 3)
+  base           Int
+  iva            Int
+  total          Int
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id])
+  negocio      Negocio      @relation(fields: [negocioId], references: [id])
+  devolucion   Devolucion   @relation(fields: [devolucionId], references: [id])
+  detalleVenta DetalleVenta @relation(fields: [detalleVentaId], references: [id])
+  producto     Producto     @relation(fields: [productoId], references: [id])
+
+  @@index([devolucionId])
+  @@index([empresaId])
 }

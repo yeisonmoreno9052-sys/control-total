@@ -49,17 +49,26 @@ const MODELOS: Record<string, ReglaModelo> = {
   Empresa: {
     filtro: (ctx) => ({ id: ctx.empresaId }),
     alCrear: null,
-    relaciones: ["negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias"],
+    relaciones: [
+      "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
+      "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
+    ],
   },
   Negocio: {
     filtro: (ctx) => ({ empresaId: ctx.empresaId, id: { in: ctx.negociosPermitidos } }),
     alCrear: deEmpresa,
-    relaciones: ["empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias"],
+    relaciones: [
+      "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
+      "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
+    ],
   },
   Usuario: {
     filtro: deEmpresa,
     alCrear: deEmpresa,
-    relaciones: ["empresa", "negocios", "movimientos", "auditorias"],
+    relaciones: [
+      "empresa", "negocios", "movimientos", "auditorias",
+      "ventas", "ventasAnuladas", "devoluciones", "cajasAbiertas", "cajasCerradas",
+    ],
   },
   UsuarioNegocio: {
     filtro: deNegocios,
@@ -77,7 +86,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Producto: {
     filtro: deNegocios,
     alCrear: deEmpresa,
-    relaciones: ["empresa", "negocio", "categoria", "movimientos"],
+    relaciones: ["empresa", "negocio", "categoria", "movimientos", "detallesVenta", "detallesDevolucion"],
     porNegocio: true,
   },
   // Los movimientos y la auditoría solo se escriben desde inventario.ts,
@@ -86,6 +95,56 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "producto", "usuario"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  Cliente: {
+    filtro: deNegocios,
+    alCrear: deEmpresa,
+    relaciones: ["empresa", "negocio", "ventas"],
+    porNegocio: true,
+  },
+  // Cajas, ventas y devoluciones solo se escriben desde ventas.ts y caja.ts,
+  // dentro de una transacción; desde la app solo se leen.
+  Caja: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  Venta: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "caja", "usuario", "cliente", "anuladaPor", "anuladaEnCaja", "detalles", "pagos", "devoluciones"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  DetalleVenta: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "venta", "producto", "devueltos"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  PagoVenta: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "venta"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  Devolucion: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "venta", "caja", "usuario", "detalles"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  DetalleDevolucion: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "devolucion", "detalleVenta", "producto"],
     porNegocio: true,
     soloLectura: true,
   },

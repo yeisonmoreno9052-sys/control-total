@@ -5,7 +5,7 @@ import type { Rol } from "@/generated/prisma/enums";
 
 export async function limpiarBase() {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "Auditoria", "MovimientoInventario", "Producto", "Categoria", "UsuarioNegocio", "Usuario", "Negocio", "Empresa" RESTART IDENTITY CASCADE',
+    'TRUNCATE "DetalleDevolucion", "Devolucion", "PagoVenta", "DetalleVenta", "Venta", "Caja", "Cliente", "Auditoria", "MovimientoInventario", "Producto", "Categoria", "UsuarioNegocio", "Usuario", "Negocio", "Empresa" RESTART IDENTITY CASCADE',
   );
 }
 

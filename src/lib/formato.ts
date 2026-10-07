@@ -31,3 +31,35 @@ export function formatearFecha(valor: Date) {
 export function formatearHora(valor: Date) {
   return hora.format(valor);
 }
+
+const diaBogota = new Intl.DateTimeFormat("en-CA", {
+  timeZone: ZONA_HORARIA,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Día en Bogotá como "2026-10-07". */
+export function diaEnBogota(valor: Date = new Date()) {
+  return diaBogota.format(valor);
+}
+
+/**
+ * Día en Bogotá como fecha para columnas DATE de la base (medianoche UTC de ese día).
+ * Ej.: el 7 de octubre a las 9 p. m. en Bogotá ya es 8 de octubre en UTC, pero aquí da 2026-10-07.
+ */
+export function fechaDeHoy(valor: Date = new Date()) {
+  return new Date(`${diaEnBogota(valor)}T00:00:00.000Z`);
+}
+
+/** Fecha de una columna DATE ("2026-10-07T00:00Z") como dd/mm/aaaa, sin correrla por la zona horaria. */
+export function formatearDia(valor: Date) {
+  const [a, m, d] = valor.toISOString().slice(0, 10).split("-");
+  return `${d}/${m}/${a}`;
+}
+
+/** Inicio y fin (exclusivo) de un día de Bogotá, en UTC. "2026-10-07" → [05:00Z del 7, 05:00Z del 8). */
+export function rangoDelDia(dia: string) {
+  const inicio = new Date(`${dia}T00:00:00-05:00`);
+  return { inicio, fin: new Date(inicio.getTime() + 24 * 60 * 60 * 1000) };
+}
