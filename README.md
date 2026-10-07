@@ -36,6 +36,15 @@ Para verlo en el celular: con el computador y el celular en el mismo wifi, abre 
 | `npm run build`     | Compila para producción                                    |
 | `npx prisma studio` | Abre una vista de la base de datos en el navegador         |
 
+## Inventario: reglas que conviene saber
+
+- **Margen sobre el costo:** costo $ 10.000 con 30 % → precio sugerido $ 13.000. Cada categoría puede tener su propio margen.
+- **Redondeo del precio sugerido:** hacia arriba a los $ 50 si es menor de $ 1.000, y a los $ 100 desde ahí.
+- **El stock solo cambia con movimientos** (stock inicial, ajuste, importación; luego ventas y compras). Cada producto muestra su historial.
+- **Importar:** si un código ya existe, se actualiza ese producto. Si hay una sola fila con error, no se guarda nada.
+  Para probar hay un archivo de ejemplo con 50 productos en `docs/ejemplos/ferreteria-50-productos.xlsx`.
+- **El cajero** ve productos y stock, pero el servidor nunca le envía el costo ni el margen.
+
 ## Cómo está organizado
 
 ```
