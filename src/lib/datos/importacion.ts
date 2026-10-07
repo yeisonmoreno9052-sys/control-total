@@ -5,6 +5,7 @@
 //   2. ejecutarImportacion(): vuelve a analizar y, solo si no hay errores, guarda
 //      todo en una sola transacción (o se guarda todo, o nada).
 import ExcelJS from "exceljs";
+import type { Prisma } from "@/generated/prisma/client";
 import Papa from "papaparse";
 import { Decimal, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
 import { esquemaProducto, leerPesos } from "@/lib/inventario/esquemas";
@@ -13,7 +14,7 @@ import { exigirGestion } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import { prisma } from "./cliente";
 import type { Contexto } from "./contexto";
-import { exigirNegocioPermitido, registrarMovimiento } from "./inventario";
+import { exigirNegocioPermitido } from "./inventario";
 
 export const MAX_FILAS = 50_000;
 export const MAX_BYTES = 15 * 1024 * 1024;
@@ -396,7 +397,26 @@ export async function ejecutarImportacion(ctx: Contexto, negocioId: string, arch
       }
       const categoriaDe = (p: ProductoImportado) => (p.categoria ? idsCategorias.get(normalizar(p.categoria)) ?? null : undefined);
 
-      // 2. Productos nuevos (en bloques, con stock 0; el stock entra como movimiento)
+      // El stock se guarda junto con el producto y cada cambio queda como movimiento
+      // de importación. Todo va en bloques: con 40.000 filas, ir producto por producto
+      // significaría cientos de miles de consultas.
+      const nota = nombreArchivo.slice(0, 100);
+      const movimientos: Prisma.MovimientoInventarioCreateManyInput[] = [];
+      const movimiento = (productoId: string, antes: Decimal, despues: Decimal) => {
+        movimientos.push({
+          empresaId: ctx.empresaId,
+          negocioId,
+          productoId,
+          usuarioId: ctx.usuarioId,
+          tipo: "IMPORTACION",
+          nota,
+          cantidad: despues.minus(antes).toString(),
+          stockAntes: antes.toString(),
+          stockDespues: despues.toString(),
+        });
+      };
+
+      // 2. Productos nuevos
       const nuevos = productos.filter((p) => !p.existenteId);
       for (let i = 0; i < nuevos.length; i += 1000) {
         await tx.producto.createMany({
@@ -406,21 +426,35 @@ export async function ejecutarImportacion(ctx: Contexto, negocioId: string, arch
             condicion: p.datos.condicion as never,
             codigo: p.codigo,
             categoriaId: categoriaDe(p) ?? null,
+            stock: (p.stock ?? new Decimal(0)).toString(),
             empresaId: ctx.empresaId,
             negocioId,
           })),
         });
       }
-      const creados = await tx.producto.findMany({
-        where: { negocioId, codigo: { in: nuevos.map((p) => p.codigo) } },
-        select: { id: true, codigo: true },
-      });
+      const conStock = nuevos.filter((p) => p.stock && !p.stock.isZero());
+      const creados = conStock.length
+        ? await tx.producto.findMany({
+            where: { negocioId, codigo: { in: conStock.map((p) => p.codigo) } },
+            select: { id: true, codigo: true },
+          })
+        : [];
       const idPorCodigo = new Map(creados.map((c) => [c.codigo.toLowerCase(), c.id]));
+      for (const p of conStock) movimiento(idPorCodigo.get(p.codigo.toLowerCase())!, new Decimal(0), p.stock!);
 
-      // 3. Productos existentes
+      // 3. Productos existentes: se bloquean todos de una vez (FOR UPDATE) para que
+      // ninguna venta o ajuste cambie su stock mientras se importa.
       const actualizados = productos.filter((p) => p.existenteId);
+      const ids = actualizados.map((p) => p.existenteId!);
+      const bloqueados = ids.length
+        ? await tx.$queryRaw<{ id: string; stock: { toString(): string } }[]>`
+            SELECT "id", "stock" FROM "Producto" WHERE "id" = ANY(${ids}) FOR UPDATE`
+        : [];
+      const stockActual = new Map(bloqueados.map((f) => [f.id, new Decimal(f.stock.toString())]));
       for (const p of actualizados) {
         const categoriaId = categoriaDe(p);
+        const antes = stockActual.get(p.existenteId!)!;
+        const cambiaStock = p.stock && !p.stock.equals(antes);
         await tx.producto.update({
           where: { id: p.existenteId! },
           data: {
@@ -428,20 +462,16 @@ export async function ejecutarImportacion(ctx: Contexto, negocioId: string, arch
             unidad: p.datos.unidad as never,
             condicion: p.datos.condicion as never,
             ...(categoriaId === undefined ? {} : { categoriaId }),
+            ...(cambiaStock ? { stock: p.stock!.toString() } : {}),
             activo: true,
           },
         });
+        if (cambiaStock) movimiento(p.existenteId!, antes, p.stock!);
       }
 
-      // 4. Stock: cada cambio queda como movimiento de importación
-      for (const p of productos) {
-        if (!p.stock) continue;
-        const id = p.existenteId ?? idPorCodigo.get(p.codigo.toLowerCase())!;
-        const [fila] = await tx.$queryRaw<{ stock: { toString(): string } }[]>`
-          SELECT "stock" FROM "Producto" WHERE "id" = ${id} FOR UPDATE`;
-        const delta = p.stock.minus(fila.stock.toString());
-        if (delta.isZero()) continue;
-        await registrarMovimiento(tx, ctx, { productoId: id, tipo: "IMPORTACION", cantidad: delta, nota: nombreArchivo.slice(0, 100) });
+      // 4. Movimientos de stock
+      for (let i = 0; i < movimientos.length; i += 1000) {
+        await tx.movimientoInventario.createMany({ data: movimientos.slice(i, i + 1000) });
       }
 
       // 5. Un solo registro de auditoría para toda la importación
