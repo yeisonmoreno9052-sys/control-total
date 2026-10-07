@@ -63,6 +63,11 @@ model Empresa {
   pagoVentas         PagoVenta[]
   devolucions        Devolucion[]
   detalleDevolucions DetalleDevolucion[]
+  proveedores        Proveedor[]
+  facturasCompra     FacturaCompra[]
+  detallesCompra     DetalleFacturaCompra[]
+  abonosFactura      AbonoFactura[]
+  adjuntosFactura    AdjuntoFactura[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
@@ -101,6 +106,11 @@ model Negocio {
   pagosVenta         PagoVenta[]
   devoluciones       Devolucion[]
   detallesDevolucion DetalleDevolucion[]
+  proveedores        Proveedor[]
+  facturasCompra     FacturaCompra[]
+  detallesCompra     DetalleFacturaCompra[]
+  abonosFactura      AbonoFactura[]
+  adjuntosFactura    AdjuntoFactura[]
 
   @@index([empresaId])
 }
@@ -118,15 +128,20 @@ model Usuario {
   creadoEn       DateTime @default(now())
   actualizadoEn  DateTime @updatedAt
 
-  empresa        Empresa?               @relation(fields: [empresaId], references: [id])
-  negocios       UsuarioNegocio[]
-  movimientos    MovimientoInventario[]
-  auditorias     Auditoria[]
-  ventas         Venta[]                @relation("VentaCajero")
-  ventasAnuladas Venta[]                @relation("VentaAnulador")
-  devoluciones   Devolucion[]
-  cajasAbiertas  Caja[]                 @relation("CajaApertura")
-  cajasCerradas  Caja[]                 @relation("CajaCierre")
+  empresa          Empresa?               @relation(fields: [empresaId], references: [id])
+  negocios         UsuarioNegocio[]
+  movimientos      MovimientoInventario[]
+  auditorias       Auditoria[]
+  ventas           Venta[]                @relation("VentaCajero")
+  ventasAnuladas   Venta[]                @relation("VentaAnulador")
+  devoluciones     Devolucion[]
+  cajasAbiertas    Caja[]                 @relation("CajaApertura")
+  cajasCerradas    Caja[]                 @relation("CajaCierre")
+  facturasCompra   FacturaCompra[]        @relation("FacturaRegistro")
+  facturasAnuladas FacturaCompra[]        @relation("FacturaAnulador")
+  abonosFactura    AbonoFactura[]         @relation("AbonoRegistro")
+  abonosAnulados   AbonoFactura[]         @relation("AbonoAnulador")
+  adjuntosFactura  AdjuntoFactura[]
 
   @@index([empresaId])
 }
@@ -234,6 +249,7 @@ model Producto {
   movimientos        MovimientoInventario[]
   detallesVenta      DetalleVenta[]
   detallesDevolucion DetalleDevolucion[]
+  detallesCompra     DetalleFacturaCompra[]
 
   @@unique([negocioId, codigo])
   @@unique([negocioId, codigoBarras])
@@ -363,13 +379,14 @@ model Caja {
   diferencia   Int?
   nota         String?
 
-  empresa      Empresa      @relation(fields: [empresaId], references: [id])
-  negocio      Negocio      @relation(fields: [negocioId], references: [id])
-  abiertaPor   Usuario      @relation("CajaApertura", fields: [abiertaPorId], references: [id])
-  cerradaPor   Usuario?     @relation("CajaCierre", fields: [cerradaPorId], references: [id])
-  ventas       Venta[]      @relation("VentaCaja")
-  anulaciones  Venta[]      @relation("VentaCajaAnulacion")
-  devoluciones Devolucion[]
+  empresa       Empresa        @relation(fields: [empresaId], references: [id])
+  negocio       Negocio        @relation(fields: [negocioId], references: [id])
+  abiertaPor    Usuario        @relation("CajaApertura", fields: [abiertaPorId], references: [id])
+  cerradaPor    Usuario?       @relation("CajaCierre", fields: [cerradaPorId], references: [id])
+  ventas        Venta[]        @relation("VentaCaja")
+  anulaciones   Venta[]        @relation("VentaCajaAnulacion")
+  devoluciones  Devolucion[]
+  abonosFactura AbonoFactura[]
 
   @@unique([negocioId, fecha])
   @@index([empresaId])
@@ -522,5 +539,155 @@ model DetalleDevolucion {
   producto     Producto     @relation(fields: [productoId], references: [id])
 
   @@index([devolucionId])
+  @@index([empresaId])
+}
+
+// ─── Fase 3: proveedores y facturas de compra ───────────────────────────────
+
+enum EstadoPagoFactura {
+  PENDIENTE
+  ABONO_PARCIAL
+  PAGADA
+}
+
+enum EstadoFacturaCompra {
+  REGISTRADA
+  ANULADA
+}
+
+/// Proveedor de un negocio. No se comparte entre negocios.
+model Proveedor {
+  id            String   @id @default(cuid())
+  empresaId     String
+  negocioId     String
+  nombre        String
+  nit           String?
+  contacto      String?
+  telefono      String?
+  correo        String?
+  notas         String?
+  activo        Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  empresa  Empresa         @relation(fields: [empresaId], references: [id])
+  negocio  Negocio         @relation(fields: [negocioId], references: [id])
+  facturas FacturaCompra[]
+
+  @@unique([negocioId, nit])
+  @@index([empresaId])
+  @@index([negocioId, nombre])
+}
+
+/// Factura de compra. No se edita: se anula. El número no se repite por proveedor (salvo anuladas).
+model FacturaCompra {
+  id              String              @id @default(cuid())
+  empresaId       String
+  negocioId       String
+  proveedorId     String
+  usuarioId       String
+  numero          String
+  /// Fecha de la factura (día de Bogotá).
+  fecha           DateTime            @db.Date
+  /// Vacío = de contado.
+  vencimiento     DateTime?           @db.Date
+  total           Int
+  pagado          Int                 @default(0)
+  estadoPago      EstadoPagoFactura   @default(PENDIENTE)
+  estado          EstadoFacturaCompra @default(REGISTRADA)
+  nota            String?
+  anuladaEn       DateTime?
+  anuladaPorId    String?
+  motivoAnulacion String?
+  creadoEn        DateTime            @default(now())
+
+  empresa    Empresa                @relation(fields: [empresaId], references: [id])
+  negocio    Negocio                @relation(fields: [negocioId], references: [id])
+  proveedor  Proveedor              @relation(fields: [proveedorId], references: [id])
+  usuario    Usuario                @relation("FacturaRegistro", fields: [usuarioId], references: [id])
+  anuladaPor Usuario?               @relation("FacturaAnulador", fields: [anuladaPorId], references: [id])
+  detalles   DetalleFacturaCompra[]
+  abonos     AbonoFactura[]
+  adjuntos   AdjuntoFactura[]
+
+  @@index([empresaId])
+  @@index([negocioId, fecha])
+  @@index([negocioId, estado, vencimiento])
+  @@index([proveedorId, numero])
+}
+
+/// Línea de la factura. Guarda el costo y el precio de antes y de después, para el historial.
+model DetalleFacturaCompra {
+  id            String  @id @default(cuid())
+  empresaId     String
+  negocioId     String
+  facturaId     String
+  productoId    String
+  cantidad      Decimal @db.Decimal(14, 3)
+  costoUnitario Int
+  total         Int
+  costoAntes    Int
+  costoDespues  Int
+  precioAntes   Int
+  precioDespues Int
+
+  empresa  Empresa       @relation(fields: [empresaId], references: [id])
+  negocio  Negocio       @relation(fields: [negocioId], references: [id])
+  factura  FacturaCompra @relation(fields: [facturaId], references: [id])
+  producto Producto      @relation(fields: [productoId], references: [id])
+
+  @@index([facturaId])
+  @@index([productoId])
+  @@index([empresaId])
+}
+
+/// Pago o abono a una factura. Si fue en efectivo desde la caja, cajaId dice de cuál.
+model AbonoFactura {
+  id           String    @id @default(cuid())
+  empresaId    String
+  negocioId    String
+  facturaId    String
+  usuarioId    String
+  valor        Int
+  medio        MedioPago
+  referencia   String?
+  nota         String?
+  cajaId       String?
+  anulado      Boolean   @default(false)
+  anuladoEn    DateTime?
+  anuladoPorId String?
+  creadoEn     DateTime  @default(now())
+
+  empresa    Empresa       @relation(fields: [empresaId], references: [id])
+  negocio    Negocio       @relation(fields: [negocioId], references: [id])
+  factura    FacturaCompra @relation(fields: [facturaId], references: [id])
+  usuario    Usuario       @relation("AbonoRegistro", fields: [usuarioId], references: [id])
+  anuladoPor Usuario?      @relation("AbonoAnulador", fields: [anuladoPorId], references: [id])
+  caja       Caja?         @relation(fields: [cajaId], references: [id])
+
+  @@index([facturaId])
+  @@index([cajaId])
+  @@index([empresaId])
+}
+
+/// Foto o PDF de la factura física. Se guarda en la base para que entre en las copias de seguridad.
+model AdjuntoFactura {
+  id        String   @id @default(cuid())
+  empresaId String
+  negocioId String
+  facturaId String
+  usuarioId String
+  nombre    String
+  tipo      String
+  tamano    Int
+  datos     Bytes
+  creadoEn  DateTime @default(now())
+
+  empresa Empresa       @relation(fields: [empresaId], references: [id])
+  negocio Negocio       @relation(fields: [negocioId], references: [id])
+  factura FacturaCompra @relation(fields: [facturaId], references: [id])
+  usuario Usuario       @relation(fields: [usuarioId], references: [id])
+
+  @@index([facturaId])
   @@index([empresaId])
 }

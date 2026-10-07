@@ -87,6 +87,7 @@ export type ResumenCaja = {
   ventasTransferencia: number;
   anulacionesEfectivo: number;
   devolucionesEfectivo: number;
+  pagosProveedores: number;
   esperado: number;
 };
 
@@ -98,7 +99,7 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
   });
   if (!caja) return null;
 
-  const [pagos, anulados, devoluciones, ventas] = await Promise.all([
+  const [pagos, anulados, devoluciones, ventas, proveedores] = await Promise.all([
     db.pagoVenta.groupBy({
       by: ["medio"],
       where: { empresaId: ctx.empresaId, venta: { cajaId } },
@@ -113,11 +114,17 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
       _sum: { total: true },
     }),
     db.venta.count({ where: { empresaId: ctx.empresaId, cajaId, estado: { not: "ANULADA" } } }),
+    // Pagos a proveedores en efectivo que salieron de esta caja.
+    db.abonoFactura.aggregate({
+      where: { empresaId: ctx.empresaId, cajaId, medio: "EFECTIVO", anulado: false },
+      _sum: { valor: true },
+    }),
   ]);
   const porMedio = (medio: string) => pagos.find((p) => p.medio === medio)?._sum.valor ?? 0;
   const ventasEfectivo = porMedio("EFECTIVO");
   const anulacionesEfectivo = anulados._sum.valor ?? 0;
   const devolucionesEfectivo = devoluciones._sum.total ?? 0;
+  const pagosProveedores = proveedores._sum.valor ?? 0;
   return {
     base: caja.base,
     ventas,
@@ -125,7 +132,8 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
     ventasTransferencia: porMedio("TRANSFERENCIA"),
     anulacionesEfectivo,
     devolucionesEfectivo,
-    esperado: caja.base + ventasEfectivo - anulacionesEfectivo - devolucionesEfectivo,
+    pagosProveedores,
+    esperado: caja.base + ventasEfectivo - anulacionesEfectivo - devolucionesEfectivo - pagosProveedores,
   };
 }
 

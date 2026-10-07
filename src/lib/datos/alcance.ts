@@ -52,6 +52,7 @@ const MODELOS: Record<string, ReglaModelo> = {
     relaciones: [
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
+      "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura",
     ],
   },
   Negocio: {
@@ -60,6 +61,7 @@ const MODELOS: Record<string, ReglaModelo> = {
     relaciones: [
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
+      "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura",
     ],
   },
   Usuario: {
@@ -68,6 +70,7 @@ const MODELOS: Record<string, ReglaModelo> = {
     relaciones: [
       "empresa", "negocios", "movimientos", "auditorias",
       "ventas", "ventasAnuladas", "devoluciones", "cajasAbiertas", "cajasCerradas",
+      "facturasCompra", "facturasAnuladas", "abonosFactura", "abonosAnulados", "adjuntosFactura",
     ],
   },
   UsuarioNegocio: {
@@ -86,7 +89,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Producto: {
     filtro: deNegocios,
     alCrear: deEmpresa,
-    relaciones: ["empresa", "negocio", "categoria", "movimientos", "detallesVenta", "detallesDevolucion"],
+    relaciones: ["empresa", "negocio", "categoria", "movimientos", "detallesVenta", "detallesDevolucion", "detallesCompra"],
     porNegocio: true,
   },
   // Los movimientos y la auditoría solo se escriben desde inventario.ts,
@@ -109,7 +112,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Caja: {
     filtro: deNegocios,
     alCrear: null,
-    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones"],
+    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura"],
     porNegocio: true,
     soloLectura: true,
   },
@@ -155,6 +158,42 @@ const MODELOS: Record<string, ReglaModelo> = {
     }),
     alCrear: null,
     relaciones: ["empresa", "negocio", "usuario"],
+    soloLectura: true,
+  },
+  Proveedor: {
+    filtro: deNegocios,
+    alCrear: deEmpresa,
+    relaciones: ["empresa", "negocio", "facturas"],
+    porNegocio: true,
+  },
+  // Facturas de compra, abonos y adjuntos solo se escriben desde compras.ts,
+  // dentro de una transacción; desde la app solo se leen.
+  FacturaCompra: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "proveedor", "usuario", "anuladaPor", "detalles", "abonos", "adjuntos"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  DetalleFacturaCompra: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "factura", "producto"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  AbonoFactura: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "factura", "usuario", "anuladoPor", "caja"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  AdjuntoFactura: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "factura", "usuario"],
+    porNegocio: true,
     soloLectura: true,
   },
 };
