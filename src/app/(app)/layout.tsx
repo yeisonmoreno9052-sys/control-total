@@ -1,0 +1,100 @@
+import { Suspense } from "react";
+import { LogOut } from "lucide-react";
+import { BotonTema } from "@/components/layout/boton-tema";
+import { MenuInferior } from "@/components/layout/menu-inferior";
+import { MenuLateral } from "@/components/layout/menu-lateral";
+import { SelectorNegocio } from "@/components/layout/selector-negocio";
+import { Button } from "@/components/ui/button";
+import { obtenerEmpresa } from "@/lib/datos/empresa";
+import { listarNegocios } from "@/lib/datos/negocios";
+import { obtenerContexto } from "@/lib/sesion";
+import { salir } from "./acciones";
+
+const NOMBRE_ROL = { ADMINISTRADOR: "Administrador", SOCIO: "Socio", CAJERO: "Cajero", SUPERADMIN: "Superadmin" };
+
+// La sesión se lee en cada petición, así que todo el marco carga dentro de un
+// <Suspense>: mientras llega, se ve un esqueleto en lugar de una pantalla en blanco.
+export default function LayoutApp({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<Cargando />}>
+      <Marco>{children}</Marco>
+    </Suspense>
+  );
+}
+
+function Cargando() {
+  return (
+    <div className="flex min-h-dvh" aria-busy="true" aria-label="Cargando">
+      <aside className="hidden w-60 shrink-0 border-r bg-card md:block" />
+      <div className="flex-1">
+        <div className="h-16 border-b" />
+        <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 md:px-6">
+          <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+          <div className="h-40 animate-pulse rounded-xl bg-muted" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function Marco({ children }: { children: React.ReactNode }) {
+  const ctx = await obtenerContexto();
+  const [empresa, negocios] = await Promise.all([obtenerEmpresa(ctx), listarNegocios(ctx)]);
+
+  const logo = empresa?.logoUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={empresa.logoUrl} alt={empresa.nombre} className="size-9 rounded-lg object-contain" />
+  ) : (
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary font-semibold text-primary-foreground">
+      {empresa?.nombre.charAt(0).toUpperCase()}
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-dvh">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-card md:flex">
+        <div className="flex h-16 items-center gap-3 border-b px-4">
+          {logo}
+          <span className="truncate font-semibold">{empresa?.nombre}</span>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <MenuLateral rol={ctx.rol} modulos={ctx.modulosActivos} />
+        </div>
+        <div className="space-y-2 border-t p-3">
+          <div className="px-3 text-sm">
+            <p className="truncate font-medium">{ctx.nombre}</p>
+            <p className="text-muted-foreground">{NOMBRE_ROL[ctx.rol]}</p>
+          </div>
+          <form action={salir}>
+            <Button type="submit" variant="ghost" className="w-full justify-start text-muted-foreground">
+              <LogOut /> Salir
+            </Button>
+          </form>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+          <div className="md:hidden">{logo}</div>
+          <div className="min-w-0 flex-1">
+            <SelectorNegocio negocios={negocios} activoId={ctx.negocioActivoId} />
+          </div>
+          <BotonTema />
+          <form action={salir} className="md:hidden">
+            <Button type="submit" variant="ghost" size="icon" aria-label="Salir">
+              <LogOut className="size-5" />
+            </Button>
+          </form>
+        </header>
+
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 md:px-6 md:pb-6">{children}</main>
+
+        <footer className="hidden px-6 pb-4 text-center text-xs text-muted-foreground md:block">
+          Desarrollado por EMY TELECOM
+        </footer>
+      </div>
+
+      <MenuInferior rol={ctx.rol} modulos={ctx.modulosActivos} />
+    </div>
+  );
+}

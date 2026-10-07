@@ -1,0 +1,55 @@
+/*
+  Tema de marca de Control Total.
+  Los colores de EMY TELECOM son PROVISIONALES: cuando llegue el manual de
+  identidad en PDF, cambia solo los valores de --marca-* y todo el sistema
+  se actualiza.
+*/
+:root {
+  /* Colores de marca */
+  --marca-azul: #1f4e9a;
+  --marca-azul-claro: #e8eef8;
+  --marca-azul-oscuro: #163a73;
+  --marca-gris: #5b6472;
+  --marca-gris-claro: #f3f4f6;
+  --marca-gris-borde: #e2e5ea;
+
+  /* Tokens de la interfaz (los usa shadcn/ui) */
+  --background: #ffffff;
+  --foreground: #1c2330;
+  --card: #ffffff;
+  --card-foreground: #1c2330;
+  --popover: #ffffff;
+  --popover-foreground: #1c2330;
+  --primary: var(--marca-azul);
+  --primary-foreground: #ffffff;
+  --secondary: var(--marca-gris-claro);
+  --secondary-foreground: #1c2330;
+  --muted: var(--marca-gris-claro);
+  --muted-foreground: var(--marca-gris);
+  --accent: var(--marca-azul-claro);
+  --accent-foreground: var(--marca-azul-oscuro);
+  --destructive: #c62828;
+  --border: var(--marca-gris-borde);
+  --input: var(--marca-gris-borde);
+  --ring: var(--marca-azul);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --marca-azul: #6e9be0;
+  --marca-azul-claro: #1b2a44;
+  --marca-azul-oscuro: #c9daf5;
+  --marca-gris: #9aa3b2;
+  --marca-gris-claro: #1d232d;
+  --marca-gris-borde: #2c3440;
+
+  --background: #12161d;
+  --foreground: #e8ebf0;
+  --card: #171c24;
+  --card-foreground: #e8ebf0;
+  --popover: #171c24;
+  --popover-foreground: #e8ebf0;
+  --primary-foreground: #0d1320;
+  --secondary-foreground: #e8ebf0;
+  --destructive: #ef6b6b;
+}
