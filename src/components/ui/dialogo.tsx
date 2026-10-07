@@ -29,8 +29,24 @@ export function Dialogo({
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (abierto && !d.open) d.showModal();
-    if (!abierto && d.open) d.close();
+    if (abierto && !d.open) {
+      d.showModal();
+      // El autoFocus de React corre antes de que la ventana esté abierta, así que se
+      // enfoca aquí: lo marcado con data-autofocus, o el primer campo.
+      d.querySelector<HTMLElement>(
+        "[data-autofocus], input:not([type=hidden]):not([disabled]), textarea, select",
+      )?.focus();
+    }
+    if (!abierto && d.open) {
+      d.close();
+      // Chrome le devuelve el foco al campo que lo tenía antes de abrir, pero a veces ese
+      // campo no recibe lo que se escribe hasta que se vuelve a enfocar: se suelta y se toma.
+      const previo = document.activeElement;
+      if (previo instanceof HTMLInputElement || previo instanceof HTMLTextAreaElement) {
+        previo.blur();
+        previo.focus();
+      }
+    }
   }, [abierto]);
 
   return (

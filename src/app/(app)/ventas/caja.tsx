@@ -121,8 +121,10 @@ export function Caja({ negocioId }: { negocioId: string }) {
   }, [clave, lineas, descuentoGeneral, cliente]);
 
   const enfocar = useCallback(() => {
-    // En celular no se abre el teclado solo: estorba más de lo que ayuda.
-    if (window.matchMedia("(pointer: fine)").matches) buscador.current?.focus();
+    // En el computador de la caja (con mouse o pantalla táctil) el buscador siempre queda
+    // listo para el lector de códigos. En el celular no: abriría el teclado a cada rato.
+    const celular = window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 768;
+    if (!celular) buscador.current?.focus();
   }, []);
 
   const limpiar = useCallback(() => {
@@ -204,10 +206,17 @@ export function Caja({ negocioId }: { negocioId: string }) {
     return () => window.removeEventListener("keydown", alPresionar);
   }, [puedeCobrar, lineas.length]);
 
-  const cerrarDialogo = () => {
-    setDialogo(null);
-    setTimeout(enfocar, 0);
-  };
+  const cerrarDialogo = () => setDialogo(null);
+
+  // Cuando se cierra cualquier ventana, el buscador vuelve a quedar listo
+  // (por ejemplo, si la ventana se abrió tocando un botón).
+  useEffect(() => {
+    const alCerrar = () => {
+      if (document.activeElement !== buscador.current) enfocar();
+    };
+    document.addEventListener("close", alCerrar, true);
+    return () => document.removeEventListener("close", alCerrar, true);
+  }, [enfocar]);
 
   const lineaDescuento = dialogo?.tipo === "descuento" && dialogo.productoId
     ? lineas.find((l) => l.producto.id === dialogo.productoId)

@@ -91,14 +91,14 @@ async function Recibo({ params, searchParams }: PageProps<"/recibo/[id]">) {
               <div className="flex justify-between gap-2 tabular-nums">
                 <span>
                   {formatearCantidad(d.cantidad)} {UNIDADES[d.unidad as UnidadMedida]?.corto} × {formatearPesos(d.precioUnitario)}
-                  {d.porcentajeIva ? "" : " (excl.)"}
+                  {d.porcentajeIva ? "" : " (sin IVA)"}
                 </span>
                 <span>{formatearPesos(d.subtotal)}</span>
               </div>
               {d.descuento > 0 && (
                 <div className="flex justify-between tabular-nums">
                   <span>Descuento</span>
-                  <span>−{formatearPesos(d.descuento)}</span>
+                  <span>{formatearPesos(-d.descuento)}</span>
                 </div>
               )}
             </li>

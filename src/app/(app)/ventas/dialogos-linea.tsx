@@ -226,10 +226,11 @@ export function DialogoCancelar({
     <Dialogo abierto={abierto} onCerrar={onCerrar} titulo="¿Cancelar esta venta?">
       <p className="mb-5 text-muted-foreground">Se vacía el carrito. No se guarda nada ni se mueve el inventario.</p>
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" size="lg" onClick={onCerrar}>
+        {/* El foco queda en "Seguir": un Enter del lector de códigos no borra la venta por accidente. */}
+        <Button variant="outline" size="lg" onClick={onCerrar} data-autofocus>
           Seguir vendiendo
         </Button>
-        <Button variant="destructive" size="lg" onClick={onConfirmar} autoFocus>
+        <Button variant="destructive" size="lg" onClick={onConfirmar}>
           Sí, cancelar
         </Button>
       </div>
