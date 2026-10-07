@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Percent, Plus, ScanBarcode, Search, ShoppingCart, UserRound, X } from "lucide-react";
+import { Clock, Minus, Pause, Percent, Plus, ScanBarcode, Search, ShoppingCart, UserRound, X } from "lucide-react";
 import { esErrorDeRed, useConexion } from "@/components/sin-conexion/conexion";
 import { Button } from "@/components/ui/button";
 import { Tecla } from "@/components/ui/dialogo";
@@ -17,6 +17,7 @@ import type { UnidadMedida } from "@/generated/prisma/enums";
 import { buscarProductoCaja, refrescarCarrito } from "./acciones";
 import { DialogoCliente } from "./dialogo-cliente";
 import { DialogoCobrar } from "./dialogo-cobrar";
+import { DialogoDejarEnEspera, DialogoEnEspera, guardarEnEspera, leerEnEspera, type VentaEnEspera } from "./dialogos-espera";
 import { DialogoCancelar, DialogoCantidad, DialogoDescuento } from "./dialogos-linea";
 
 export type Linea = { producto: ProductoCaja; cantidad: string; descuento: Descuento | null };
@@ -63,6 +64,8 @@ type Dialogo =
   | { tipo: "cliente" }
   | { tipo: "cobrar" }
   | { tipo: "cancelar" }
+  | { tipo: "dejarEnEspera" }
+  | { tipo: "enEspera" }
   | null;
 
 function leerGuardado(clave: string): Guardado {
@@ -86,6 +89,8 @@ export function Caja({ negocioId }: { negocioId: string }) {
   const [descuentoGeneral, setDescuentoGeneral] = useState<Descuento | null>(inicial.descuentoGeneral);
   const [cliente, setCliente] = useState<ClienteVista | null>(inicial.cliente);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
+  const claveEspera = `espera:${negocioId}`;
+  const [enEspera, setEnEspera] = useState<VentaEnEspera[]>(() => leerEnEspera(claveEspera));
   const [aviso, setAviso] = useState<string | null>(null);
   const [resaltado, setResaltado] = useState<string | null>(null);
   const buscador = useRef<HTMLInputElement>(null);
@@ -142,6 +147,26 @@ export function Caja({ negocioId }: { negocioId: string }) {
       // Sin almacenamiento: el carrito vive solo en la pantalla.
     }
   }, [clave, lineas, descuentoGeneral, cliente]);
+
+  useEffect(() => {
+    guardarEnEspera(claveEspera, enEspera);
+  }, [claveEspera, enEspera]);
+
+  /** Nombre por defecto: "Venta 1", "Venta 2"… sin repetir los que ya están en espera. */
+  const nombreSugerido = (lista: VentaEnEspera[]) => {
+    let n = 1;
+    while (lista.some((v) => v.nombre === `Venta ${n}`)) n++;
+    return `Venta ${n}`;
+  };
+
+  const carritoComoEspera = (nombre: string): VentaEnEspera => ({
+    id: crypto.randomUUID(),
+    nombre,
+    creada: new Date().toISOString(),
+    lineas,
+    descuentoGeneral,
+    cliente,
+  });
 
   const enfocar = useCallback(() => {
     // En el computador de la caja (con mouse o pantalla táctil) el buscador siempre queda
@@ -207,6 +232,8 @@ export function Caja({ negocioId }: { negocioId: string }) {
   const unidades = lineas.reduce((a, l) => a.plus(l.cantidad), new Decimal(0));
   const puedeCobrar = !!t && t.total >= 0 && !errorTotales;
 
+  const hayEnEspera = enEspera.length > 0;
+
   // ─── Atajos de teclado ──────────────────────────────────────────────────
   useEffect(() => {
     function alPresionar(e: KeyboardEvent) {
@@ -218,6 +245,10 @@ export function Caja({ negocioId }: { negocioId: string }) {
       } else if (e.key === "F4") {
         e.preventDefault();
         if (puedeCobrar) setDialogo({ tipo: "cobrar" });
+      } else if (e.key === "F6") {
+        e.preventDefault();
+        if (lineas.length) setDialogo({ tipo: "dejarEnEspera" });
+        else if (hayEnEspera) setDialogo({ tipo: "enEspera" });
       } else if (e.key === "F8") {
         e.preventDefault();
         if (lineas.length) setDialogo({ tipo: "descuento", productoId: null });
@@ -227,7 +258,7 @@ export function Caja({ negocioId }: { negocioId: string }) {
     }
     window.addEventListener("keydown", alPresionar);
     return () => window.removeEventListener("keydown", alPresionar);
-  }, [puedeCobrar, lineas.length]);
+  }, [puedeCobrar, lineas.length, hayEnEspera]);
 
   const cerrarDialogo = () => setDialogo(null);
 
@@ -454,6 +485,17 @@ export function Caja({ negocioId }: { negocioId: string }) {
             >
               Cancelar <Tecla>Esc</Tecla>
             </Button>
+            <Button variant="outline" size="lg" disabled={!lineas.length} onClick={() => setDialogo({ tipo: "dejarEnEspera" })}>
+              <Pause /> En espera <Tecla>F6</Tecla>
+            </Button>
+            <Button
+              variant={hayEnEspera ? "secondary" : "outline"}
+              size="lg"
+              disabled={!hayEnEspera}
+              onClick={() => setDialogo({ tipo: "enEspera" })}
+            >
+              <Clock /> Retomar{hayEnEspera && ` (${enEspera.length})`}
+            </Button>
           </div>
         </div>
 
@@ -524,6 +566,37 @@ export function Caja({ negocioId }: { negocioId: string }) {
           limpiar();
           cerrarDialogo();
         }}
+        onCerrar={cerrarDialogo}
+      />
+
+      <DialogoDejarEnEspera
+        abierto={dialogo?.tipo === "dejarEnEspera"}
+        sugerido={nombreSugerido(enEspera)}
+        onConfirmar={(nombre) => {
+          setEnEspera((lista) => [...lista, carritoComoEspera(nombre)]);
+          limpiar();
+          cerrarDialogo();
+        }}
+        onCerrar={cerrarDialogo}
+      />
+
+      <DialogoEnEspera
+        abierto={dialogo?.tipo === "enEspera"}
+        ventas={enEspera}
+        hayCarrito={lineas.length > 0}
+        onRetomar={(v) => {
+          const resto = enEspera.filter((x) => x.id !== v.id);
+          // La venta que estaba en la caja no se pierde: pasa a espera.
+          setEnEspera(lineas.length ? [...resto, carritoComoEspera(nombreSugerido(resto))] : resto);
+          setLineas(v.lineas);
+          setDescuentoGeneral(v.descuentoGeneral);
+          setCliente(v.cliente);
+          setAviso(null);
+          // Los precios y el stock pudieron cambiar mientras esperaba.
+          if (enLinea) actualizarPrecios(v.lineas);
+          cerrarDialogo();
+        }}
+        onDescartar={(v) => setEnEspera((lista) => lista.filter((x) => x.id !== v.id))}
         onCerrar={cerrarDialogo}
       />
 
