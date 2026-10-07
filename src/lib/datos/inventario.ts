@@ -16,7 +16,7 @@ export type Resultado<T = { id: string }> =
   | ({ ok: true } & T)
   | { ok: false; error: string; campos?: Record<string, string> };
 
-type Tx = Prisma.TransactionClient;
+export type Tx = Prisma.TransactionClient;
 
 export function exigirNegocioPermitido(ctx: Contexto, negocioId: string) {
   if (!ctx.negociosPermitidos.includes(negocioId)) throw new AccesoDenegado("no tienes acceso a ese negocio");
@@ -39,7 +39,7 @@ export function mensajeDeError(error: unknown): { error: string; campos?: Record
   return null;
 }
 
-async function registrarAuditoria(
+export async function registrarAuditoria(
   tx: Tx,
   ctx: Contexto,
   datos: { negocioId: string | null; accion: string; entidad: string; entidadId?: string; detalle: object },
