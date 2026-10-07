@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Settings } from "lucide-react";
 import { BotonTema } from "@/components/layout/boton-tema";
 import { MenuInferior } from "@/components/layout/menu-inferior";
 import { MenuLateral } from "@/components/layout/menu-lateral";
@@ -7,6 +8,7 @@ import { SelectorNegocio } from "@/components/layout/selector-negocio";
 import { Button } from "@/components/ui/button";
 import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { listarNegocios } from "@/lib/datos/negocios";
+import { puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { salir } from "./acciones";
 
@@ -80,6 +82,13 @@ async function Marco({ children }: { children: React.ReactNode }) {
             <SelectorNegocio negocios={negocios} activoId={ctx.negocioActivoId} />
           </div>
           <BotonTema />
+          {puedeGestionar(ctx) && (
+            <Button asChild variant="ghost" size="icon" className="md:hidden" aria-label="Configuración">
+              <Link href="/configuracion">
+                <Settings className="size-5" />
+              </Link>
+            </Button>
+          )}
           <form action={salir} className="md:hidden">
             <Button type="submit" variant="ghost" size="icon" aria-label="Salir">
               <LogOut className="size-5" />

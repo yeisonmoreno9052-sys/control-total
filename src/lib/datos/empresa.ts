@@ -24,17 +24,26 @@ export async function obtenerLogo(ctx: Contexto) {
 }
 
 export const LOGO_MAXIMO = 300 * 1024;
-const TIPOS_LOGO = ["image/png", "image/jpeg", "image/webp"];
 
-/** Solo el administrador cambia el logo: es de toda la empresa. */
-export async function guardarLogo(ctx: Contexto, bytes: Uint8Array | null, tipo: string | null): Promise<Resultado> {
+/** Tipo real de la imagen según sus primeros bytes (no se confía en lo que diga el navegador). */
+function tipoDeImagen(b: Uint8Array) {
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (String.fromCharCode(...b.slice(0, 4)) === "RIFF" && String.fromCharCode(...b.slice(8, 12)) === "WEBP") return "image/webp";
+  return null;
+}
+
+/** Solo el administrador cambia el logo: es de toda la empresa. null lo quita. */
+export async function guardarLogo(ctx: Contexto, bytes: Uint8Array | null): Promise<Resultado> {
   exigirRol(ctx, ["ADMINISTRADOR"]);
+  let tipo: string | null = null;
   if (bytes) {
-    if (!tipo || !TIPOS_LOGO.includes(tipo)) return { ok: false, error: "El logo debe ser una imagen PNG, JPG o WEBP." };
     if (bytes.byteLength > LOGO_MAXIMO) return { ok: false, error: "El logo pesa más de 300 KB. Usa una imagen más liviana." };
+    tipo = tipoDeImagen(bytes);
+    if (!tipo) return { ok: false, error: "El logo debe ser una imagen PNG, JPG o WEBP." };
   }
   await datosDe(ctx).empresa.updateMany({
-    data: { logo: bytes ? Buffer.from(bytes) : null, logoTipo: bytes ? tipo : null },
+    data: { logo: bytes ? Buffer.from(bytes) : null, logoTipo: tipo },
   });
   return { ok: true, id: ctx.empresaId };
 }

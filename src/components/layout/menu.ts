@@ -2,6 +2,7 @@ import {
   BarChart3,
   LayoutDashboard,
   Package,
+  Settings,
   ShoppingCart,
   Truck,
   Wallet,
@@ -32,6 +33,7 @@ export const OPCIONES_MENU: OpcionMenu[] = [
   { titulo: "Proveedores", href: "/proveedores", icono: Truck, modulo: "PROVEEDORES", roles: GESTION, disponible: false, enCelular: false },
   { titulo: "Caja", href: "/caja", icono: Wallet, modulo: "CAJA", roles: GESTION, disponible: false, enCelular: true },
   { titulo: "Reportes", href: "/reportes", icono: BarChart3, modulo: "REPORTES", roles: GESTION, disponible: false, enCelular: true },
+  { titulo: "Configuración", href: "/configuracion", icono: Settings, modulo: null, roles: GESTION, disponible: true, enCelular: false },
 ];
 
 export function opcionesPara(rol: Rol, modulos: Modulo[]) {
