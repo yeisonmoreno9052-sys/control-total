@@ -3,7 +3,7 @@
 //
 // El cajero NUNCA recibe el costo: las consultas ni siquiera lo piden a la base.
 import { puedeVerCostos } from "@/lib/permisos";
-import { datosDe } from "./alcance";
+import { AccesoDenegado, datosDe } from "./alcance";
 import type { Contexto } from "./contexto";
 
 export const POR_PAGINA = 50;
@@ -285,4 +285,25 @@ export async function productosParaVenta(ctx: Contexto, negocioId: string, ids: 
     select: CAMPOS_CAJA,
   });
   return filas.map((p) => ({ ...p, stock: p.stock.toString() }));
+}
+
+export type ProductoCatalogo = ProductoCaja & { codigoBarras: string | null; activo: boolean };
+
+/**
+ * Copia de los productos para vender sin internet. Sin `desde` trae todos los activos;
+ * con `desde`, solo los que cambiaron (incluidos los que se desactivaron, para quitarlos).
+ * No lleva costos: la copia también la tiene el computador del cajero.
+ */
+export async function catalogoCaja(ctx: Contexto, negocioId: string, desde: Date | null) {
+  if (!ctx.negociosPermitidos.includes(negocioId)) throw new AccesoDenegado("no tienes acceso a ese negocio");
+  const hasta = new Date();
+  const filas = await datosDe(ctx).producto.findMany({
+    where: { negocioId, ...(desde ? { actualizadoEn: { gte: desde } } : { activo: true }) },
+    select: { ...CAMPOS_CAJA, codigoBarras: true, activo: true },
+  });
+  return {
+    hasta: hasta.toISOString(),
+    completo: !desde,
+    productos: filas.map((p): ProductoCatalogo => ({ ...p, stock: p.stock.toString() })),
+  };
 }

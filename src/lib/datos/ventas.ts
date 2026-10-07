@@ -74,7 +74,7 @@ type ProductoBloqueado = {
 };
 
 /** Bloquea los productos en orden de id (así dos ventas nunca se esperan en círculo). */
-async function bloquearProductos(tx: Tx, ids: string[]) {
+export async function bloquearProductos(tx: Tx, ids: string[]) {
   const filas = await tx.$queryRaw<ProductoBloqueado[]>`
     SELECT "id", "empresaId", "negocioId", "codigo", "nombre", "unidad", "precioVenta", "costo",
            "porcentajeIva", "fraccionado", "activo", "stock"
@@ -82,7 +82,7 @@ async function bloquearProductos(tx: Tx, ids: string[]) {
   return new Map(filas.map((f) => [f.id, f]));
 }
 
-async function siguienteConsecutivo(tx: Tx, negocioId: string, campo: "consecutivoVenta" | "consecutivoDevolucion") {
+export async function siguienteConsecutivo(tx: Tx, negocioId: string, campo: "consecutivoVenta" | "consecutivoDevolucion") {
   // El UPDATE bloquea la fila del negocio: dos cobros al mismo tiempo reciben números seguidos,
   // y si la venta falla el número se devuelve con el resto de la transacción (no quedan huecos).
   const filas =
