@@ -56,6 +56,11 @@ export type EntradaVenta = {
   clienteId?: string | null;
   /** Total que vio el cajero en pantalla. Si los precios cambiaron, no se cobra. */
   totalEsperado: number;
+  /**
+   * Código que generó el computador para esta venta. Si la respuesta se pierde por un corte de
+   * internet, la caja la guarda para subirla después con el mismo código y no queda repetida.
+   */
+  idLocal?: string | null;
 };
 
 type ProductoBloqueado = {
@@ -74,7 +79,7 @@ type ProductoBloqueado = {
 };
 
 /** Bloquea los productos en orden de id (así dos ventas nunca se esperan en círculo). */
-async function bloquearProductos(tx: Tx, ids: string[]) {
+export async function bloquearProductos(tx: Tx, ids: string[]) {
   const filas = await tx.$queryRaw<ProductoBloqueado[]>`
     SELECT "id", "empresaId", "negocioId", "codigo", "nombre", "unidad", "precioVenta", "costo",
            "porcentajeIva", "fraccionado", "activo", "stock"
@@ -82,7 +87,7 @@ async function bloquearProductos(tx: Tx, ids: string[]) {
   return new Map(filas.map((f) => [f.id, f]));
 }
 
-async function siguienteConsecutivo(tx: Tx, negocioId: string, campo: "consecutivoVenta" | "consecutivoDevolucion") {
+export async function siguienteConsecutivo(tx: Tx, negocioId: string, campo: "consecutivoVenta" | "consecutivoDevolucion") {
   // El UPDATE bloquea la fila del negocio: dos cobros al mismo tiempo reciben números seguidos,
   // y si la venta falla el número se devuelve con el resto de la transacción (no quedan huecos).
   const filas =
@@ -104,6 +109,12 @@ export async function registrarVenta(
   exigirNegocioPermitido(ctx, negocioId);
   if (!entrada.lineas.length) return { ok: false, error: "Agrega al menos un producto." };
   if (entrada.lineas.length > 300) return { ok: false, error: "La venta tiene demasiados productos." };
+
+  const idLocal = entrada.idLocal && /^[\w-]{8,60}$/.test(entrada.idLocal) ? entrada.idLocal : null;
+  if (idLocal) {
+    const ya = await ventaConIdLocal(ctx, negocioId, idLocal);
+    if (ya) return ya;
+  }
 
   if (entrada.clienteId) {
     const cliente = await datosDe(ctx).cliente.findFirst({
@@ -180,6 +191,7 @@ export async function registrarVenta(
             total: totales.total,
             recibido: pago.recibido,
             cambio: pago.cambio,
+            idLocal,
           },
           select: { id: true },
         });
@@ -222,8 +234,21 @@ export async function registrarVenta(
       { timeout: 20_000 },
     );
   } catch (error) {
+    // La misma venta llegó dos veces al mismo tiempo: se devuelve la que quedó.
+    if (idLocal && error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const ya = await ventaConIdLocal(ctx, negocioId, idLocal);
+      if (ya) return ya;
+    }
     return comoResultado(error);
   }
+}
+
+async function ventaConIdLocal(ctx: Contexto, negocioId: string, idLocal: string) {
+  const v = await datosDe(ctx).venta.findFirst({
+    where: { negocioId, idLocal },
+    select: { id: true, consecutivo: true, total: true, cambio: true },
+  });
+  return v ? { ok: true as const, id: v.id, consecutivo: v.consecutivo, total: v.total, cambio: v.cambio } : null;
 }
 
 // ─── Anular y devolver ──────────────────────────────────────────────────────

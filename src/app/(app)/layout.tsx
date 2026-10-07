@@ -5,6 +5,8 @@ import { BotonTema } from "@/components/layout/boton-tema";
 import { MenuInferior } from "@/components/layout/menu-inferior";
 import { MenuLateral } from "@/components/layout/menu-lateral";
 import { SelectorNegocio } from "@/components/layout/selector-negocio";
+import { ProveedorConexion } from "@/components/sin-conexion/conexion";
+import { FranjaConexion } from "@/components/sin-conexion/franja";
 import { Button } from "@/components/ui/button";
 import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { listarNegocios } from "@/lib/datos/negocios";
@@ -53,57 +55,64 @@ async function Marco({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-dvh">
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-card md:flex">
-        <div className="flex h-16 items-center gap-3 border-b px-4">
-          {logo}
-          <span className="truncate font-semibold">{empresa?.nombre}</span>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <MenuLateral rol={ctx.rol} modulos={ctx.modulosActivos} />
-        </div>
-        <div className="space-y-2 border-t p-3">
-          <div className="px-3 text-sm">
-            <p className="truncate font-medium">{ctx.nombre}</p>
-            <p className="text-muted-foreground">{NOMBRE_ROL[ctx.rol]}</p>
+    <ProveedorConexion
+      negocioId={ctx.negocioActivoId}
+      usuario={{ id: ctx.usuarioId, nombre: ctx.nombre }}
+      ventas={ctx.modulosActivos.includes("VENTAS")}
+    >
+      <div className="flex min-h-dvh">
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-card md:flex">
+          <div className="flex h-16 items-center gap-3 border-b px-4">
+            {logo}
+            <span className="truncate font-semibold">{empresa?.nombre}</span>
           </div>
-          <form action={salir}>
-            <Button type="submit" variant="ghost" className="w-full justify-start text-muted-foreground">
-              <LogOut /> Salir
-            </Button>
-          </form>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
-          <div className="md:hidden">{logo}</div>
-          <div className="min-w-0 flex-1">
-            <SelectorNegocio negocios={negocios} activoId={ctx.negocioActivoId} />
+          <div className="flex-1 overflow-y-auto">
+            <MenuLateral rol={ctx.rol} modulos={ctx.modulosActivos} />
           </div>
-          <BotonTema />
-          {puedeGestionar(ctx) && (
-            <Button asChild variant="ghost" size="icon" className="md:hidden" aria-label="Configuración">
-              <Link href="/configuracion">
-                <Settings className="size-5" />
-              </Link>
-            </Button>
-          )}
-          <form action={salir} className="md:hidden">
-            <Button type="submit" variant="ghost" size="icon" aria-label="Salir">
-              <LogOut className="size-5" />
-            </Button>
-          </form>
-        </header>
+          <div className="space-y-2 border-t p-3">
+            <div className="px-3 text-sm">
+              <p className="truncate font-medium">{ctx.nombre}</p>
+              <p className="text-muted-foreground">{NOMBRE_ROL[ctx.rol]}</p>
+            </div>
+            <form action={salir}>
+              <Button type="submit" variant="ghost" className="w-full justify-start text-muted-foreground">
+                <LogOut /> Salir
+              </Button>
+            </form>
+          </div>
+        </aside>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 md:px-6 md:pb-6">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+            <div className="md:hidden">{logo}</div>
+            <div className="min-w-0 flex-1">
+              <SelectorNegocio negocios={negocios} activoId={ctx.negocioActivoId} />
+            </div>
+            <BotonTema />
+            {puedeGestionar(ctx) && (
+              <Button asChild variant="ghost" size="icon" className="md:hidden" aria-label="Configuración">
+                <Link href="/configuracion">
+                  <Settings className="size-5" />
+                </Link>
+              </Button>
+            )}
+            <form action={salir} className="md:hidden">
+              <Button type="submit" variant="ghost" size="icon" aria-label="Salir">
+                <LogOut className="size-5" />
+              </Button>
+            </form>
+          </header>
+          <FranjaConexion />
 
-        <footer className="hidden px-6 pb-4 text-center text-xs text-muted-foreground md:block">
-          Desarrollado por EMY TELECOM
-        </footer>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 md:px-6 md:pb-6">{children}</main>
+
+          <footer className="hidden px-6 pb-4 text-center text-xs text-muted-foreground md:block">
+            Desarrollado por EMY TELECOM
+          </footer>
+        </div>
+
+        <MenuInferior rol={ctx.rol} modulos={ctx.modulosActivos} />
       </div>
-
-      <MenuInferior rol={ctx.rol} modulos={ctx.modulosActivos} />
-    </div>
+    </ProveedorConexion>
   );
 }

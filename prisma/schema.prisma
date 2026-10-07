@@ -417,6 +417,14 @@ model Venta {
   anuladaEnCajaId String?
   motivoAnulacion String?
   creadoEn        DateTime    @default(now())
+  /// Ventas hechas sin internet: código que generó el computador (evita subirla dos veces),
+  /// número que salió en el recibo provisional y cuándo llegó al servidor.
+  idLocal            String?
+  numeroProvisional  String?
+  sinConexion        Boolean   @default(false)
+  sincronizadaEn     DateTime?
+  /// Por qué quedó en otra caja, o qué productos quedaron en negativo, para que lo revise el administrador.
+  notaSincronizacion String?
   // Reservado para facturación electrónica (DIAN). Vacío por ahora.
   feEstado        String?
   feIdentificador String?
@@ -434,6 +442,7 @@ model Venta {
   devoluciones  Devolucion[]
 
   @@unique([negocioId, consecutivo])
+  @@unique([negocioId, idLocal])
   @@index([empresaId])
   @@index([negocioId, creadoEn])
   @@index([cajaId])
