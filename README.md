@@ -26,6 +26,20 @@ Usuarios de prueba (la contraseña es la que pusiste en `SEED_CONTRASENA`):
 
 Para verlo en el celular: con el computador y el celular en el mismo wifi, abre `http://IP-de-tu-computador:3000`.
 
+## Publicar en Railway
+
+El repositorio ya trae `railway.json`: Railway construye la app, corre `scripts/preparar-base.sh`
+(aplica las migraciones y, solo si existe `SEED_CONTRASENA`, crea los usuarios de prueba) y la arranca.
+
+1. En [railway.com](https://railway.com) crea un proyecto con **Deploy from GitHub repo** y elige `control-total`.
+2. En el mismo proyecto agrega **Database → PostgreSQL**.
+3. En el servicio de la app, pestaña **Variables**, crea:
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
+   - `AUTH_SECRET` = una clave larga y aleatoria (`npx auth secret`)
+   - `AUTH_TRUST_HOST` = `true`
+   - `SEED_CONTRASENA` = la contraseña para admin, socio y cajero (bórrala después del primer despliegue)
+4. En **Settings → Networking** toca **Generate Domain** para tener el enlace público.
+
 ## Comandos útiles
 
 | Comando             | Qué hace                                                   |
