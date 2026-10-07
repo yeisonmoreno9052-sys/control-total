@@ -7,6 +7,7 @@ import { buscarClientes, crearCliente } from "@/lib/datos/clientes";
 import { obtenerDatosNegocio } from "@/lib/datos/negocios";
 import { buscarParaVenta, productosParaVenta } from "@/lib/datos/productos";
 import { anularVenta, obtenerVenta, registrarDevolucion, registrarVenta } from "@/lib/datos/ventas";
+import { subirVentaSinConexion } from "@/lib/datos/ventas-sin-conexion";
 import { leerPesos } from "@/lib/inventario/esquemas";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
@@ -48,6 +49,7 @@ const esquemaVenta = z.object({
   descuentoGeneral: descuento,
   clienteId: z.string().max(40).nullable().optional(),
   totalEsperado: z.number().int().min(0),
+  idLocal: z.string().max(60).nullable().optional(),
   pago: z.discriminatedUnion("forma", [
     z.object({ forma: z.literal("efectivo"), recibido: z.number().int().min(0) }),
     z.object({ forma: z.literal("transferencia"), referencia: z.string().max(100).nullable().optional() }),
@@ -61,6 +63,43 @@ const esquemaVenta = z.object({
 });
 
 export type EntradaCobro = z.infer<typeof esquemaVenta>;
+
+const formaPago = esquemaVenta.shape.pago;
+
+const esquemaPendiente = z.object({
+  negocioId: z.string().min(1).max(40),
+  idLocal: z.string().min(8).max(60),
+  numeroProvisional: z.string().max(20),
+  creadaEn: z.string().max(40),
+  vendedorId: z.string().max(40).nullable().optional(),
+  lineas: z
+    .array(
+      z.object({
+        productoId: z.string().min(1).max(40),
+        cantidad: z.string().max(20),
+        precioUnitario: z.number().int().min(0),
+        porcentajeIva: z.number().int(),
+        descuento,
+      }),
+    )
+    .min(1)
+    .max(300),
+  descuentoGeneral: descuento,
+  clienteId: z.string().max(40).nullable().optional(),
+  total: z.number().int().min(0),
+  pago: formaPago,
+});
+
+/** Sube una venta que se hizo sin internet. Se puede llamar varias veces con la misma venta. */
+export async function subirVentaPendiente(entrada: z.infer<typeof esquemaPendiente>) {
+  const ctx = await contextoVentas();
+  const datos = esquemaPendiente.safeParse(entrada);
+  if (!datos.success) return { ok: false as const, error: "La venta guardada está dañada.", reintentar: false };
+  const { negocioId, ...venta } = datos.data;
+  const resultado = await subirVentaSinConexion(ctx, negocioId, venta);
+  if (resultado.ok && !resultado.yaExistia) revalidatePath("/ventas", "layout");
+  return resultado;
+}
 
 export async function cobrar(entrada: EntradaCobro) {
   const { ctx, negocioId } = await negocioActivo();
@@ -100,7 +139,8 @@ export type EstadoAccion = { error?: string; campos?: Record<string, string>; ok
 export async function abrirCajaAccion(_: EstadoAccion, formulario: FormData): Promise<EstadoAccion> {
   const { ctx, negocioId } = await negocioActivo();
   const base = leerPesos(String(formulario.get("base") ?? "0") || "0");
-  if (base === null || base < 0) return { error: "Escribe la base en pesos, por ejemplo 100.000.", campos: { base: "Revisa el valor." } };
+  if (base === null || base < 0)
+    return { error: "Escribe la base en pesos, por ejemplo 100.000.", campos: { base: "Revisa el valor." } };
   const r = await abrirCaja(ctx, negocioId, base);
   if (!r.ok) return { error: r.error, campos: r.campos };
   revalidatePath("/ventas", "layout");
@@ -110,7 +150,8 @@ export async function abrirCajaAccion(_: EstadoAccion, formulario: FormData): Pr
 export async function cerrarCajaAccion(_: EstadoAccion, formulario: FormData): Promise<EstadoAccion> {
   const ctx = await contextoVentas();
   const contado = leerPesos(String(formulario.get("contado") ?? ""));
-  if (contado === null || contado < 0) return { error: "Escribe cuánto efectivo contaste.", campos: { contado: "Revisa el valor." } };
+  if (contado === null || contado < 0)
+    return { error: "Escribe cuánto efectivo contaste.", campos: { contado: "Revisa el valor." } };
   const r = await cerrarCaja(ctx, String(formulario.get("cajaId") ?? ""), contado, String(formulario.get("nota") ?? ""));
   if (!r.ok) return { error: r.error, campos: r.campos };
   // Sin revalidar aquí: la página se volvería a dibujar sin caja abierta y se perdería

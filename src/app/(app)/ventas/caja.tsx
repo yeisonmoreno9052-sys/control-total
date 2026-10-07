@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Percent, Plus, ScanBarcode, Search, ShoppingCart, UserRound, X } from "lucide-react";
+import { esErrorDeRed, useConexion } from "@/components/sin-conexion/conexion";
 import { Button } from "@/components/ui/button";
 import { Tecla } from "@/components/ui/dialogo";
 import type { ClienteVista } from "@/lib/datos/clientes";
@@ -10,6 +11,7 @@ import { formatearPesos } from "@/lib/formato";
 import { Decimal, formatearCantidad } from "@/lib/inventario/cantidades";
 import { UNIDADES } from "@/lib/inventario/unidades";
 import { calcularTotales, ErrorTotales, type Descuento, type TotalesVenta } from "@/lib/ventas/totales";
+import { buscarEnCopia } from "@/lib/sin-conexion/buscar";
 import { cn } from "@/lib/utils";
 import type { UnidadMedida } from "@/generated/prisma/enums";
 import { buscarProductoCaja, refrescarCarrito } from "./acciones";
@@ -87,6 +89,27 @@ export function Caja({ negocioId }: { negocioId: string }) {
   const [aviso, setAviso] = useState<string | null>(null);
   const [resaltado, setResaltado] = useState<string | null>(null);
   const buscador = useRef<HTMLInputElement>(null);
+  const { enLinea, marcarSinConexion, productos } = useConexion();
+  // Sin internet no se bloquea por stock: la copia puede estar atrasada y el cliente está ahí.
+  const enLineaRef = useRef(enLinea);
+  useEffect(() => {
+    enLineaRef.current = enLinea;
+  }, [enLinea]);
+
+  const buscarProductos = useCallback(
+    async (q: string) => {
+      if (enLineaRef.current) {
+        try {
+          return await buscarProductoCaja(q);
+        } catch (error) {
+          if (!esErrorDeRed(error)) throw error;
+          marcarSinConexion();
+        }
+      }
+      return buscarEnCopia(await productos(), q);
+    },
+    [marcarSinConexion, productos],
+  );
 
   // ─── Carrito guardado en el navegador ───────────────────────────────────
   /** Pone los precios y el stock de hoy; si un producto ya no está activo, sale del carrito. */
@@ -145,7 +168,7 @@ export function Caja({ negocioId }: { negocioId: string }) {
     const ls = lineasRef.current;
     const i = ls.findIndex((l) => l.producto.id === producto.id);
     const total = sumar && i >= 0 ? new Decimal(ls[i].cantidad).plus(cantidad) : cantidad;
-    const error = faltaStock(producto, total);
+    const error = enLineaRef.current ? faltaStock(producto, total) : null;
     setAviso(error);
     if (error) return error;
     const nuevas =
@@ -218,15 +241,15 @@ export function Caja({ negocioId }: { negocioId: string }) {
     return () => document.removeEventListener("close", alCerrar, true);
   }, [enfocar]);
 
-  const lineaDescuento = dialogo?.tipo === "descuento" && dialogo.productoId
-    ? lineas.find((l) => l.producto.id === dialogo.productoId)
-    : null;
+  const lineaDescuento =
+    dialogo?.tipo === "descuento" && dialogo.productoId ? lineas.find((l) => l.producto.id === dialogo.productoId) : null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6">
       <section className="min-w-0 space-y-3">
         <Buscador
           refInput={buscador}
+          buscarProductos={buscarProductos}
           alElegir={(p) => {
             agregar(p);
           }}
@@ -235,7 +258,10 @@ export function Caja({ negocioId }: { negocioId: string }) {
         />
 
         {aviso && (
-          <p role="alert" className="flex items-start justify-between gap-3 rounded-lg bg-destructive/10 px-4 py-3 text-destructive">
+          <p
+            role="alert"
+            className="flex items-start justify-between gap-3 rounded-lg bg-destructive/10 px-4 py-3 text-destructive"
+          >
             <span>{aviso}</span>
             <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="shrink-0">
               <X className="size-4" />
@@ -249,12 +275,21 @@ export function Caja({ negocioId }: { negocioId: string }) {
             <span className="inline-flex min-w-0 items-center gap-1 rounded-full border bg-muted/50 py-1 pr-1 pl-3">
               <button type="button" className="truncate font-medium" onClick={() => setDialogo({ tipo: "cliente" })}>
                 {cliente.nombre}
-                {cliente.numeroDocumento && <span className="font-normal text-muted-foreground"> · {cliente.numeroDocumento}</span>}
+                {cliente.numeroDocumento && (
+                  <span className="font-normal text-muted-foreground"> · {cliente.numeroDocumento}</span>
+                )}
               </button>
-              <button type="button" onClick={() => setCliente(null)} aria-label="Quitar cliente" className="rounded-full p-1 hover:bg-muted">
+              <button
+                type="button"
+                onClick={() => setCliente(null)}
+                aria-label="Quitar cliente"
+                className="rounded-full p-1 hover:bg-muted"
+              >
                 <X className="size-3.5" />
               </button>
             </span>
+          ) : !enLinea ? (
+            <span className="text-muted-foreground">sin cliente (sin internet no se pueden buscar clientes)</span>
           ) : (
             <button
               type="button"
@@ -382,7 +417,9 @@ export function Caja({ negocioId }: { negocioId: string }) {
               <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
                 <dt>
                   Descuentos
-                  {descuentoGeneral && <span className="text-muted-foreground"> (general {textoDescuento(descuentoGeneral)})</span>}
+                  {descuentoGeneral && (
+                    <span className="text-muted-foreground"> (general {textoDescuento(descuentoGeneral)})</span>
+                  )}
                 </dt>
                 <dd className="tabular-nums">− {formatearPesos(t.descuento)}</dd>
               </div>
@@ -394,7 +431,11 @@ export function Caja({ negocioId }: { negocioId: string }) {
               {formatearPesos(t?.total ?? 0)}
             </p>
             {!!t?.iva && <p className="mt-1 text-xs text-muted-foreground">Incluye IVA de {formatearPesos(t.iva)}</p>}
-            {errorTotales && <p role="alert" className="mt-2 text-sm text-destructive">{errorTotales}</p>}
+            {errorTotales && (
+              <p role="alert" className="mt-2 text-sm text-destructive">
+                {errorTotales}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -405,7 +446,12 @@ export function Caja({ negocioId }: { negocioId: string }) {
             >
               Descuento <Tecla>F8</Tecla>
             </Button>
-            <Button variant="outline" size="lg" disabled={!lineas.length && !cliente} onClick={() => setDialogo({ tipo: "cancelar" })}>
+            <Button
+              variant="outline"
+              size="lg"
+              disabled={!lineas.length && !cliente}
+              onClick={() => setDialogo({ tipo: "cancelar" })}
+            >
               Cancelar <Tecla>Esc</Tecla>
             </Button>
           </div>
@@ -429,7 +475,7 @@ export function Caja({ negocioId }: { negocioId: string }) {
         producto={dialogo?.tipo === "cantidad" ? dialogo.producto : null}
         actual={
           dialogo?.tipo === "cantidad" && !dialogo.nueva
-            ? lineas.find((l) => l.producto.id === dialogo.producto.id)?.cantidad ?? null
+            ? (lineas.find((l) => l.producto.id === dialogo.producto.id)?.cantidad ?? null)
             : null
         }
         onConfirmar={(cantidad) => {
@@ -500,11 +546,13 @@ export function Caja({ negocioId }: { negocioId: string }) {
 
 function Buscador({
   refInput,
+  buscarProductos,
   alElegir,
   alAvisar,
   onEscapeVacio,
 }: {
   refInput: React.RefObject<HTMLInputElement | null>;
+  buscarProductos: (q: string) => Promise<{ exacto: ProductoCaja | null; resultados: ProductoCaja[] }>;
   alElegir: (p: ProductoCaja) => void;
   alAvisar: (mensaje: string | null) => void;
   onEscapeVacio: () => void;
@@ -515,12 +563,17 @@ function Buscador({
   const [indice, setIndice] = useState(0);
   const [abierto, setAbierto] = useState(false);
   const pedido = useRef(0);
+  // Mientras se resuelve un Enter (lector de códigos), la búsqueda de la pausa no lo pisa.
+  const conEnter = useRef(false);
 
-  const buscar = useCallback(async (q: string) => {
-    const n = ++pedido.current;
-    const r = await buscarProductoCaja(q);
-    return n === pedido.current ? r : null; // una respuesta vieja no pisa a la nueva
-  }, []);
+  const buscar = useCallback(
+    async (q: string) => {
+      const n = ++pedido.current;
+      const r = await buscarProductos(q);
+      return n === pedido.current ? r : null; // una respuesta vieja no pisa a la nueva
+    },
+    [buscarProductos],
+  );
 
   // Mientras escribe a mano: busca después de una pausa corta.
   useEffect(() => {
@@ -530,6 +583,7 @@ function Buscador({
       return;
     }
     const espera = setTimeout(async () => {
+      if (conEnter.current) return;
       const r = await buscar(q);
       if (!r) return;
       setResultados(r.resultados);
@@ -573,7 +627,8 @@ function Buscador({
         elegir(resultados[Math.min(indice, resultados.length - 1)]);
         return;
       }
-      const r = await buscar(q);
+      conEnter.current = true;
+      const r = await buscar(q).finally(() => (conEnter.current = false));
       if (!r) return;
       if (r.exacto) elegir(r.exacto);
       else if (r.resultados.length === 1) elegir(r.resultados[0]);
@@ -635,10 +690,7 @@ function Buscador({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => elegir(p)}
                     onMouseEnter={() => setIndice(i)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left",
-                      i === indice && "bg-accent",
-                    )}
+                    className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left", i === indice && "bg-accent")}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{p.nombre}</p>
