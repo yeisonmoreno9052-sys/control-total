@@ -6,6 +6,7 @@ import { obtenerDatosNegocio } from "@/lib/datos/negocios";
 import { puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { FormularioLogo, FormularioNegocio } from "./formularios";
+import { PestanasConfiguracion } from "./pestanas";
 
 export const metadata: Metadata = { title: "Configuración · Control Total" };
 
@@ -19,12 +20,17 @@ export default async function Configuracion() {
 
   return (
     <div className="space-y-8">
-      <EncabezadoPagina titulo="Configuración" subtitulo="Datos que salen en el recibo." />
+      <div>
+        <EncabezadoPagina titulo="Configuración" />
+        <PestanasConfiguracion activa="/configuracion" rol={ctx.rol} />
+      </div>
       {negocio && (
         <section className="space-y-4 rounded-2xl border p-5 md:p-6">
           <div>
             <h2 className="text-lg font-semibold">Datos de {negocio.nombre}</h2>
-            <p className="text-sm text-muted-foreground">Cada negocio tiene los suyos. Para el otro local, cámbialo arriba.</p>
+            <p className="text-sm text-muted-foreground">
+              Salen en el recibo. Cada negocio tiene los suyos; para el otro local, cámbialo arriba.
+            </p>
           </div>
           <FormularioNegocio key={negocio.id} negocio={negocio} />
         </section>

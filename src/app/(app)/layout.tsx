@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { LogOut, Settings } from "lucide-react";
+import { CircleUser, LogOut } from "lucide-react";
 import { BotonTema } from "@/components/layout/boton-tema";
 import { MenuInferior } from "@/components/layout/menu-inferior";
 import { MenuLateral } from "@/components/layout/menu-lateral";
@@ -10,7 +10,6 @@ import { FranjaConexion } from "@/components/sin-conexion/franja";
 import { Button } from "@/components/ui/button";
 import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { listarNegocios } from "@/lib/datos/negocios";
-import { puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { salir } from "./acciones";
 
@@ -29,7 +28,7 @@ export default function LayoutApp({ children }: { children: React.ReactNode }) {
 function Cargando() {
   return (
     <div className="flex min-h-dvh" aria-busy="true" aria-label="Cargando">
-      <aside className="hidden w-60 shrink-0 border-r bg-card md:block" />
+      <aside className="hidden w-60 shrink-0 bg-menu md:block" />
       <div className="flex-1">
         <div className="h-16 border-b" />
         <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 md:px-6">
@@ -49,7 +48,7 @@ async function Marco({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img src={empresa.logoUrl} alt={empresa.nombre} className="size-9 rounded-lg object-contain" />
   ) : (
-    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary font-semibold text-primary-foreground">
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-destacado-desde to-destacado-hasta font-semibold text-white">
       {empresa?.nombre.charAt(0).toUpperCase()}
     </div>
   );
@@ -61,21 +60,25 @@ async function Marco({ children }: { children: React.ReactNode }) {
       ventas={ctx.modulosActivos.includes("VENTAS")}
     >
       <div className="flex min-h-dvh">
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-card md:flex">
-          <div className="flex h-16 items-center gap-3 border-b px-4">
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col bg-menu text-menu-foreground md:flex">
+          <div className="flex h-16 items-center gap-3 border-b border-menu-borde px-4">
             {logo}
-            <span className="truncate font-semibold">{empresa?.nombre}</span>
+            <span className="truncate font-semibold text-white">{empresa?.nombre}</span>
           </div>
           <div className="flex-1 overflow-y-auto">
             <MenuLateral rol={ctx.rol} modulos={ctx.modulosActivos} />
           </div>
-          <div className="space-y-2 border-t p-3">
-            <div className="px-3 text-sm">
-              <p className="truncate font-medium">{ctx.nombre}</p>
-              <p className="text-muted-foreground">{NOMBRE_ROL[ctx.rol]}</p>
-            </div>
+          <div className="space-y-1 border-t border-menu-borde p-3">
+            <Link href="/mi-cuenta" className="block rounded-lg px-3 py-2 text-sm hover:bg-white/5" title="Mi cuenta">
+              <p className="truncate font-medium text-white">{ctx.nombre}</p>
+              <p>{NOMBRE_ROL[ctx.rol]} · Mi cuenta</p>
+            </Link>
             <form action={salir}>
-              <Button type="submit" variant="ghost" className="w-full justify-start text-muted-foreground">
+              <Button
+                type="submit"
+                variant="ghost"
+                className="w-full justify-start text-menu-foreground hover:bg-white/5 hover:text-white"
+              >
                 <LogOut /> Salir
               </Button>
             </form>
@@ -89,18 +92,12 @@ async function Marco({ children }: { children: React.ReactNode }) {
               <SelectorNegocio negocios={negocios} activoId={ctx.negocioActivoId} />
             </div>
             <BotonTema />
-            {puedeGestionar(ctx) && (
-              <Button asChild variant="ghost" size="icon" className="md:hidden" aria-label="Configuración">
-                <Link href="/configuracion">
-                  <Settings className="size-5" />
-                </Link>
-              </Button>
-            )}
-            <form action={salir} className="md:hidden">
-              <Button type="submit" variant="ghost" size="icon" aria-label="Salir">
-                <LogOut className="size-5" />
-              </Button>
-            </form>
+            {/* En el celular, Configuración está en "Más" y Salir dentro de Mi cuenta. */}
+            <Button asChild variant="ghost" size="icon" className="md:hidden" aria-label="Mi cuenta">
+              <Link href="/mi-cuenta">
+                <CircleUser className="size-5" />
+              </Link>
+            </Button>
           </header>
           <FranjaConexion />
 
