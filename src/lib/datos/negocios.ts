@@ -2,8 +2,9 @@ import { z } from "zod";
 import { exigirGestion } from "@/lib/permisos";
 import { erroresPorCampo } from "@/lib/inventario/esquemas";
 import { datosDe } from "./alcance";
+import { prisma } from "./cliente";
 import type { Contexto } from "./contexto";
-import type { Resultado } from "./inventario";
+import { registrarAuditoria, type Resultado } from "./inventario";
 
 const campos = { id: true, nombre: true, tipo: true, direccion: true } as const;
 
@@ -57,6 +58,25 @@ export async function guardarDatosNegocio(ctx: Contexto, id: string, entrada: un
   exigirGestion(ctx);
   const datos = esquemaDatosNegocio.safeParse(entrada);
   if (!datos.success) return { ok: false, error: "Revisa los campos marcados.", campos: erroresPorCampo(datos.error) };
-  const { count } = await datosDe(ctx).negocio.updateMany({ where: { id }, data: datos.data });
-  return count ? { ok: true, id } : { ok: false, error: "No encontramos ese negocio." };
+  const antes = await obtenerDatosNegocio(ctx, id);
+  if (!antes) return { ok: false, error: "No encontramos ese negocio." };
+  await prisma.$transaction(async (tx) => {
+    await tx.negocio.update({ where: { id: antes.id }, data: datos.data });
+    // Solo los campos que cambiaron, para que el historial diga qué se tocó.
+    const cambios: Record<string, { antes: string | null; despues: string | null }> = {};
+    for (const [campo, valor] of Object.entries(datos.data)) {
+      const previo = antes[campo as keyof DatosNegocio];
+      if (previo !== valor) cambios[campo] = { antes: previo, despues: valor };
+    }
+    if (Object.keys(cambios).length) {
+      await registrarAuditoria(tx, ctx, {
+        negocioId: antes.id,
+        accion: "CAMBIO_DATOS_NEGOCIO",
+        entidad: "Negocio",
+        entidadId: antes.id,
+        detalle: { negocio: datos.data.nombre, cambios },
+      });
+    }
+  });
+  return { ok: true, id };
 }

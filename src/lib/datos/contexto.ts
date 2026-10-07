@@ -10,6 +10,10 @@ export type Contexto = {
   /** Negocios que el usuario puede ver. El administrador ve todos los de su empresa. */
   negociosPermitidos: string[];
   modulosActivos: Modulo[];
+  /** Debe coincidir con la de la sesión; si no, la sesión se cerró desde otro lado. */
+  versionSesion: number;
+  /** Entró con una contraseña temporal y todavía no la ha cambiado. */
+  debeCambiarContrasena: boolean;
 };
 
 /**
@@ -48,5 +52,7 @@ export async function cargarContexto(usuarioId: string): Promise<Contexto | null
     rol: usuario.rol,
     negociosPermitidos,
     modulosActivos: usuario.empresa.modulosActivos,
+    versionSesion: usuario.versionSesion,
+    debeCambiarContrasena: usuario.debeCambiarContrasena,
   };
 }
