@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Control Total
 
-## Getting Started
+Sistema de inventario, ventas y caja para comercios pequeños. Desarrollado por **EMY TELECOM**.
+Las reglas del proyecto (stack, datos, permisos, fases) están en [CLAUDE.md](CLAUDE.md).
 
-First, run the development server:
+## Cómo levantarlo en tu computador
+
+Necesitas instalar una sola vez: **Node.js 20.9 o más nuevo**, **Docker Desktop** y **Git**.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                 # descarga las librerías
+cp .env.example .env        # en Windows: copy .env.example .env  (luego edita AUTH_SECRET y SEED_CONTRASENA)
+docker compose up -d        # enciende la base de datos PostgreSQL
+npx prisma migrate dev      # crea las tablas
+npm run seed                # carga la empresa Camila, 2 negocios y 3 usuarios de prueba
+npm run dev                 # abre http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Usuarios de prueba (la contraseña es la que pusiste en `SEED_CONTRASENA`):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Usuario  | Rol           | Ve                                  |
+|----------|---------------|-------------------------------------|
+| `admin`  | Administrador | Repuestos de moto y Ferretería      |
+| `socio`  | Socio         | Solo Ferretería                     |
+| `cajero` | Cajero        | Solo Repuestos de moto              |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Para verlo en el celular: con el computador y el celular en el mismo wifi, abre `http://IP-de-tu-computador:3000`.
 
-## Learn More
+## Comandos útiles
 
-To learn more about Next.js, take a look at the following resources:
+| Comando             | Qué hace                                                   |
+|---------------------|------------------------------------------------------------|
+| `npm test`          | Corre las pruebas (usa la base `control_total_test`)       |
+| `npm run lint`      | Revisa el código, incluida la regla de aislamiento         |
+| `npm run typecheck` | Revisa los tipos de TypeScript                             |
+| `npm run build`     | Compila para producción                                    |
+| `npx prisma studio` | Abre una vista de la base de datos en el navegador         |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Cómo está organizado
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+prisma/schema.prisma     Tablas de la base de datos
+prisma/migrations/       Historial de cambios de la base (nunca se edita a mano)
+prisma/seed.ts           Datos iniciales de prueba
+src/app/                 Pantallas (cada carpeta es una dirección de la app)
+src/components/          Piezas visuales (ui/ son de shadcn/ui)
+src/lib/datos/           ÚNICA puerta a la base de datos
+src/styles/tema.css      Colores de marca (cámbialos aquí)
+tests/                   Pruebas automáticas
+```
 
-## Deploy on Vercel
+### La regla más importante: aislamiento
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Ninguna pantalla consulta la base directamente. Todo pasa por `datosDe(contexto)` en
+`src/lib/datos/alcance.ts`, que agrega a **cada** consulta el filtro de la empresa del usuario y
+de los negocios que tiene permitidos. Si alguien intenta importar Prisma fuera de `src/lib/datos/`,
+`npm run lint` lo marca como error. Cuando se agregue una tabla nueva, hay que registrarla en
+`MODELOS` dentro de ese archivo; si no, cualquier consulta a ella falla (mejor un error que una fuga).
