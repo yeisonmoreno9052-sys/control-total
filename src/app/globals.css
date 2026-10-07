@@ -24,8 +24,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-marca-azul: var(--marca-azul);
-  --color-marca-gris: var(--marca-gris);
+  --color-menu: var(--menu);
+  --color-menu-foreground: var(--menu-foreground);
+  --color-menu-activo: var(--menu-activo);
+  --color-menu-activo-foreground: var(--menu-activo-foreground);
+  --color-menu-borde: var(--menu-borde);
+  --color-destacado-desde: var(--destacado-desde);
+  --color-destacado-hasta: var(--destacado-hasta);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

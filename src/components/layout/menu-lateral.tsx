@@ -16,7 +16,9 @@ export function MenuLateral({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) {
         const activa = ruta === href || ruta.startsWith(`${href}/`);
         const clases = cn(
           "flex h-11 items-center gap-3 rounded-md px-3 text-[15px] font-medium transition-colors",
-          activa ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          activa
+            ? "bg-menu-activo text-menu-activo-foreground shadow-[inset_3px_0_0_0_#818cf8]"
+            : "text-menu-foreground hover:bg-white/5 hover:text-white",
           !disponible && "pointer-events-none opacity-60",
         );
         if (!disponible) {
@@ -24,7 +26,7 @@ export function MenuLateral({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) {
             <span key={href} className={clases} aria-disabled="true">
               <Icono className="size-5" />
               {titulo}
-              <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-normal">Pronto</span>
+              <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-xs font-normal">Pronto</span>
             </span>
           );
         }

@@ -119,7 +119,7 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
       {conVentas && (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Cifra titulo="Ventas de hoy" valor={vHoy} anterior={vAyer} contra="ayer" />
+            <Cifra titulo="Ventas de hoy" valor={vHoy} anterior={vAyer} contra="ayer" destacado />
             <Cifra titulo="Esta semana" valor={vSemana} anterior={vSemanaAnterior} contra="la semana pasada" />
             <Cifra titulo="Este mes" valor={vMes} anterior={vMesAnterior} contra="el mes pasado" />
           </div>
@@ -166,13 +166,31 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
   );
 }
 
-function Cifra({ titulo, valor, anterior, contra }: { titulo: string; valor: number; anterior: number; contra: string }) {
+function Cifra({
+  titulo,
+  valor,
+  anterior,
+  contra,
+  destacado = false,
+}: {
+  titulo: string;
+  valor: number;
+  anterior: number;
+  contra: string;
+  destacado?: boolean;
+}) {
   const cambio = variacion(valor, anterior);
   return (
-    <div className="rounded-2xl border p-5">
-      <p className="text-sm text-muted-foreground">{titulo}</p>
+    <div
+      className={cn(
+        "rounded-2xl border p-5",
+        destacado &&
+          "border-transparent bg-gradient-to-br from-destacado-desde to-destacado-hasta text-white shadow-lg shadow-indigo-500/20",
+      )}
+    >
+      <p className={cn("text-sm", destacado ? "text-white/80" : "text-muted-foreground")}>{titulo}</p>
       <p className="text-3xl font-bold tracking-tight tabular-nums">{formatearPesos(valor)}</p>
-      <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+      <p className={cn("mt-1 flex items-center gap-1 text-sm", destacado ? "text-white/80" : "text-muted-foreground")}>
         {cambio === null ? (
           `Sin ventas para comparar con ${contra}`
         ) : (
@@ -180,7 +198,11 @@ function Cifra({ titulo, valor, anterior, contra }: { titulo: string; valor: num
             <span
               className={cn(
                 "inline-flex items-center font-medium",
-                cambio >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-destructive",
+                destacado
+                  ? "rounded-full bg-white/15 px-1.5 text-white"
+                  : cambio >= 0
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-destructive",
               )}
             >
               {cambio >= 0 ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}
