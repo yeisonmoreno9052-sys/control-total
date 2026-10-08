@@ -51,7 +51,9 @@ export function MenuInferior({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) 
         {visibles.map(({ titulo, href, icono: Icono }) => (
           <li key={href} className="min-w-0 flex-1">
             <Link href={href} className={clases(esActiva(href))} aria-current={esActiva(href) ? "page" : undefined}>
-              <Icono className="size-5" />
+              <Pastilla activa={esActiva(href)}>
+                <Icono className="size-5" />
+              </Pastilla>
               <span className="max-w-full truncate">{titulo}</span>
             </Link>
           </li>
@@ -64,7 +66,9 @@ export function MenuInferior({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) 
               aria-expanded={abierto}
               onClick={() => setAbierto((a) => !a)}
             >
-              <Ellipsis className="size-5" />
+              <Pastilla activa={restoActivo || abierto}>
+                <Ellipsis className="size-5" />
+              </Pastilla>
               <span>Más</span>
             </button>
           </li>
@@ -86,5 +90,14 @@ function OpcionLista({ opcion, activa, alElegir }: { opcion: OpcionMenu; activa:
       <Icono className="size-5" />
       {titulo}
     </Link>
+  );
+}
+
+/** Fondo de color detrás del ícono de la opción en la que se está. */
+function Pastilla({ activa, children }: { activa: boolean; children: React.ReactNode }) {
+  return (
+    <span className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-colors", activa && "bg-accent")}>
+      {children}
+    </span>
   );
 }

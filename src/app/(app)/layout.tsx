@@ -86,7 +86,8 @@ async function Marco({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+          {/* En el celular no hay menú lateral: el encabezado lleva el azul noche de la marca. */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur max-md:border-menu-borde max-md:bg-menu max-md:text-white md:px-6 max-md:[&_button:hover]:bg-white/10 max-md:[&_button:hover]:text-white max-md:[&_svg]:text-current max-md:[&_[data-slot=select-trigger]]:border-white/20 max-md:[&_[data-slot=select-trigger]]:bg-white/5">
             <div className="md:hidden">{logo}</div>
             <div className="min-w-0 flex-1">
               <SelectorNegocio negocios={negocios} activoId={ctx.negocioActivoId} />

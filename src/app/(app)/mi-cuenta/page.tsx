@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LogOut } from "lucide-react";
+import { InstalarApp } from "@/components/cuenta/instalar-app";
 import { FormularioContrasena } from "@/components/cuenta/formulario-contrasena";
 import { PreferenciaTeclado } from "@/components/cuenta/preferencia-teclado";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
@@ -20,19 +21,32 @@ export default async function MiCuenta() {
   return (
     <div className="max-w-xl space-y-6">
       <EncabezadoPagina titulo="Mi cuenta" />
-      <section className="flex items-center gap-4 rounded-2xl border p-5">
+      <section className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-destacado-desde to-destacado-hasta p-5 text-white shadow-lg shadow-indigo-500/20">
         <div
-          className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-semibold text-primary"
+          className="flex size-14 shrink-0 items-center justify-center rounded-full bg-white/15 text-xl font-semibold ring-1 ring-white/30"
           aria-hidden
         >
           {ctx.nombre.trim().charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0">
           <p className="truncate text-lg font-semibold">{ctx.nombre}</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white/75">
             {rol?.nombre ?? ctx.rol} · {negocios.map((n) => n.nombre).join(", ")}
           </p>
         </div>
+      </section>
+      <section className="space-y-4 rounded-2xl border border-primary/20 bg-accent/50 p-5 md:p-6">
+        <div className="flex items-center gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/iconos/icono-192.png" alt="" className="size-14 shrink-0 rounded-2xl shadow-md shadow-indigo-500/30" />
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">Instalar Control Total</h2>
+            <p className="text-sm text-muted-foreground">
+              Queda como una aplicación más: con su ícono en el escritorio o en el celular, y abre sin la barra del navegador.
+            </p>
+          </div>
+        </div>
+        <InstalarApp />
       </section>
       <section className="space-y-4 rounded-2xl border p-5 md:p-6">
         <h2 className="text-lg font-semibold">Cambiar mi contraseña</h2>
