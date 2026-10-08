@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LogOut } from "lucide-react";
+import { InstalarApp } from "@/components/cuenta/instalar-app";
 import { FormularioContrasena } from "@/components/cuenta/formulario-contrasena";
 import { PreferenciaTeclado } from "@/components/cuenta/preferencia-teclado";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
@@ -33,6 +34,15 @@ export default async function MiCuenta() {
             {rol?.nombre ?? ctx.rol} · {negocios.map((n) => n.nombre).join(", ")}
           </p>
         </div>
+      </section>
+      <section className="space-y-4 rounded-2xl border p-5 md:p-6">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">Instalar Control Total</h2>
+          <p className="text-sm text-muted-foreground">
+            Queda como una aplicación más: con su ícono en el escritorio o en el celular, y abre sin la barra del navegador.
+          </p>
+        </div>
+        <InstalarApp />
       </section>
       <section className="space-y-4 rounded-2xl border p-5 md:p-6">
         <h2 className="text-lg font-semibold">Cambiar mi contraseña</h2>
