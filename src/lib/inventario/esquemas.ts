@@ -102,3 +102,32 @@ export function erroresPorCampo(error: z.ZodError) {
   }
   return campos;
 }
+
+/** "Compré una pieza de segunda": crea el producto y registra la compra en un solo paso. */
+export const esquemaPiezaSegunda = z
+  .object({
+    nombre: texto(150).min(1, "Escribe qué pieza es."),
+    descripcion: opcional(500),
+    categoriaId: opcional(40),
+    /** Vacío = "Particulares" (se crea solo la primera vez). */
+    proveedorId: opcional(40),
+    cantidad: z.coerce
+      .number({ message: "Escribe cuántas piezas." })
+      .int("Escribe un número entero.")
+      .min(1, "Debe ser al menos 1.")
+      .max(9999, "Máximo 9.999."),
+    costo: pesos("lo que pagaste"),
+    precioVenta: pesos("un precio"),
+    porcentajeIva: z.coerce
+      .number()
+      .refine((v) => (IVAS as readonly number[]).includes(v), "El IVA debe ser 0, 5 o 19 %."),
+    medio: z.enum(["EFECTIVO", "TRANSFERENCIA"], { message: "Elige cómo pagaste." }),
+    desdeCaja: siNo,
+  })
+  .superRefine((p, ctx) => {
+    if (p.precioVenta <= 0) {
+      ctx.addIssue({ code: "custom", path: ["precioVenta"], message: "El precio de venta debe ser mayor que cero." });
+    }
+  });
+
+export type PiezaSegundaEntrada = z.infer<typeof esquemaPiezaSegunda>;

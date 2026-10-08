@@ -12,7 +12,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { costoPromedio, estadoDePago, totalLinea } from "@/lib/compras/costos";
 import { diaEnBogota, fechaDeHoy } from "@/lib/formato";
 import { Decimal, MENSAJES_CANTIDAD, formatearCantidad, leerCantidad, validarCantidad } from "@/lib/inventario/cantidades";
-import { erroresPorCampo } from "@/lib/inventario/esquemas";
+import { erroresPorCampo, type PiezaSegundaEntrada } from "@/lib/inventario/esquemas";
 import { exigirGestion } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import { cajaAbiertaDeHoy } from "./caja";
@@ -325,140 +325,264 @@ export async function registrarFactura(
   if (!proveedor) return { ok: false, error: "Elige el proveedor.", campos: { proveedorId: "Es obligatorio." } };
 
   try {
+    return await prisma.$transaction((tx) => guardarFactura(tx, ctx, negocioId, proveedor, numero, vencimiento, entrada), {
+      timeout: 30_000,
+    });
+  } catch (error) {
+    return comoResultado(error);
+  }
+}
+
+/**
+ * Guarda la factura ya validada dentro de una transacción abierta: sube el stock,
+ * recalcula el costo promedio, registra el pago de contado y deja la auditoría.
+ * Lanza ErrorCompra si algo no cuadra (la transacción se deshace).
+ */
+export async function guardarFactura(
+  tx: Tx,
+  ctx: Contexto,
+  negocioId: string,
+  proveedor: { id: string; nombre: string },
+  numero: string,
+  vencimiento: string | null,
+  entrada: EntradaFactura,
+) {
+  // Bloquea al proveedor: dos personas no registran la misma factura a la vez.
+  await tx.$queryRaw`SELECT "id" FROM "Proveedor" WHERE "id" = ${proveedor.id} FOR UPDATE`;
+  const repetida = await tx.facturaCompra.findFirst({
+    where: { proveedorId: proveedor.id, numero: { equals: numero, mode: "insensitive" }, estado: "REGISTRADA" },
+    select: { id: true },
+  });
+  if (repetida) throw new ErrorCompra(`La factura ${numero} de ${proveedor.nombre} ya está registrada.`);
+
+  const productos = await bloquearProductos(tx, [...new Set(entrada.lineas.map((l) => l.productoId))]);
+  // Estado de cada producto mientras se recorren las líneas (puede repetirse en la factura).
+  const estado = new Map<string, { stock: Decimal; costo: number; precio: number; entra: Decimal }>();
+  const lineas = entrada.lineas.map((l) => {
+    const p = productos.get(l.productoId);
+    if (!p || p.empresaId !== ctx.empresaId || p.negocioId !== negocioId) {
+      throw new ErrorCompra("Uno de los productos no es de este negocio.");
+    }
+    const cantidad = leerCantidad(l.cantidad);
+    const problema = validarCantidad(cantidad, { fraccionado: p.fraccionado });
+    if (problema || !cantidad || cantidad.lte(0)) {
+      throw new ErrorCompra(`${p.nombre}: ${problema ? MENSAJES_CANTIDAD[problema] : "la cantidad debe ser mayor que cero."}`);
+    }
+    if (!Number.isInteger(l.costoUnitario) || l.costoUnitario < 0) throw new ErrorCompra(`${p.nombre}: revisa el costo.`);
+    if (l.precioVenta !== null && (!Number.isInteger(l.precioVenta) || l.precioVenta <= 0)) {
+      throw new ErrorCompra(`${p.nombre}: revisa el precio de venta.`);
+    }
+    if (p.condicion === "DE_SEGUNDA" && (!l.confirmado || l.precioVenta === null)) {
+      throw new ErrorCompra(`${p.nombre} es de segunda: confirma el costo y el precio de venta.`);
+    }
+    const actual = estado.get(p.id) ?? {
+      stock: new Decimal(p.stock.toString()),
+      costo: p.costo,
+      precio: p.precioVenta,
+      entra: new Decimal(0),
+    };
+    const costoDespues = costoPromedio(actual.stock, actual.costo, cantidad, l.costoUnitario);
+    const precioDespues = l.precioVenta ?? actual.precio;
+    const linea = {
+      productoId: p.id,
+      nombre: p.nombre,
+      cantidad,
+      costoUnitario: l.costoUnitario,
+      total: totalLinea(cantidad, l.costoUnitario),
+      costoAntes: actual.costo,
+      costoDespues,
+      precioAntes: actual.precio,
+      precioDespues,
+    };
+    estado.set(p.id, {
+      stock: actual.stock.plus(cantidad),
+      costo: costoDespues,
+      precio: precioDespues,
+      entra: actual.entra.plus(cantidad),
+    });
+    return linea;
+  });
+  const total = lineas.reduce((a, l) => a + l.total, 0);
+
+  const factura = await tx.facturaCompra.create({
+    data: {
+      empresaId: ctx.empresaId,
+      negocioId,
+      proveedorId: proveedor.id,
+      usuarioId: ctx.usuarioId,
+      numero,
+      fecha: aFecha(entrada.fecha),
+      vencimiento: vencimiento ? aFecha(vencimiento) : null,
+      total,
+      nota: entrada.nota?.trim().slice(0, 300) || null,
+    },
+    select: { id: true },
+  });
+  await tx.detalleFacturaCompra.createMany({
+    data: lineas.map((l) => ({
+      empresaId: ctx.empresaId,
+      negocioId,
+      facturaId: factura.id,
+      productoId: l.productoId,
+      cantidad: l.cantidad.toString(),
+      costoUnitario: l.costoUnitario,
+      total: l.total,
+      costoAntes: l.costoAntes,
+      costoDespues: l.costoDespues,
+      precioAntes: l.precioAntes,
+      precioDespues: l.precioDespues,
+    })),
+  });
+
+  for (const [productoId, e] of [...estado].sort(([a], [b]) => (a < b ? -1 : 1))) {
+    const p = productos.get(productoId)!;
+    await tx.producto.update({ where: { id: productoId }, data: { costo: e.costo, precioVenta: e.precio } });
+    await registrarMovimiento(tx, ctx, {
+      productoId,
+      tipo: "COMPRA",
+      cantidad: e.entra,
+      nota: `Factura ${numero} · ${proveedor.nombre}`,
+    });
+    if (e.precio !== p.precioVenta) {
+      await registrarAuditoria(tx, ctx, {
+        negocioId,
+        accion: "CAMBIO_PRECIO",
+        entidad: "Producto",
+        entidadId: productoId,
+        detalle: { antes: p.precioVenta, despues: e.precio, motivo: `Factura de compra ${numero}` },
+      });
+    }
+  }
+
+  if (entrada.pago.tipo === "contado" && total > 0) {
+    const cajaId = await cajaParaPago(tx, ctx, negocioId, entrada.pago.medio, entrada.pago.desdeCaja);
+    await tx.abonoFactura.create({
+      data: {
+        empresaId: ctx.empresaId,
+        negocioId,
+        facturaId: factura.id,
+        usuarioId: ctx.usuarioId,
+        valor: total,
+        medio: entrada.pago.medio,
+        referencia: entrada.pago.referencia?.trim().slice(0, 100) || null,
+        nota: "Pago de contado",
+        cajaId,
+      },
+    });
+  }
+  await recalcularPagado(tx, factura.id);
+  await registrarAuditoria(tx, ctx, {
+    negocioId,
+    accion: "REGISTRO_COMPRA",
+    entidad: "FacturaCompra",
+    entidadId: factura.id,
+    detalle: { proveedor: proveedor.nombre, numero, total, lineas: lineas.length },
+  });
+  return { ok: true as const, id: factura.id, total };
+}
+
+// ─── Pieza de segunda ───────────────────────────────────────────────────────
+
+/** Nombre del proveedor que agrupa las compras a personas sin factura. */
+export const PROVEEDOR_PARTICULARES = "Particulares";
+
+/** Siguiente código SEG-0001, SEG-0002… del negocio. Llamar con el candado del negocio puesto. */
+async function siguienteCodigoSegunda(tx: Tx, negocioId: string) {
+  const filas = await tx.$queryRaw<{ n: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING("codigo" FROM 5) AS INTEGER))::int AS n
+    FROM "Producto" WHERE "negocioId" = ${negocioId} AND "codigo" ~ '^SEG-[0-9]{1,9}$'`;
+  return `SEG-${String((filas[0]?.n ?? 0) + 1).padStart(4, "0")}`;
+}
+
+/**
+ * "Compré una pieza de segunda": en una sola transacción crea el producto con
+ * código SEG-0001…, registra la compra (al proveedor elegido o a "Particulares")
+ * con el número igual al código, sube el stock y deja el costo exacto de la pieza.
+ */
+export async function registrarPiezaSegunda(
+  ctx: Contexto,
+  negocioId: string,
+  entrada: PiezaSegundaEntrada,
+): Promise<Resultado<{ id: string; codigo: string }>> {
+  exigir(ctx, negocioId);
+  const datos = datosDe(ctx);
+  if (entrada.categoriaId) {
+    const categoria = await datos.categoria.findFirst({
+      where: { id: entrada.categoriaId, negocioId, activo: true },
+      select: { id: true },
+    });
+    if (!categoria) return { ok: false, error: "Esa categoría no existe en este negocio.", campos: { categoriaId: "Elige otra." } };
+  }
+  if (entrada.proveedorId) {
+    const proveedor = await datos.proveedor.findFirst({
+      where: { id: entrada.proveedorId, negocioId, activo: true },
+      select: { id: true },
+    });
+    if (!proveedor) return { ok: false, error: "Elige el proveedor.", campos: { proveedorId: "No existe en este negocio." } };
+  }
+
+  try {
     return await prisma.$transaction(
       async (tx) => {
-        // Bloquea al proveedor: dos personas no registran la misma factura a la vez.
-        await tx.$queryRaw`SELECT "id" FROM "Proveedor" WHERE "id" = ${proveedor.id} FOR UPDATE`;
-        const repetida = await tx.facturaCompra.findFirst({
-          where: { proveedorId: proveedor.id, numero: { equals: numero, mode: "insensitive" }, estado: "REGISTRADA" },
-          select: { id: true },
-        });
-        if (repetida) throw new ErrorCompra(`La factura ${numero} de ${proveedor.nombre} ya está registrada.`);
+        // Un solo registro de pieza de segunda a la vez por negocio: así los códigos no se repiten.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`segunda:${negocioId}`}))`;
 
-        const productos = await bloquearProductos(tx, [...new Set(entrada.lineas.map((l) => l.productoId))]);
-        // Estado de cada producto mientras se recorren las líneas (puede repetirse en la factura).
-        const estado = new Map<string, { stock: Decimal; costo: number; precio: number; entra: Decimal }>();
-        const lineas = entrada.lineas.map((l) => {
-          const p = productos.get(l.productoId);
-          if (!p || p.empresaId !== ctx.empresaId || p.negocioId !== negocioId) {
-            throw new ErrorCompra("Uno de los productos no es de este negocio.");
-          }
-          const cantidad = leerCantidad(l.cantidad);
-          const problema = validarCantidad(cantidad, { fraccionado: p.fraccionado });
-          if (problema || !cantidad || cantidad.lte(0)) {
-            throw new ErrorCompra(`${p.nombre}: ${problema ? MENSAJES_CANTIDAD[problema] : "la cantidad debe ser mayor que cero."}`);
-          }
-          if (!Number.isInteger(l.costoUnitario) || l.costoUnitario < 0) throw new ErrorCompra(`${p.nombre}: revisa el costo.`);
-          if (l.precioVenta !== null && (!Number.isInteger(l.precioVenta) || l.precioVenta <= 0)) {
-            throw new ErrorCompra(`${p.nombre}: revisa el precio de venta.`);
-          }
-          if (p.condicion === "DE_SEGUNDA" && (!l.confirmado || l.precioVenta === null)) {
-            throw new ErrorCompra(`${p.nombre} es de segunda: confirma el costo y el precio de venta.`);
-          }
-          const actual = estado.get(p.id) ?? {
-            stock: new Decimal(p.stock.toString()),
-            costo: p.costo,
-            precio: p.precioVenta,
-            entra: new Decimal(0),
-          };
-          const costoDespues = costoPromedio(actual.stock, actual.costo, cantidad, l.costoUnitario);
-          const precioDespues = l.precioVenta ?? actual.precio;
-          const linea = {
-            productoId: p.id,
-            nombre: p.nombre,
-            cantidad,
-            costoUnitario: l.costoUnitario,
-            total: totalLinea(cantidad, l.costoUnitario),
-            costoAntes: actual.costo,
-            costoDespues,
-            precioAntes: actual.precio,
-            precioDespues,
-          };
-          estado.set(p.id, {
-            stock: actual.stock.plus(cantidad),
-            costo: costoDespues,
-            precio: precioDespues,
-            entra: actual.entra.plus(cantidad),
-          });
-          return linea;
-        });
-        const total = lineas.reduce((a, l) => a + l.total, 0);
-
-        const factura = await tx.facturaCompra.create({
-          data: {
-            empresaId: ctx.empresaId,
-            negocioId,
-            proveedorId: proveedor.id,
-            usuarioId: ctx.usuarioId,
-            numero,
-            fecha: aFecha(entrada.fecha),
-            vencimiento: vencimiento ? aFecha(vencimiento) : null,
-            total,
-            nota: entrada.nota?.trim().slice(0, 300) || null,
-          },
-          select: { id: true },
-        });
-        await tx.detalleFacturaCompra.createMany({
-          data: lineas.map((l) => ({
-            empresaId: ctx.empresaId,
-            negocioId,
-            facturaId: factura.id,
-            productoId: l.productoId,
-            cantidad: l.cantidad.toString(),
-            costoUnitario: l.costoUnitario,
-            total: l.total,
-            costoAntes: l.costoAntes,
-            costoDespues: l.costoDespues,
-            precioAntes: l.precioAntes,
-            precioDespues: l.precioDespues,
-          })),
-        });
-
-        for (const [productoId, e] of [...estado].sort(([a], [b]) => (a < b ? -1 : 1))) {
-          const p = productos.get(productoId)!;
-          await tx.producto.update({ where: { id: productoId }, data: { costo: e.costo, precioVenta: e.precio } });
-          await registrarMovimiento(tx, ctx, {
-            productoId,
-            tipo: "COMPRA",
-            cantidad: e.entra,
-            nota: `Factura ${numero} · ${proveedor.nombre}`,
-          });
-          if (e.precio !== p.precioVenta) {
-            await registrarAuditoria(tx, ctx, {
-              negocioId,
-              accion: "CAMBIO_PRECIO",
-              entidad: "Producto",
-              entidadId: productoId,
-              detalle: { antes: p.precioVenta, despues: e.precio, motivo: `Factura de compra ${numero}` },
+        let proveedor: { id: string; nombre: string } | null = entrada.proveedorId
+          ? await tx.proveedor.findFirst({ where: { id: entrada.proveedorId, empresaId: ctx.empresaId, negocioId }, select: { id: true, nombre: true } })
+          : await tx.proveedor.findFirst({
+              where: { empresaId: ctx.empresaId, negocioId, nombre: { equals: PROVEEDOR_PARTICULARES, mode: "insensitive" } },
+              select: { id: true, nombre: true },
+              orderBy: { creadoEn: "asc" },
             });
-          }
-        }
-
-        if (entrada.pago.tipo === "contado" && total > 0) {
-          const cajaId = await cajaParaPago(tx, ctx, negocioId, entrada.pago.medio, entrada.pago.desdeCaja);
-          await tx.abonoFactura.create({
+        if (!proveedor && entrada.proveedorId) throw new ErrorCompra("Elige el proveedor.");
+        if (!proveedor) {
+          proveedor = await tx.proveedor.create({
             data: {
               empresaId: ctx.empresaId,
               negocioId,
-              facturaId: factura.id,
-              usuarioId: ctx.usuarioId,
-              valor: total,
-              medio: entrada.pago.medio,
-              referencia: entrada.pago.referencia?.trim().slice(0, 100) || null,
-              nota: "Pago de contado",
-              cajaId,
+              nombre: PROVEEDOR_PARTICULARES,
+              notas: "Compras a personas, sin factura. Lo creó el sistema al registrar una pieza de segunda.",
             },
+            select: { id: true, nombre: true },
           });
         }
-        await recalcularPagado(tx, factura.id);
-        await registrarAuditoria(tx, ctx, {
-          negocioId,
-          accion: "REGISTRO_COMPRA",
-          entidad: "FacturaCompra",
-          entidadId: factura.id,
-          detalle: { proveedor: proveedor.nombre, numero, total, lineas: lineas.length },
+
+        const codigo = await siguienteCodigoSegunda(tx, negocioId);
+        const producto = await tx.producto.create({
+          data: {
+            empresaId: ctx.empresaId,
+            negocioId,
+            codigo,
+            nombre: entrada.nombre,
+            descripcion: entrada.descripcion ?? null,
+            categoriaId: entrada.categoriaId ?? null,
+            costo: 0,
+            precioVenta: entrada.precioVenta,
+            unidad: "UNIDAD",
+            fraccionado: false,
+            porcentajeIva: entrada.porcentajeIva,
+            condicion: "DE_SEGUNDA",
+          },
+          select: { id: true },
         });
-        return { ok: true as const, id: factura.id, total };
+
+        await guardarFactura(tx, ctx, negocioId, proveedor, codigo, null, {
+          proveedorId: proveedor.id,
+          numero: codigo,
+          fecha: diaEnBogota(),
+          nota: "Pieza de segunda",
+          lineas: [
+            {
+              productoId: producto.id,
+              cantidad: String(entrada.cantidad),
+              costoUnitario: entrada.costo,
+              precioVenta: entrada.precioVenta,
+              confirmado: true,
+            },
+          ],
+          pago: { tipo: "contado", medio: entrada.medio, desdeCaja: entrada.medio === "EFECTIVO" && entrada.desdeCaja },
+        });
+        return { ok: true as const, id: producto.id, codigo };
       },
       { timeout: 30_000 },
     );
