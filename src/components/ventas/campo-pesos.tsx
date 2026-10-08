@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useCampoTeclado } from "./teclado-numerico";
 
 const miles = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
@@ -15,13 +16,14 @@ export function CampoPesos({
   valor: number | null;
   onValor: (valor: number | null) => void;
 }) {
+  const teclado = useCampoTeclado();
   return (
     <div className="relative">
       <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">$</span>
       <Input
         {...props}
         type="text"
-        inputMode="numeric"
+        {...teclado}
         autoComplete="off"
         value={valor === null ? "" : miles.format(valor)}
         onChange={(e) => {

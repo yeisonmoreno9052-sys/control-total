@@ -5,6 +5,7 @@ import { LockOpen } from "lucide-react";
 import { AvisoError } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
 import { CampoPesos } from "@/components/ventas/campo-pesos";
+import { TecladoNumerico } from "@/components/ventas/teclado-numerico";
 import { abrirCajaAccion, reabrirCajaAccion, type EstadoAccion } from "./acciones";
 
 /** Primera acción del día: escribir con cuánto efectivo arranca la caja. */
@@ -29,6 +30,7 @@ export function AbrirCaja() {
         aria-label="Base de la caja"
         className="h-14 text-center text-2xl font-semibold"
       />
+      <TecladoNumerico />
       <AvisoError mensaje={estado.error} />
       <Button type="submit" size="lg" className="h-14 w-full text-lg" disabled={abriendo}>
         {abriendo ? "Abriendo…" : "Abrir caja"}

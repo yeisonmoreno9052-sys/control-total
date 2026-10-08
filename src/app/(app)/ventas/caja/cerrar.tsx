@@ -8,6 +8,7 @@ import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CampoPesos } from "@/components/ventas/campo-pesos";
+import { TecladoNumerico } from "@/components/ventas/teclado-numerico";
 import { formatearPesos } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { cerrarCajaAccion, type EstadoAccion } from "../acciones";
@@ -78,6 +79,7 @@ export function CerrarCaja({ cajaId, esperado }: { cajaId: string; esperado: num
       >
         <CampoPesos id="contado" autoFocus valor={contado} onValor={setContado} className="h-14 text-2xl font-semibold" />
       </Campo>
+      <TecladoNumerico />
       {esperado !== null && contado !== null && <Diferencia valor={contado - esperado} />}
       <Campo id="nota" etiqueta="Nota (opcional)">
         <Textarea id="nota" name="nota" maxLength={300} placeholder="Ej.: faltan $ 2.000 de un cambio mal dado" />

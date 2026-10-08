@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LogOut } from "lucide-react";
 import { FormularioContrasena } from "@/components/cuenta/formulario-contrasena";
+import { PreferenciaTeclado } from "@/components/cuenta/preferencia-teclado";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { Button } from "@/components/ui/button";
 import { listarNegocios } from "@/lib/datos/negocios";
@@ -36,6 +37,13 @@ export default async function MiCuenta() {
       <section className="space-y-4 rounded-2xl border p-5 md:p-6">
         <h2 className="text-lg font-semibold">Cambiar mi contraseña</h2>
         <FormularioContrasena accion={cambiarMiContrasenaAccion} pedirActual textoBoton="Cambiar contraseña" />
+      </section>
+      <section className="space-y-4 rounded-2xl border p-5 md:p-6">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">Teclado de números en la caja</h2>
+          <p className="text-sm text-muted-foreground">Para pantallas táctiles: se toca en pantalla en vez de usar el teclado.</p>
+        </div>
+        <PreferenciaTeclado />
       </section>
       <form action={salir}>
         <Button type="submit" variant="outline" size="lg" className="w-full">
