@@ -10,6 +10,7 @@ import {
   productosSinVentas,
   productosVendidos,
   resumenVentas,
+  utilidadPorCondicion,
   ventasPorCajero,
   ventasPorDia,
   ventasPorMedio,
@@ -154,11 +155,36 @@ export async function armarReporte(
   }
 
   if (vista === "utilidad") {
-    const [r, g, dias] = await Promise.all([
+    const [r, g, dias, condicion] = await Promise.all([
       resumenVentas(ctx, negocioIds, desde, hasta),
       gastosDelPeriodo(ctx, negocioIds, desde, hasta),
       ventasPorDia(ctx, negocioIds, desde, hasta),
+      utilidadPorCondicion(ctx, negocioIds, desde, hasta),
     ]);
+    const filaCondicion = (nombre: string, x: typeof condicion.nuevo): Celda[] => [
+      nombre,
+      x.ventasNetas,
+      x.costo,
+      x.utilidad,
+      x.margen,
+    ];
+    // Solo aparece si se vendió algo de segunda en estas fechas.
+    const tablaCondicion: Tabla[] =
+      condicion.segunda.ventasNetas || condicion.segunda.costo
+        ? [
+            {
+              titulo: "Nuevo y de segunda",
+              columnas: [
+                { titulo: "Productos", tipo: "texto" },
+                { titulo: "Ventas netas", tipo: "pesos" },
+                { titulo: "Costo", tipo: "pesos" },
+                { titulo: "Utilidad bruta", tipo: "pesos" },
+                { titulo: "Margen", tipo: "porcentaje" },
+              ],
+              filas: [filaCondicion("Nuevos", condicion.nuevo), filaCondicion("De segunda", condicion.segunda)],
+            },
+          ]
+        : [];
     const neta = r.utilidadBruta - g.gastos;
     const filas: Celda[][] = [["Total vendido (menos devoluciones)", r.totalVendido]];
     if (r.ivaResponsable) filas.push(["− IVA cobrado (es de la DIAN)", -r.ivaResponsable]);
@@ -186,6 +212,7 @@ export async function armarReporte(
           filas,
           total: ["Utilidad neta", neta],
         },
+        ...tablaCondicion,
         {
           titulo: "Utilidad bruta por día",
           columnas: [

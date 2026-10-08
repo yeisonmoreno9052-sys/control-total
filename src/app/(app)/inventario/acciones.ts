@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { MotivoAjuste } from "@/generated/prisma/enums";
 import { guardarCategoria, guardarMargenNegocio } from "@/lib/datos/categorias";
+import { registrarPiezaSegunda } from "@/lib/datos/compras";
 import { analizarImportacion, ejecutarImportacion, type AnalisisImportacion } from "@/lib/datos/importacion";
 import { actualizarProducto, ajustarStock, cambiarActivoProducto, crearProducto } from "@/lib/datos/inventario";
 import { buscarPorCodigoExacto } from "@/lib/datos/productos";
-import { erroresPorCampo, esquemaProducto } from "@/lib/inventario/esquemas";
+import { erroresPorCampo, esquemaPiezaSegunda, esquemaProducto } from "@/lib/inventario/esquemas";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
 
@@ -65,6 +66,31 @@ export async function guardarProducto(_: EstadoFormulario, formulario: FormData)
   revalidatePath("/inventario");
   if (formulario.get("otro") === "1") redirect(`/inventario/nuevo?creado=${Date.now()}`);
   redirect(`/inventario/${resultado.id}`);
+}
+
+/** "Compré una pieza de segunda": crea el producto, registra la compra y lleva a imprimir la etiqueta. */
+export async function guardarPiezaSegunda(_: EstadoFormulario, formulario: FormData): Promise<EstadoFormulario> {
+  const ctx = await contextoInventario();
+  if (!ctx.negocioActivoId) return { error: "Elige un negocio primero." };
+  const datos = esquemaPiezaSegunda.safeParse({
+    nombre: texto(formulario, "nombre"),
+    descripcion: texto(formulario, "descripcion"),
+    categoriaId: texto(formulario, "categoriaId"),
+    proveedorId: texto(formulario, "proveedorId"),
+    cantidad: texto(formulario, "cantidad") || "1",
+    costo: texto(formulario, "costo") || "0",
+    precioVenta: texto(formulario, "precioVenta"),
+    porcentajeIva: texto(formulario, "porcentajeIva"),
+    medio: texto(formulario, "medio"),
+    desdeCaja: formulario.get("desdeCaja") === "on",
+  });
+  if (!datos.success) return { error: "Revisa los campos marcados.", campos: erroresPorCampo(datos.error) };
+
+  const resultado = await registrarPiezaSegunda(ctx, ctx.negocioActivoId, datos.data);
+  if (!resultado.ok) return { error: resultado.error, campos: resultado.campos };
+  revalidatePath("/inventario");
+  revalidatePath("/proveedores");
+  redirect(`/etiqueta/${resultado.id}?nueva=1`);
 }
 
 const esquemaAjuste = z.object({

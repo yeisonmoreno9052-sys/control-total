@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { History, Pencil, SlidersHorizontal, Truck } from "lucide-react";
+import { History, Pencil, SlidersHorizontal, Tag, Truck } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,11 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
         acciones={
           gestiona && (
             <>
+              <Button asChild variant="outline">
+                <Link href={`/etiqueta/${id}`}>
+                  <Tag /> Etiqueta
+                </Link>
+              </Button>
               <Button asChild variant="outline">
                 <Link href={`/inventario/${id}/editar`}>
                   <Pencil /> Editar

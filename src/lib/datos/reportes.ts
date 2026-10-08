@@ -135,6 +135,36 @@ export async function resumenVentas(ctx: Contexto, negocioIds: string[], desde: 
   };
 }
 
+/**
+ * Utilidad bruta separada entre productos nuevos y de segunda.
+ * La condición es la que tiene hoy el producto (casi nunca cambia).
+ */
+export async function utilidadPorCondicion(ctx: Contexto, negocioIds: string[], desde: string, hasta: string) {
+  exigirNegocios(ctx, negocioIds);
+  const resp = await responsables(ctx, negocioIds);
+  const c = columnasLinea(resp);
+  const filas = await prisma.$queryRaw<{ condicion: string; unidades: unknown; ingreso: unknown; costo: unknown }[]>`
+    SELECT p."condicion"::text AS condicion, COALESCE(SUM(d."cantidad" - d."cantidadDevuelta"), 0) AS unidades,
+           COALESCE(SUM(${c.ingreso}), 0) AS ingreso, COALESCE(SUM(${c.costo}), 0) AS costo
+    FROM "DetalleVenta" d JOIN "Venta" v ON v."id" = d."ventaId" JOIN "Producto" p ON p."id" = d."productoId"
+    WHERE d."empresaId" = ${ctx.empresaId} AND ${filtroVentas(ctx, negocioIds, desde, hasta)}
+    GROUP BY p."condicion"`;
+  const de = (condicion: "NUEVO" | "DE_SEGUNDA") => {
+    const f = filas.find((x) => x.condicion === condicion);
+    const ventasNetas = Math.round(num(f?.ingreso));
+    const costo = Math.round(num(f?.costo));
+    const utilidad = ventasNetas - costo;
+    return {
+      unidades: num(f?.unidades),
+      ventasNetas,
+      costo,
+      utilidad,
+      margen: ventasNetas ? Math.round((utilidad / ventasNetas) * 1000) / 10 : null,
+    };
+  };
+  return { nuevo: de("NUEVO"), segunda: de("DE_SEGUNDA") };
+}
+
 // ─── Ventas por día, cajero y medio de pago ─────────────────────────────────
 
 export async function ventasPorDia(ctx: Contexto, negocioIds: string[], desde: string, hasta: string) {
