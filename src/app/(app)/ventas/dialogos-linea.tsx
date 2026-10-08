@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Input } from "@/components/ui/input";
 import { CampoPesos } from "@/components/ventas/campo-pesos";
+import { TecladoNumerico, useCampoTeclado } from "@/components/ventas/teclado-numerico";
 import type { ProductoCaja } from "@/lib/datos/productos";
 import { Decimal, formatearCantidad, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
 import { UNIDADES } from "@/lib/inventario/unidades";
@@ -46,6 +47,7 @@ function FormularioCantidad({
   const unidad = UNIDADES[producto.unidad as UnidadMedida];
   const [texto, setTexto] = useState(actual ? formatearCantidad(actual) : "");
   const [error, setError] = useState<string | null>(null);
+  const teclado = useCampoTeclado(producto.fraccionado ? "decimal" : "numeric");
 
   function confirmar(e: React.FormEvent) {
     e.preventDefault();
@@ -70,13 +72,14 @@ function FormularioCantidad({
             setTexto(e.target.value);
             setError(null);
           }}
-          inputMode={producto.fraccionado ? "decimal" : "numeric"}
+          {...teclado}
           aria-label={`Cantidad en ${unidad?.nombre.toLowerCase()}`}
           aria-invalid={!!error}
           className="h-16 pr-16 text-3xl font-semibold tabular-nums"
         />
         <span className="absolute top-1/2 right-4 -translate-y-1/2 text-lg text-muted-foreground">{unidad?.corto}</span>
       </div>
+      <TecladoNumerico decimales={producto.fraccionado} />
       <AvisoError mensaje={error ?? undefined} />
       <Button type="submit" size="lg" className="h-14 w-full text-lg">
         Listo
@@ -123,6 +126,7 @@ function FormularioDescuento({
   const [pesos, setPesos] = useState<number | null>(actual?.tipo === "pesos" ? actual.valor : null);
   const [porcentaje, setPorcentaje] = useState(actual?.tipo === "porcentaje" ? formatearCantidad(actual.valor) : "");
   const [error, setError] = useState<string | null>(null);
+  const teclado = useCampoTeclado("decimal");
 
   function aplicar(d: Descuento | null) {
     const problema = probar(d);
@@ -173,7 +177,7 @@ function FormularioDescuento({
                 setPorcentaje(e.target.value);
                 setError(null);
               }}
-              inputMode="decimal"
+              {...teclado}
               aria-label="Porcentaje de descuento"
               className="h-14 pr-10 text-2xl font-semibold tabular-nums"
             />
@@ -199,6 +203,7 @@ function FormularioDescuento({
           className="h-14 text-2xl font-semibold"
         />
       )}
+      <TecladoNumerico decimales={tipo === "porcentaje"} />
 
       <AvisoError mensaje={error ?? undefined} />
       <div className="grid grid-cols-2 gap-2">

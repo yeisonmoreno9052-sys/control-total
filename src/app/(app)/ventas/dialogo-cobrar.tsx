@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialogo, Tecla } from "@/components/ui/dialogo";
 import { Input } from "@/components/ui/input";
 import { CampoPesos } from "@/components/ventas/campo-pesos";
+import { TecladoNumerico, useTecladoActivo } from "@/components/ventas/teclado-numerico";
 import type { ClienteVista } from "@/lib/datos/clientes";
 import { formatearPesos } from "@/lib/formato";
 import { Decimal } from "@/lib/inventario/cantidades";
@@ -35,12 +36,19 @@ export function DialogoCobrar(props: {
   onCerrar: () => void;
 }) {
   const [vendida, setVendida] = useState<Vendida | null>(null);
+  // Con teclado en pantalla, la ventana se ensancha: el teclado va al lado y "Confirmar" queda a la vista.
+  const conTeclado = useTecladoActivo() && !vendida;
   const cerrar = () => {
     setVendida(null);
     props.onCerrar();
   };
   return (
-    <Dialogo abierto={props.abierto} onCerrar={cerrar} titulo={vendida ? undefined : "Cobrar"}>
+    <Dialogo
+      abierto={props.abierto}
+      onCerrar={cerrar}
+      titulo={vendida ? undefined : "Cobrar"}
+      className={conTeclado ? "md:max-w-3xl" : undefined}
+    >
       {vendida ? (
         <VentaLista vendida={vendida} onNueva={cerrar} />
       ) : (
@@ -90,6 +98,7 @@ function FormularioPago({
   onPreciosCambiaron: () => void;
 }) {
   const [forma, setForma] = useState<FormaPago["forma"]>("efectivo");
+  const conTeclado = useTecladoActivo();
   const [recibido, setRecibido] = useState<number | null>(null);
   const [transferencia, setTransferencia] = useState<number | null>(null);
   const [referencia, setReferencia] = useState("");
@@ -229,117 +238,124 @@ function FormularioPago({
   const efectivoAPagar = forma === "mixto" ? Math.max(0, total - (transferencia ?? 0)) : total;
 
   return (
-    <form onSubmit={confirmar} className="space-y-4" noValidate>
-      <div>
-        <p className="text-sm text-muted-foreground">Total</p>
-        <p className="text-4xl font-bold tracking-tight tabular-nums">{formatearPesos(total)}</p>
-      </div>
+    <form
+      onSubmit={confirmar}
+      className={cn(conTeclado ? "gap-6 md:grid md:grid-cols-[1fr_17rem] md:items-start" : undefined)}
+      noValidate
+    >
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm text-muted-foreground">Total</p>
+          <p className="text-4xl font-bold tracking-tight tabular-nums">{formatearPesos(total)}</p>
+        </div>
 
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Medio de pago">
-        {FORMAS.map(({ forma: f, nombre, icono: Icono }) => (
-          <button
-            key={f}
-            type="button"
-            role="radio"
-            aria-checked={forma === f}
-            onClick={() => {
-              setForma(f);
-              setError(null);
-            }}
-            className={cn(
-              "flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-sm font-medium",
-              forma === f ? "border-primary bg-accent text-accent-foreground ring-1 ring-primary" : "hover:bg-muted",
-            )}
-          >
-            <Icono className="size-5" />
-            {nombre}
-          </button>
-        ))}
-      </div>
-
-      {forma === "mixto" && (
-        <label className="block space-y-1.5">
-          <span className="text-sm text-muted-foreground">Parte por transferencia</span>
-          <CampoPesos
-            autoFocus
-            valor={transferencia}
-            onValor={(v) => {
-              setTransferencia(v);
-              setError(null);
-            }}
-            className="h-12 text-xl"
-          />
-        </label>
-      )}
-
-      {forma !== "transferencia" && (
-        <>
-          <label className="block space-y-1.5">
-            <span className="text-sm text-muted-foreground">
-              El cliente paga con{forma === "mixto" && ` (efectivo a pagar: ${formatearPesos(efectivoAPagar)})`}
-            </span>
-            <CampoPesos
-              autoFocus={forma === "efectivo"}
-              valor={recibido}
-              onValor={(v) => {
-                setRecibido(v);
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Medio de pago">
+          {FORMAS.map(({ forma: f, nombre, icono: Icono }) => (
+            <button
+              key={f}
+              type="button"
+              role="radio"
+              aria-checked={forma === f}
+              onClick={() => {
+                setForma(f);
                 setError(null);
               }}
-              placeholder={new Intl.NumberFormat("es-CO").format(efectivoAPagar)}
-              className="h-14 text-2xl font-semibold"
+              className={cn(
+                "flex h-16 flex-col items-center justify-center gap-1 rounded-xl border text-sm font-medium",
+                forma === f ? "border-primary bg-accent text-accent-foreground ring-1 ring-primary" : "hover:bg-muted",
+              )}
+            >
+              <Icono className="size-5" />
+              {nombre}
+            </button>
+          ))}
+        </div>
+
+        {forma === "mixto" && (
+          <label className="block space-y-1.5">
+            <span className="text-sm text-muted-foreground">Parte por transferencia</span>
+            <CampoPesos
+              autoFocus
+              valor={transferencia}
+              onValor={(v) => {
+                setTransferencia(v);
+                setError(null);
+              }}
+              className="h-12 text-xl"
             />
           </label>
-          <div className="grid grid-cols-4 gap-2">
-            <Button type="button" variant="outline" className="h-11" onClick={() => setRecibido(efectivoAPagar)}>
-              Exacto
-            </Button>
-            {sugerencias(efectivoAPagar).map((v) => (
-              <Button key={v} type="button" variant="outline" className="h-11 px-1 tabular-nums" onClick={() => setRecibido(v)}>
-                {formatearPesos(v)}
+        )}
+
+        {forma !== "transferencia" && (
+          <>
+            <label className="block space-y-1.5">
+              <span className="text-sm text-muted-foreground">
+                El cliente paga con{forma === "mixto" && ` (efectivo a pagar: ${formatearPesos(efectivoAPagar)})`}
+              </span>
+              <CampoPesos
+                autoFocus={forma === "efectivo"}
+                valor={recibido}
+                onValor={(v) => {
+                  setRecibido(v);
+                  setError(null);
+                }}
+                placeholder={new Intl.NumberFormat("es-CO").format(efectivoAPagar)}
+                className="h-14 text-2xl font-semibold"
+              />
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              <Button type="button" variant="outline" className="h-11" onClick={() => setRecibido(efectivoAPagar)}>
+                Exacto
               </Button>
-            ))}
-          </div>
-        </>
-      )}
+              {sugerencias(efectivoAPagar).map((v) => (
+                <Button key={v} type="button" variant="outline" className="h-11 px-1 tabular-nums" onClick={() => setRecibido(v)}>
+                  {formatearPesos(v)}
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
 
-      {forma !== "efectivo" && (
-        <label className="block space-y-1.5">
-          <span className="text-sm text-muted-foreground">Referencia de la transferencia (opcional)</span>
-          <Input
-            autoFocus={forma === "transferencia"}
-            value={referencia}
-            onChange={(e) => setReferencia(e.target.value)}
-            maxLength={100}
-            placeholder="Ej.: Nequi 4521"
-          />
-        </label>
-      )}
+        {forma !== "efectivo" && (
+          <label className="block space-y-1.5">
+            <span className="text-sm text-muted-foreground">Referencia de la transferencia (opcional)</span>
+            <Input
+              autoFocus={forma === "transferencia"}
+              value={referencia}
+              onChange={(e) => setReferencia(e.target.value)}
+              maxLength={100}
+              placeholder="Ej.: Nequi 4521"
+            />
+          </label>
+        )}
 
-      {forma !== "transferencia" && (
-        <div
-          className={cn(
-            "flex items-center justify-between rounded-xl px-4 py-3",
-            problema ? "bg-muted" : "bg-emerald-50 dark:bg-emerald-950/50",
-          )}
-        >
-          <span>Cambio</span>
-          <span
+        {forma !== "transferencia" && (
+          <div
             className={cn(
-              "text-3xl font-bold tabular-nums",
-              problema ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400",
+              "flex items-center justify-between rounded-xl px-4 py-3",
+              problema ? "bg-muted" : "bg-emerald-50 dark:bg-emerald-950/50",
             )}
-            data-testid="cambio"
           >
-            {formatearPesos(calculado?.cambio ?? 0)}
-          </span>
-        </div>
-      )}
+            <span>Cambio</span>
+            <span
+              className={cn(
+                "text-3xl font-bold tabular-nums",
+                problema ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400",
+              )}
+              data-testid="cambio"
+            >
+              {formatearPesos(calculado?.cambio ?? 0)}
+            </span>
+          </div>
+        )}
 
-      <AvisoError mensaje={error ?? (recibido !== null || transferencia !== null ? (problema ?? undefined) : undefined)} />
+        <AvisoError mensaje={error ?? (recibido !== null || transferencia !== null ? (problema ?? undefined) : undefined)} />
 
-      <Button type="submit" size="lg" className="h-16 w-full rounded-xl text-xl font-semibold" disabled={enviando}>
-        {enviando ? "Registrando…" : "Confirmar venta"} <Tecla>Enter</Tecla>
-      </Button>
+        <Button type="submit" size="lg" className="h-16 w-full rounded-xl text-xl font-semibold" disabled={enviando}>
+          {enviando ? "Registrando…" : "Confirmar venta"} <Tecla>Enter</Tecla>
+        </Button>
+      </div>
+      {conTeclado && <TecladoNumerico className="mt-4 md:mt-0" />}
     </form>
   );
 }
