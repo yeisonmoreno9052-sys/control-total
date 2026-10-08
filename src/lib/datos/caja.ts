@@ -238,17 +238,58 @@ export async function reabrirCaja(ctx: Contexto, cajaId: string): Promise<Result
   return { ok: true, id: cajaId };
 }
 
-/** Cajas cerradas del negocio, la más reciente primero (para el administrador). */
-export async function listarCierres(ctx: Contexto, negocioId: string) {
+/**
+ * Cajas del negocio, la más reciente primero (para el administrador).
+ * Con fechas, solo las de esos días (días de Bogotá, ambos incluidos); sin fechas, las últimas 30.
+ */
+export async function listarCierres(ctx: Contexto, negocioId: string, fechas?: { desde: string; hasta: string }) {
   exigirGestion(ctx);
   exigirNegocioPermitido(ctx, negocioId);
-  return datosDe(ctx).caja.findMany({
-    where: { negocioId },
+  const datos = datosDe(ctx);
+  const cajas = await datos.caja.findMany({
+    where: {
+      negocioId,
+      ...(fechas
+        ? { fecha: { gte: new Date(`${fechas.desde}T00:00:00.000Z`), lte: new Date(`${fechas.hasta}T00:00:00.000Z`) } }
+        : {}),
+    },
     select: {
       id: true, fecha: true, estado: true, base: true, esperado: true, contado: true, diferencia: true,
       cerradaEn: true, cerradaPorId: true, nota: true,
     },
     orderBy: { fecha: "desc" },
-    take: 30,
+    take: fechas ? 400 : 30,
   });
+  const ids = [...new Set(cajas.map((c) => c.cerradaPorId).filter((x): x is string => !!x))];
+  const usuarios = ids.length ? await datos.usuario.findMany({ where: { id: { in: ids } }, select: { id: true, nombre: true } }) : [];
+  const nombre = new Map(usuarios.map((u) => [u.id, u.nombre]));
+  return cajas.map((c) => ({ ...c, cerradaPor: c.cerradaPorId ? (nombre.get(c.cerradaPorId) ?? null) : null }));
+}
+
+/** Todo lo de una caja para verla o imprimirla: cuentas, quién abrió y cerró, y el negocio. */
+export async function detalleDeCierre(ctx: Contexto, cajaId: string) {
+  exigirGestion(ctx);
+  const datos = datosDe(ctx);
+  const caja = await datos.caja.findFirst({
+    where: { id: cajaId, negocioId: { in: ctx.negociosPermitidos } },
+    select: {
+      id: true, negocioId: true, fecha: true, estado: true, abiertaPorId: true, abiertaEn: true, cerradaPorId: true,
+      cerradaEn: true, esperado: true, contado: true, diferencia: true, nota: true,
+    },
+  });
+  if (!caja) return null;
+  const ids = [caja.abiertaPorId, caja.cerradaPorId].filter((x): x is string => !!x);
+  const [resumen, negocio, usuarios] = await Promise.all([
+    resumenDeCaja(prisma, ctx, caja.id),
+    datos.negocio.findFirst({ where: { id: caja.negocioId }, select: { nombre: true } }),
+    datos.usuario.findMany({ where: { id: { in: ids } }, select: { id: true, nombre: true } }),
+  ]);
+  const nombre = (id: string | null) => usuarios.find((u) => u.id === id)?.nombre ?? null;
+  return {
+    ...caja,
+    negocio: negocio?.nombre ?? "",
+    abiertaPor: nombre(caja.abiertaPorId),
+    cerradaPor: nombre(caja.cerradaPorId),
+    resumen: resumen!,
+  };
 }
