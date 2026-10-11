@@ -23,6 +23,9 @@ export async function ingresar(_: EstadoIngreso, formulario: FormData): Promise<
           usuario,
         };
       }
+      if (error instanceof CredentialsSignin && error.code === "suspendida") {
+        return { error: "La suscripción de tu empresa está suspendida. Comunícate con EMY TELECOM.", usuario };
+      }
       return { error: "Usuario o contraseña incorrectos.", usuario };
     }
     // signIn termina con una redirección que Next.js maneja lanzando un error.

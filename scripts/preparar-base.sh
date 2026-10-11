@@ -11,3 +11,9 @@ npx prisma migrate deploy
 if [ -n "$SEED_CONTRASENA" ]; then
   npx prisma db seed
 fi
+
+# Superadmin de EMY TELECOM (panel /emy): se crea con SUPERADMIN_USUARIO y
+# SUPERADMIN_CONTRASENA. Si no están, no hace nada.
+if [ -n "$SUPERADMIN_USUARIO" ] && [ -n "$SUPERADMIN_CONTRASENA" ]; then
+  npx tsx scripts/superadmin.ts
+fi

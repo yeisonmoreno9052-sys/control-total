@@ -14,6 +14,11 @@ class UsuarioBloqueado extends CredentialsSignin {
   code = "bloqueado";
 }
 
+/** EMY TELECOM suspendió la empresa del usuario. */
+class EmpresaSuspendida extends CredentialsSignin {
+  code = "suspendida";
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   logger: {
@@ -31,6 +36,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const r = await verificarCredenciales(datos.data.usuario, datos.data.contrasena);
         if (!r.ok) {
           if (r.motivo === "bloqueado") throw new UsuarioBloqueado();
+          if (r.motivo === "suspendida") throw new EmpresaSuspendida();
           return null;
         }
         return { id: r.id, name: r.nombre, versionSesion: r.versionSesion };
