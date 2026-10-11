@@ -6,7 +6,7 @@ export const MINUTOS_BLOQUEO = 15;
 
 export type ResultadoIngreso =
   | { ok: true; id: string; nombre: string; versionSesion: number }
-  | { ok: false; motivo: "incorrecto" | "bloqueado" };
+  | { ok: false; motivo: "incorrecto" | "bloqueado" | "suspendida" };
 
 /**
  * Verifica usuario y contraseña. Después de 5 intentos fallidos seguidos el
@@ -26,6 +26,8 @@ export async function verificarCredenciales(
       hashContrasena: true,
       activo: true,
       empresaId: true,
+      rol: true,
+      empresa: { select: { activo: true, estadoSuscripcion: true } },
       intentosFallidos: true,
       bloqueadoHasta: true,
       versionSesion: true,
@@ -37,8 +39,9 @@ export async function verificarCredenciales(
   const hash = usuario?.hashContrasena ?? "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5Ko6kxaQa8vzOmAzZ8b0kbcR1W2Y0dS";
   const valida = await bcrypt.compare(contrasena, hash);
 
-  // El superadmin (sin empresa) entra en la Fase 7.
-  if (!usuario || !usuario.activo || !usuario.empresaId) return { ok: false, motivo: "incorrecto" };
+  // Todo usuario tiene empresa, salvo el superadmin de EMY TELECOM, que no tiene ninguna.
+  const superadmin = usuario?.rol === "SUPERADMIN" && !usuario.empresaId;
+  if (!usuario || !usuario.activo || (!usuario.empresaId && !superadmin)) return { ok: false, motivo: "incorrecto" };
   if (usuario.bloqueadoHasta && usuario.bloqueadoHasta > ahora) return { ok: false, motivo: "bloqueado" };
 
   if (!valida) {
@@ -50,7 +53,13 @@ export async function verificarCredenciales(
         ? { intentosFallidos: 0, bloqueadoHasta: new Date(ahora.getTime() + MINUTOS_BLOQUEO * 60_000) }
         : { intentosFallidos: intentos },
     });
-    if (bloquear) {
+    if (bloquear && superadmin) {
+      await prisma.accionEmy.create({
+        data: { usuarioId: usuario.id, accion: "BLOQUEO_INGRESO", detalle: { intentos: MAXIMO_INTENTOS, minutos: MINUTOS_BLOQUEO } },
+      });
+      return { ok: false, motivo: "bloqueado" };
+    }
+    if (bloquear && usuario.empresaId) {
       await prisma.auditoria.create({
         data: {
           empresaId: usuario.empresaId,
@@ -64,6 +73,11 @@ export async function verificarCredenciales(
       return { ok: false, motivo: "bloqueado" };
     }
     return { ok: false, motivo: "incorrecto" };
+  }
+
+  // Contraseña correcta, pero EMY TELECOM suspendió la empresa: se le dice para que sepa a quién llamar.
+  if (usuario.empresa && (!usuario.empresa.activo || usuario.empresa.estadoSuscripcion !== "ACTIVA")) {
+    return { ok: false, motivo: "suspendida" };
   }
 
   if (usuario.intentosFallidos > 0 || usuario.bloqueadoHasta) {

@@ -45,6 +45,14 @@ model Empresa {
   logoTipo          String?
   estadoSuscripcion EstadoSuscripcion @default(ACTIVA)
   modulosActivos    Modulo[]          @default([INVENTARIO, VENTAS, PROVEEDORES, CAJA, REPORTES])
+  /// Lo que paga cada mes a EMY TELECOM, en pesos.
+  mensualidad       Int               @default(0)
+  /// Día en que vence el próximo pago de la mensualidad.
+  proximoPago       DateTime?         @db.Date
+  /// Notas internas de EMY TELECOM sobre el cliente (no las ve el cliente).
+  notasEmy          String?
+  /// Empresa de demostración: no cuenta como cliente y se puede reiniciar.
+  esDemo            Boolean           @default(false)
   activo            Boolean           @default(true)
   creadoEn          DateTime          @default(now())
   actualizadoEn     DateTime          @updatedAt
@@ -69,6 +77,7 @@ model Empresa {
   abonosFactura      AbonoFactura[]
   adjuntosFactura    AdjuntoFactura[]
   movimientosCaja    MovimientoCaja[]
+  accionesEmy        AccionEmy[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
@@ -153,8 +162,26 @@ model Usuario {
   movimientosCaja         MovimientoCaja[]       @relation("MovimientoCajaRegistro")
   movimientosCajaAnulados MovimientoCaja[]       @relation("MovimientoCajaAnulador")
   adjuntosFactura         AdjuntoFactura[]
+  accionesEmy             AccionEmy[]
 
   @@index([empresaId])
+}
+
+/// Lo que hace el superadmin de EMY TELECOM en su panel (crear clientes, suspender,
+/// registrar pagos, restablecer contraseñas…). La auditoría de cada empresa es aparte.
+model AccionEmy {
+  id        String   @id @default(cuid())
+  usuarioId String
+  empresaId String?
+  accion    String
+  detalle   Json
+  creadoEn  DateTime @default(now())
+
+  usuario Usuario  @relation(fields: [usuarioId], references: [id])
+  empresa Empresa? @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId, creadoEn])
+  @@index([creadoEn])
 }
 
 /// Negocios a los que tiene acceso un socio o cajero.

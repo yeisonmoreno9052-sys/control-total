@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { cargarContexto, type Contexto } from "@/lib/datos/contexto";
+import { cargarSuperadmin, type ContextoEmy } from "@/lib/datos/emy";
 
 export const COOKIE_NEGOCIO = "negocio";
 
@@ -19,9 +20,25 @@ export const obtenerContextoParaCambio = cache(async () => {
   if (!usuarioId) redirect("/ingresar");
 
   const ctx = await cargarContexto(usuarioId);
+  if (!ctx) {
+    // El superadmin de EMY TELECOM no tiene empresa: su lugar es el panel.
+    const emy = await cargarSuperadmin(usuarioId);
+    if (emy && emy.versionSesion === (sesion.user?.versionSesion ?? 0)) redirect("/emy");
+  }
   // Usuario desactivado, o la contraseña se restableció: esta sesión ya no sirve.
   if (!ctx || ctx.versionSesion !== (sesion.user?.versionSesion ?? 0)) redirect("/salir");
   return ctx;
+});
+
+/** Superadmin de EMY TELECOM. Cualquier otro usuario se manda a su empresa. */
+export const obtenerSuperadmin = cache(async (): Promise<ContextoEmy> => {
+  const sesion = await auth();
+  const usuarioId = sesion?.user?.id;
+  if (!usuarioId) redirect("/ingresar");
+  const emy = await cargarSuperadmin(usuarioId);
+  if (!emy) redirect("/panel");
+  if (emy.versionSesion !== (sesion.user?.versionSesion ?? 0)) redirect("/salir");
+  return emy;
 });
 
 /**
