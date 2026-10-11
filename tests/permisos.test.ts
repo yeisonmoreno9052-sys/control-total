@@ -40,9 +40,9 @@ function funcionesExportadas(codigo: string) {
   return partes.map((p) => ({ nombre: /(?:function|const)\s+(\w+)/.exec(p)?.[1] ?? "?", cuerpo: p }));
 }
 
-// Formas válidas de leer la sesión. Los ayudantes locales (contextoVentas, negocioActivo…) llaman obtenerContexto.
+// Formas válidas de leer la sesión (obtenerSuperadmin es la del panel de EMY). Los ayudantes locales (contextoVentas, negocioActivo…) llaman obtenerContexto.
 const LEE_SESION =
-  /obtenerContexto|obtenerContextoParaCambio|contexto[A-Z]\w*\(\)|negocioActivo\(\)|contextoAdmin\(\)|signIn\(|signOut\(/;
+  /obtenerContexto|obtenerContextoParaCambio|obtenerSuperadmin\(\)|contexto[A-Z]\w*\(\)|negocioActivo\(\)|contextoAdmin\(\)|signIn\(|signOut\(/;
 
 describe("toda entrada al servidor lee la sesión", () => {
   const raiz = path.resolve(__dirname, "../src/app");
