@@ -150,7 +150,7 @@ export function FormularioNuevoCliente() {
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">2. Sus locales</h2>
         {locales.map((l, i) => (
-          <div key={l.clave} className="grid gap-3 rounded-2xl border p-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
+          <div key={l.clave} className="grid gap-3 rounded-2xl border p-4 sm:grid-cols-[1fr_1fr_1fr_auto] bg-card shadow-suave">
             <Campo id={`localNombre-${l.clave}`} etiqueta={`Local ${i + 1}`}>
               <Input
                 id={`localNombre-${l.clave}`}
@@ -351,7 +351,7 @@ export function Modulos({
           <label
             key={m.valor}
             className={cn(
-              "flex cursor-pointer items-center gap-3 rounded-xl border p-3",
+              "flex cursor-pointer items-center gap-3 rounded-xl border p-3 bg-card shadow-suave",
               marcados.includes(m.valor) ? "border-primary bg-primary/5" : "hover:bg-muted/40",
             )}
           >

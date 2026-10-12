@@ -35,7 +35,9 @@ function enterAlSiguiente(e: React.KeyboardEvent<HTMLFormElement>) {
   if (e.key !== "Enter" || !(objetivo instanceof HTMLInputElement) || objetivo.type === "submit") return;
   e.preventDefault();
   const campos = Array.from(
-    e.currentTarget.querySelectorAll<HTMLElement>("input:not([type=hidden]):not([disabled]), select, textarea, button[type=submit]"),
+    e.currentTarget.querySelectorAll<HTMLElement>(
+      "input:not([type=hidden]):not([disabled]), select, textarea, button[type=submit]",
+    ),
   );
   campos[campos.indexOf(objetivo) + 1]?.focus();
 }
@@ -88,7 +90,14 @@ export function FormularioProducto({
           <Input id="codigo" name="codigo" defaultValue={valores?.codigo} required aria-invalid={!!e.codigo} autoComplete="off" />
         </Campo>
         <Campo id="codigoBarras" etiqueta="Código de barras" error={e.codigoBarras} ayuda="Opcional. Puedes escanearlo aquí.">
-          <Input id="codigoBarras" name="codigoBarras" defaultValue={valores?.codigoBarras} aria-invalid={!!e.codigoBarras} autoComplete="off" inputMode="numeric" />
+          <Input
+            id="codigoBarras"
+            name="codigoBarras"
+            defaultValue={valores?.codigoBarras}
+            aria-invalid={!!e.codigoBarras}
+            autoComplete="off"
+            inputMode="numeric"
+          />
         </Campo>
         <Campo id="categoriaId" etiqueta="Categoría" error={e.categoriaId}>
           <NativeSelect
@@ -122,7 +131,7 @@ export function FormularioProducto({
         </Campo>
       </section>
 
-      <section className="space-y-5 rounded-xl border p-4 md:p-6">
+      <section className="space-y-5 rounded-xl border p-4 md:p-6 bg-card shadow-suave">
         <h2 className="font-semibold">Precio</h2>
         <div className="grid gap-5 md:grid-cols-3">
           <Campo id="costo" etiqueta="Costo" error={e.costo}>
@@ -197,7 +206,7 @@ export function FormularioProducto({
         </div>
       </section>
 
-      <section className="space-y-5 rounded-xl border p-4 md:p-6">
+      <section className="space-y-5 rounded-xl border p-4 md:p-6 bg-card shadow-suave">
         <h2 className="font-semibold">Inventario</h2>
         <div className="grid gap-5 md:grid-cols-3">
           <Campo id="unidad" etiqueta="Unidad de medida" error={e.unidad}>
@@ -219,12 +228,24 @@ export function FormularioProducto({
             </NativeSelect>
           </Campo>
           {nuevo && (
-            <Campo id="stockInicial" etiqueta="Stock inicial" error={e.stockInicial} ayuda={fraccionado ? "Puedes usar decimales: 2,5" : undefined}>
+            <Campo
+              id="stockInicial"
+              etiqueta="Stock inicial"
+              error={e.stockInicial}
+              ayuda={fraccionado ? "Puedes usar decimales: 2,5" : undefined}
+            >
               <Input id="stockInicial" name="stockInicial" inputMode="decimal" placeholder="0" aria-invalid={!!e.stockInicial} />
             </Campo>
           )}
           <Campo id="stockMinimo" etiqueta="Stock mínimo" error={e.stockMinimo} ayuda="Te avisamos cuando quede esto o menos.">
-            <Input id="stockMinimo" name="stockMinimo" inputMode="decimal" defaultValue={valores?.stockMinimo === "0" ? "" : valores?.stockMinimo.replace(".", ",")} placeholder="0" aria-invalid={!!e.stockMinimo} />
+            <Input
+              id="stockMinimo"
+              name="stockMinimo"
+              inputMode="decimal"
+              defaultValue={valores?.stockMinimo === "0" ? "" : valores?.stockMinimo.replace(".", ",")}
+              placeholder="0"
+              aria-invalid={!!e.stockMinimo}
+            />
           </Campo>
         </div>
         <label className="flex items-start gap-3 rounded-lg border p-3 has-[:disabled]:opacity-60">
@@ -239,7 +260,9 @@ export function FormularioProducto({
           <span>
             <span className="font-medium">Se vende fraccionado</span>
             <span className="block text-sm text-muted-foreground">
-              {unidad === "UNIDAD" ? "Cambia la unidad a metro, kilo o litro para vender por partes." : "Permite vender cantidades como 2,5 m o 0,350 kg."}
+              {unidad === "UNIDAD"
+                ? "Cambia la unidad a metro, kilo o litro para vender por partes."
+                : "Permite vender cantidades como 2,5 m o 0,350 kg."}
             </span>
           </span>
         </label>

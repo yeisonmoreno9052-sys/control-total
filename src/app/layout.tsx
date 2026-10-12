@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { CapturaInstalacion } from "@/components/cuenta/instalar-app";
 import { SCRIPT_TEMA } from "@/components/layout/boton-tema";
 import "./globals.css";
 
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+const letra = Plus_Jakarta_Sans({ variable: "--font-marca", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Control Total",
@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es-CO" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="es-CO" className={`${letra.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       </head>

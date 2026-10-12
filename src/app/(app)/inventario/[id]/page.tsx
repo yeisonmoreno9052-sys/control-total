@@ -78,7 +78,11 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Dato titulo="Stock" destacado={producto.stockBajo}>
           {formatearCantidad(producto.stock)} {unidad.corto}
-          {producto.stockBajo && <Badge variant="aviso" className="ml-2 align-middle">Stock bajo</Badge>}
+          {producto.stockBajo && (
+            <Badge variant="aviso" className="ml-2 align-middle">
+              Stock bajo
+            </Badge>
+          )}
         </Dato>
         <Dato titulo="Precio de venta">{formatearPesos(producto.precioVenta)}</Dato>
         {producto.costo !== undefined && <Dato titulo="Costo">{formatearPesos(producto.costo)}</Dato>}
@@ -92,7 +96,7 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
         )}
       </div>
 
-      <dl className="grid gap-x-6 gap-y-3 rounded-xl border p-4 text-sm sm:grid-cols-2 md:p-6">
+      <dl className="grid gap-x-6 gap-y-3 rounded-xl border p-4 text-sm sm:grid-cols-2 md:p-6 bg-card shadow-suave">
         <Fila titulo="Categoría">{producto.categoria ?? "Sin categoría"}</Fila>
         <Fila titulo="Unidad">
           {unidad.nombre}
@@ -110,7 +114,7 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Truck className="size-5 text-muted-foreground" /> Compras
           </h2>
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {compras.map((c) => (
               <li key={c.id} className={cn(c.anulada && "opacity-60")}>
                 <Link href={`/proveedores/facturas/${c.facturaId}`} className="flex items-center gap-3 p-4 hover:bg-muted/40">
@@ -124,7 +128,8 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
                     </p>
                   </div>
                   <p className="text-right text-sm text-muted-foreground tabular-nums">
-                    Costo {formatearPesos(c.costoAntes)} → <span className="font-medium text-foreground">{formatearPesos(c.costoDespues)}</span>
+                    Costo {formatearPesos(c.costoAntes)} →{" "}
+                    <span className="font-medium text-foreground">{formatearPesos(c.costoDespues)}</span>
                   </p>
                 </Link>
               </li>
@@ -143,7 +148,7 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
             Este producto aún no tiene movimientos de stock.
           </p>
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {movimientos.map((m) => {
               const entra = !m.cantidad.startsWith("-");
               return (
@@ -185,7 +190,7 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
 
 function Dato({ titulo, children, destacado }: { titulo: string; children: React.ReactNode; destacado?: boolean }) {
   return (
-    <div className={cn("rounded-xl border p-4", destacado && "border-amber-300 dark:border-amber-800")}>
+    <div className={cn("rounded-xl border p-4 bg-card shadow-suave", destacado && "border-amber-300 dark:border-amber-800")}>
       <p className="text-sm text-muted-foreground">{titulo}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{children}</p>
     </div>

@@ -101,7 +101,7 @@ export function FormularioSegunda({
         </Campo>
       </section>
 
-      <section className="space-y-5 rounded-xl border p-4 md:p-6">
+      <section className="space-y-5 rounded-xl border p-4 md:p-6 bg-card shadow-suave">
         <h2 className="font-semibold">Costo y precio</h2>
         <div className="grid gap-5 md:grid-cols-3">
           <Campo id="cantidad" etiqueta="Cuántas" error={e.cantidad} ayuda="Normalmente 1.">
@@ -157,7 +157,8 @@ export function FormularioSegunda({
             <div className="flex h-11 items-center rounded-md bg-muted px-3 tabular-nums" aria-live="polite">
               {ganancia ? (
                 <span className={ganancia.ganancia < 0 ? "text-destructive" : ""}>
-                  {formatearPesos(ganancia.ganancia)} · {ganancia.porcentaje.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %
+                  {formatearPesos(ganancia.ganancia)} ·{" "}
+                  {ganancia.porcentaje.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %
                 </span>
               ) : (
                 <span className="text-muted-foreground">Escribe lo que pagaste</span>
@@ -176,7 +177,7 @@ export function FormularioSegunda({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border p-4 md:p-6">
+      <section className="space-y-4 rounded-xl border p-4 md:p-6 bg-card shadow-suave">
         <h2 className="font-semibold">¿Cómo la pagaste?</h2>
         <input type="hidden" name="medio" value={medio} />
         <div role="radiogroup" aria-label="Medio de pago" className="grid grid-cols-2 gap-2">

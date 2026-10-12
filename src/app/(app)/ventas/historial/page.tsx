@@ -30,7 +30,8 @@ function enlace(p: Parametros, cambios: Partial<Parametros>) {
 export default async function Historial({ searchParams }: PageProps<"/ventas/historial">) {
   const ctx = await obtenerContexto();
   exigirModulo(ctx, "VENTAS");
-  if (!ctx.negocioActivoId) return <EstadoVacio icono={Receipt} titulo="Sin negocio" descripcion="No tienes un negocio asignado." />;
+  if (!ctx.negocioActivoId)
+    return <EstadoVacio icono={Receipt} titulo="Sin negocio" descripcion="No tienes un negocio asignado." />;
   const negocioId = ctx.negocioActivoId;
   const sp = await searchParams;
   const hoy = diaEnBogota();
@@ -115,7 +116,7 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
         />
       ) : (
         <>
-          <ul className="divide-y rounded-xl border md:hidden">
+          <ul className="divide-y rounded-xl border md:hidden bg-card shadow-suave">
             {resultado.ventas.map((v) => (
               <li key={v.id}>
                 <Link href={`/ventas/${v.id}`} className="flex items-center gap-3 p-4 active:bg-muted">
@@ -129,7 +130,9 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className={cn("font-semibold tabular-nums", v.estado === "ANULADA" && "text-muted-foreground line-through")}>
+                    <p
+                      className={cn("font-semibold tabular-nums", v.estado === "ANULADA" && "text-muted-foreground line-through")}
+                    >
                       {formatearPesos(v.total)}
                     </p>
                     <p className="text-sm text-muted-foreground">{v.medios.map((m) => NOMBRE_MEDIO[m]).join(" + ")}</p>
@@ -139,7 +142,7 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
             ))}
           </ul>
 
-          <div className="hidden overflow-hidden rounded-xl border md:block">
+          <div className="hidden overflow-hidden rounded-xl border md:block bg-card shadow-suave">
             <table className="w-full text-sm">
               <thead className="bg-muted/60 text-left text-muted-foreground">
                 <tr>

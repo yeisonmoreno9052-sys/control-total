@@ -11,7 +11,7 @@ export default function CrearContrasena() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,#312e81_0%,#111633_55%,#0a0d22_100%)] px-4 py-10">
       <div className="w-full max-w-sm space-y-8">
-        <Suspense fallback={<div className="h-80 animate-pulse rounded-2xl bg-background" />}>
+        <Suspense fallback={<div className="h-80 animate-pulse rounded-2xl bg-card" />}>
           <Contenido />
         </Suspense>
         <p className="text-center text-xs text-indigo-200/60">Desarrollado por EMY TELECOM</p>
@@ -31,7 +31,7 @@ async function Contenido() {
           Entraste con una contraseña temporal. Crea la tuya para seguir; solo tú la vas a saber.
         </p>
       </div>
-      <div className="rounded-2xl bg-background p-6 shadow-2xl shadow-black/40">
+      <div className="rounded-2xl bg-card p-6 shadow-2xl shadow-black/40">
         <FormularioContrasena accion={crearContrasenaAccion} pedirActual={false} textoBoton="Guardar y entrar" />
       </div>
     </>

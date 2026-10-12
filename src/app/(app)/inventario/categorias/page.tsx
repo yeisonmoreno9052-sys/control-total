@@ -26,13 +26,17 @@ export default async function Categorias() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <EncabezadoPagina titulo="Categorías y márgenes" subtitulo={negocio?.nombre} volver={{ href: "/inventario", texto: "Inventario" }} />
+      <EncabezadoPagina
+        titulo="Categorías y márgenes"
+        subtitulo={negocio?.nombre}
+        volver={{ href: "/inventario", texto: "Inventario" }}
+      />
 
-      <section className="space-y-3 rounded-xl border p-4 md:p-6">
+      <section className="space-y-3 rounded-xl border p-4 md:p-6 bg-card shadow-suave">
         <h2 className="font-semibold">Margen del negocio</h2>
         <p className="text-sm text-muted-foreground">
-          Se usa para sugerir el precio de venta a partir del costo. Ejemplo con {margen} %: costo $ 10.000 → precio
-          sugerido {formatearPesos(precioSugerido(10000, margen))}.
+          Se usa para sugerir el precio de venta a partir del costo. Ejemplo con {margen} %: costo $ 10.000 → precio sugerido{" "}
+          {formatearPesos(precioSugerido(10000, margen))}.
         </p>
         <FormularioMargen margen={margen} />
       </section>
@@ -44,9 +48,13 @@ export default async function Categorias() {
         </p>
         <NuevaCategoria />
         {categorias.length === 0 ? (
-          <EstadoVacio icono={FolderTree} titulo="Aún no hay categorías" descripcion="Crea la primera arriba, o se crean solas al importar desde Excel." />
+          <EstadoVacio
+            icono={FolderTree}
+            titulo="Aún no hay categorías"
+            descripcion="Crea la primera arriba, o se crean solas al importar desde Excel."
+          />
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {categorias.map((c) => (
               <FilaCategoria key={c.id} categoria={c} />
             ))}

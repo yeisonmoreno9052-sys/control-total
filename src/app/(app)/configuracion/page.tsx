@@ -25,7 +25,7 @@ export default async function Configuracion() {
         <PestanasConfiguracion activa="/configuracion" rol={ctx.rol} />
       </div>
       {negocio && (
-        <section className="space-y-4 rounded-2xl border p-5 md:p-6">
+        <section className="space-y-4 rounded-2xl border p-5 md:p-6 bg-card shadow-suave">
           <div>
             <h2 className="text-lg font-semibold">Datos de {negocio.nombre}</h2>
             <p className="text-sm text-muted-foreground">
@@ -36,7 +36,7 @@ export default async function Configuracion() {
         </section>
       )}
       {ctx.rol === "ADMINISTRADOR" && (
-        <section className="space-y-4 rounded-2xl border p-5 md:p-6">
+        <section className="space-y-4 rounded-2xl border p-5 md:p-6 bg-card shadow-suave">
           <div>
             <h2 className="text-lg font-semibold">Logo de {empresa?.nombre}</h2>
             <p className="text-sm text-muted-foreground">Es el mismo para todos los negocios.</p>

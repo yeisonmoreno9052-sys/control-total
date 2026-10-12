@@ -123,7 +123,7 @@ export default async function Facturas({ searchParams }: PageProps<"/proveedores
               }
             />
           ) : (
-            <ul className="divide-y rounded-xl border">
+            <ul className="divide-y rounded-xl border bg-card shadow-suave">
               {resultado.facturas.map((f) => (
                 <li key={f.id}>
                   <Link

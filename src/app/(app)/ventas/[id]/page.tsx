@@ -67,7 +67,7 @@ export default async function DetalleVenta({ params }: PageProps<"/ventas/[id]">
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-suave">
         <table className="w-full min-w-[520px] text-sm">
           <thead className="bg-muted/60 text-left text-muted-foreground">
             <tr>
@@ -85,7 +85,9 @@ export default async function DetalleVenta({ params }: PageProps<"/ventas/[id]">
                   <p className="font-medium">{d.nombre}</p>
                   <p className="text-muted-foreground">
                     {d.codigo} · IVA {d.porcentajeIva} %
-                    {d.descuento > 0 && <span className="text-emerald-700 dark:text-emerald-400"> · Descuento − {formatearPesos(d.descuento)}</span>}
+                    {d.descuento > 0 && (
+                      <span className="text-emerald-700 dark:text-emerald-400"> · Descuento − {formatearPesos(d.descuento)}</span>
+                    )}
                   </p>
                   {Number(d.cantidadDevuelta) > 0 && (
                     <p className="text-amber-700 dark:text-amber-400">
@@ -98,7 +100,9 @@ export default async function DetalleVenta({ params }: PageProps<"/ventas/[id]">
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatearPesos(d.precioUnitario)}</td>
                 {verCosto && (
-                  <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">{formatearPesos(d.costoUnitario ?? 0)}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+                    {formatearPesos(d.costoUnitario ?? 0)}
+                  </td>
                 )}
                 <td className="px-4 py-3 text-right font-medium tabular-nums">{formatearPesos(d.total)}</td>
               </tr>
@@ -108,7 +112,7 @@ export default async function DetalleVenta({ params }: PageProps<"/ventas/[id]">
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <dl className="space-y-1.5 rounded-xl border p-4 text-sm">
+        <dl className="space-y-1.5 rounded-xl border p-4 text-sm bg-card shadow-suave">
           <Fila nombre="Subtotal" valor={formatearPesos(venta.subtotal)} />
           {venta.descuento > 0 && <Fila nombre="Descuentos" valor={`− ${formatearPesos(venta.descuento)}`} />}
           <Fila nombre="Base" valor={formatearPesos(venta.base)} />
@@ -118,9 +122,13 @@ export default async function DetalleVenta({ params }: PageProps<"/ventas/[id]">
             <dd className="tabular-nums">{formatearPesos(venta.total)}</dd>
           </div>
         </dl>
-        <dl className="space-y-1.5 rounded-xl border p-4 text-sm">
+        <dl className="space-y-1.5 rounded-xl border p-4 text-sm bg-card shadow-suave">
           {venta.pagos.map((p) => (
-            <Fila key={p.medio} nombre={`${NOMBRE_MEDIO[p.medio]}${p.referencia ? ` (${p.referencia})` : ""}`} valor={formatearPesos(p.valor)} />
+            <Fila
+              key={p.medio}
+              nombre={`${NOMBRE_MEDIO[p.medio]}${p.referencia ? ` (${p.referencia})` : ""}`}
+              valor={formatearPesos(p.valor)}
+            />
           ))}
           {venta.recibido !== null && <Fila nombre="Recibido en efectivo" valor={formatearPesos(venta.recibido)} />}
           {venta.cambio !== null && <Fila nombre="Cambio" valor={formatearPesos(venta.cambio)} />}

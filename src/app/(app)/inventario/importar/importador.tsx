@@ -29,7 +29,7 @@ export function Importador() {
 
   if (estado.importado && a) {
     return (
-      <div className="space-y-4 rounded-xl border p-6 text-center">
+      <div className="space-y-4 rounded-xl border p-6 text-center bg-card shadow-suave">
         <CircleCheck className="mx-auto size-12 text-emerald-600" />
         <h2 className="text-xl font-semibold">Importación lista</h2>
         <p className="text-muted-foreground">
@@ -46,7 +46,7 @@ export function Importador() {
   return (
     <div className="space-y-6">
       <ol className="space-y-4">
-        <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+        <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 bg-card shadow-suave">
           <div>
             <p className="font-medium">1. Descarga la plantilla</p>
             <p className="text-sm text-muted-foreground">Trae las columnas, un ejemplo y las instrucciones.</p>
@@ -57,7 +57,7 @@ export function Importador() {
             </a>
           </Button>
         </li>
-        <li className="space-y-3 rounded-xl border p-4">
+        <li className="space-y-3 rounded-xl border p-4 bg-card shadow-suave">
           <p className="font-medium">2. Sube tu archivo</p>
           <input
             ref={entrada}
@@ -131,7 +131,7 @@ export function Importador() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-xl border">
+              <div className="overflow-x-auto rounded-xl border bg-card shadow-suave">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/60 text-left text-muted-foreground">
                     <tr>
@@ -150,10 +150,16 @@ export function Importador() {
                           <span className="font-medium">{m.nombre}</span>
                           <span className="block text-muted-foreground">{m.codigo}</span>
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{m.precioVenta ? formatearPesos(m.precioVenta) : "—"}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{m.stock ? formatearCantidad(m.stock) : "sin cambio"}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {m.precioVenta ? formatearPesos(m.precioVenta) : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {m.stock ? formatearCantidad(m.stock) : "sin cambio"}
+                        </td>
                         <td className="px-3 py-2">
-                          <Badge variant={m.accion === "nuevo" ? "default" : "secondary"}>{m.accion === "nuevo" ? "Nuevo" : "Actualiza"}</Badge>
+                          <Badge variant={m.accion === "nuevo" ? "default" : "secondary"}>
+                            {m.accion === "nuevo" ? "Nuevo" : "Actualiza"}
+                          </Badge>
                         </td>
                       </tr>
                     ))}
@@ -178,7 +184,7 @@ export function Importador() {
 
 function Resumen({ titulo, valor, alerta }: { titulo: string; valor: number; alerta?: boolean }) {
   return (
-    <div className="rounded-xl border p-4">
+    <div className="rounded-xl border p-4 bg-card shadow-suave">
       <p className="text-sm text-muted-foreground">{titulo}</p>
       <p className={`text-2xl font-semibold tabular-nums ${alerta ? "text-destructive" : ""}`}>{valor.toLocaleString("es-CO")}</p>
     </div>

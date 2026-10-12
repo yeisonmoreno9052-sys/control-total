@@ -102,7 +102,7 @@ async function Marco({ children }: { children: React.ReactNode }) {
           </header>
           <FranjaConexion />
 
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 md:px-6 md:pb-6">{children}</main>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-28 md:px-6 md:pb-6">{children}</main>
 
           <footer className="hidden px-6 pb-4 text-center text-xs text-muted-foreground md:block">
             Desarrollado por EMY TELECOM

@@ -64,17 +64,17 @@ export default async function Factura({ params, searchParams }: PageProps<"/prov
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border p-5">
+        <div className="rounded-2xl border p-5 bg-card shadow-suave">
           <p className="text-sm text-muted-foreground">Total</p>
           <p className={cn("text-2xl font-bold tabular-nums", !vigente && "text-muted-foreground line-through")}>
             {formatearPesos(f.total)}
           </p>
         </div>
-        <div className="rounded-2xl border p-5">
+        <div className="rounded-2xl border p-5 bg-card shadow-suave">
           <p className="text-sm text-muted-foreground">Pagado</p>
           <p className="text-2xl font-bold tabular-nums">{formatearPesos(f.pagado)}</p>
         </div>
-        <div className="rounded-2xl border p-5">
+        <div className="rounded-2xl border p-5 bg-card shadow-suave">
           <p className="text-sm text-muted-foreground">
             Saldo{vigente && f.vencimiento && f.saldo > 0 && ` · vence ${formatearDia(f.vencimiento)}`}
           </p>
@@ -84,7 +84,7 @@ export default async function Factura({ params, searchParams }: PageProps<"/prov
 
       <section className="space-y-3">
         <h2 className="font-semibold">Productos</h2>
-        <ul className="divide-y rounded-xl border">
+        <ul className="divide-y rounded-xl border bg-card shadow-suave">
           {f.detalles.map((d) => {
             const corto = UNIDADES[d.unidad as UnidadMedida]?.corto;
             return (
@@ -118,7 +118,7 @@ export default async function Factura({ params, searchParams }: PageProps<"/prov
             Aún no hay pagos de esta factura.
           </p>
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {f.abonos.map((a) => (
               <li key={a.id} className={cn("flex items-center gap-3 p-4", a.anulado && "opacity-60")}>
                 <div className="min-w-0 flex-1 space-y-1">
@@ -141,7 +141,10 @@ export default async function Factura({ params, searchParams }: PageProps<"/prov
         )}
       </section>
 
-      <Adjuntos facturaId={f.id} adjuntos={f.adjuntos.map((a) => ({ id: a.id, nombre: a.nombre, tipo: a.tipo, tamano: a.tamano }))} />
+      <Adjuntos
+        facturaId={f.id}
+        adjuntos={f.adjuntos.map((a) => ({ id: a.id, nombre: a.nombre, tipo: a.tipo, tamano: a.tamano }))}
+      />
 
       {f.nota && (
         <section className="space-y-1">

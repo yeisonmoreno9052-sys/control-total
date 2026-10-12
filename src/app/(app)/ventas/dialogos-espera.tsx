@@ -119,7 +119,7 @@ export function DialogoEnEspera({
               La venta que tienes ahora en la caja también queda en espera al retomar otra.
             </p>
           )}
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {ventas.map((v) => {
               const total = totalDe(v);
               return (

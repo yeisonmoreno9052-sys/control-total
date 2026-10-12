@@ -122,7 +122,7 @@ function Cifra({
   rojo?: boolean;
 }) {
   return (
-    <div className={cn("rounded-2xl border p-5", rojo && "border-destructive/40 bg-destructive/5")}>
+    <div className={cn("rounded-2xl border p-5 bg-card shadow-suave", rojo && "border-destructive/40 bg-destructive/5")}>
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <Icono className="size-4" /> {titulo}
       </p>
@@ -144,7 +144,7 @@ function TarjetaCliente({ c }: { c: ClienteFila }) {
     <Link
       href={`/emy/${c.id}`}
       className={cn(
-        "flex h-full flex-col gap-3 rounded-2xl border p-5 hover:bg-muted/40",
+        "flex h-full flex-col gap-3 rounded-2xl border p-5 hover:bg-muted/40 bg-card shadow-suave",
         !c.activa && "opacity-70",
         c.activa && c.estadoPago === "vencido" && "border-destructive/50",
       )}

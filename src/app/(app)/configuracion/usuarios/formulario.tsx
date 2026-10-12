@@ -117,7 +117,7 @@ export function FormularioUsuario({
             <label
               key={r.valor}
               className={cn(
-                "relative flex cursor-pointer flex-col gap-1 rounded-xl border p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                "relative flex cursor-pointer flex-col gap-1 rounded-xl border p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring bg-card shadow-suave",
                 rol === r.valor ? "border-primary bg-primary/5" : "hover:bg-muted/40",
                 esUstedMismo && rol !== r.valor && "pointer-events-none opacity-50",
               )}
@@ -148,7 +148,10 @@ export function FormularioUsuario({
           <legend className="mb-2 text-sm font-medium">¿En qué negocios trabaja?</legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {negocios.map((n) => (
-              <label key={n.id} className="flex cursor-pointer items-center gap-3 rounded-xl border p-4 hover:bg-muted/40">
+              <label
+                key={n.id}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border p-4 hover:bg-muted/40 bg-card shadow-suave"
+              >
                 <input
                   type="checkbox"
                   name="negocios"

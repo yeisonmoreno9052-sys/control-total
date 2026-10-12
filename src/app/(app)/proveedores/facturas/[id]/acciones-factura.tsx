@@ -174,8 +174,8 @@ function FormularioAnular({ facturaId, onListo }: { facturaId: string; onListo: 
   return (
     <form action={accion} className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Los productos vuelven a salir del inventario. La factura no se borra: queda marcada como anulada, con tu nombre y el motivo.
-        El costo promedio de los productos no cambia.
+        Los productos vuelven a salir del inventario. La factura no se borra: queda marcada como anulada, con tu nombre y el
+        motivo. El costo promedio de los productos no cambia.
       </p>
       <input type="hidden" name="facturaId" value={facturaId} />
       <Campo id="motivo" etiqueta="Motivo" error={estado.campos?.motivo}>
@@ -244,7 +244,7 @@ export function Adjuntos({ facturaId, adjuntos }: { facturaId: string; adjuntos:
       {adjuntos.length > 0 && (
         <ul className="grid gap-3 sm:grid-cols-3">
           {adjuntos.map((a) => (
-            <li key={a.id} className="relative overflow-hidden rounded-xl border">
+            <li key={a.id} className="relative overflow-hidden rounded-xl border bg-card shadow-suave">
               <a href={`/api/adjuntos/${a.id}`} target="_blank" rel="noopener" className="block">
                 {a.tipo.startsWith("image/") ? (
                   // eslint-disable-next-line @next/next/no-img-element -- imagen privada servida por la app
