@@ -293,7 +293,7 @@ export function FormularioFactura({
   return (
     <>
       <form onSubmit={guardar} noValidate className="space-y-6 pb-28 lg:pb-0">
-        <section className="grid gap-4 rounded-2xl border p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] md:p-6">
+        <section className="grid gap-4 rounded-2xl border p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] md:p-6 bg-card shadow-suave">
           <Campo id="proveedorId" etiqueta="Proveedor" error={errores.proveedorId}>
             <div className="flex gap-2">
               <NativeSelect
@@ -310,7 +310,13 @@ export function FormularioFactura({
                   </option>
                 ))}
               </NativeSelect>
-              <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => setDialogo("proveedor")} aria-label="Nuevo proveedor">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 shrink-0"
+                onClick={() => setDialogo("proveedor")}
+                aria-label="Nuevo proveedor"
+              >
                 <UserPlus /> <span className="hidden sm:inline">Nuevo</span>
               </Button>
             </div>
@@ -367,7 +373,7 @@ export function FormularioFactura({
           )}
         </section>
 
-        <section className="space-y-4 rounded-2xl border p-4 md:p-6">
+        <section className="space-y-4 rounded-2xl border p-4 md:p-6 bg-card shadow-suave">
           <h2 className="font-semibold">Pago</h2>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de pago">
             {(
@@ -459,7 +465,7 @@ export function FormularioFactura({
         <AvisoError mensaje={error ?? undefined} />
 
         {/* En el celular el total y el botón quedan fijos abajo. */}
-        <div className="fixed inset-x-0 bottom-16 z-30 border-t bg-background/95 p-3 backdrop-blur md:bottom-0 lg:static lg:border-0 lg:bg-transparent lg:p-0">
+        <div className="fixed inset-x-0 bottom-[5.25rem] z-30 border-t bg-background/95 p-3 backdrop-blur md:bottom-0 lg:static lg:border-0 lg:bg-transparent lg:p-0">
           <div className="mx-auto flex max-w-5xl items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">
@@ -524,7 +530,7 @@ function FilaLinea({
   const corto = unidadCorta(p.unidad);
   const subio = linea.costo !== null && linea.costo > p.costo;
   return (
-    <li className="space-y-3 rounded-xl border p-4">
+    <li className="space-y-3 rounded-xl border p-4 bg-card shadow-suave">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-medium">{p.nombre}</p>
@@ -743,7 +749,7 @@ function Buscador({
         aria-expanded={!!mostrar}
         aria-controls="resultados-factura"
         aria-label="Buscar producto"
-        className="h-14 w-full rounded-xl border-2 border-primary/70 bg-background pr-4 pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20"
+        className="h-14 w-full rounded-xl border-2 border-primary/70 bg-card pr-4 shadow-suave pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20"
       />
       {mostrar && (
         <ul

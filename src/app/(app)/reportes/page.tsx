@@ -76,7 +76,7 @@ export default async function Reportes({ searchParams }: PageProps<"/reportes">)
             aria-current={v.valor === vista ? "page" : undefined}
             className={cn(
               "flex h-10 flex-1 items-center justify-center rounded-lg px-3 text-sm font-medium whitespace-nowrap",
-              v.valor === vista ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+              v.valor === vista ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {v.nombre}

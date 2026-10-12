@@ -19,7 +19,7 @@ export function Pestanas({ activa }: { activa: (typeof PESTANAS)[number]["href"]
           aria-current={p.href === activa ? "page" : undefined}
           className={cn(
             "flex h-10 flex-1 items-center justify-center rounded-lg px-3 text-sm font-medium whitespace-nowrap",
-            p.href === activa ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+            p.href === activa ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
           {p.titulo}

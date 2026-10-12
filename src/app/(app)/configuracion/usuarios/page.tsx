@@ -46,7 +46,7 @@ export default async function Usuarios({ searchParams }: PageProps<"/configuraci
         </p>
       )}
 
-      <ul className="divide-y rounded-xl border">
+      <ul className="divide-y rounded-xl border bg-card shadow-suave">
         {usuarios.map((u) => (
           <li key={u.id}>
             <Link

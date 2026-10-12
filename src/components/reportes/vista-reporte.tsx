@@ -12,7 +12,7 @@ export function VistaReporte({ reporte, impresion = false }: { reporte: Reporte;
           <div
             key={t.etiqueta}
             className={cn(
-              "rounded-2xl border p-4 md:p-5",
+              "rounded-2xl border p-4 md:p-5 bg-card shadow-suave",
               t.destacada && "col-span-2 border-primary/30 bg-accent/40 lg:col-span-1",
               impresion && "col-span-1 rounded-lg p-3",
             )}
@@ -34,7 +34,7 @@ export function VistaReporte({ reporte, impresion = false }: { reporte: Reporte;
       </div>
 
       {reporte.grafica && (
-        <section className="rounded-2xl border p-4 md:p-5">
+        <section className="rounded-2xl border p-4 md:p-5 bg-card shadow-suave">
           <h2 className="mb-3 font-semibold">Ventas por día</h2>
           <GraficaBarras datos={reporte.grafica} />
         </section>
@@ -48,7 +48,7 @@ export function VistaReporte({ reporte, impresion = false }: { reporte: Reporte;
               {t.vacia ?? "Sin datos."}
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border">
+            <div className="overflow-x-auto rounded-xl border bg-card shadow-suave">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-left">
                   <tr>

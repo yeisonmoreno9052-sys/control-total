@@ -40,7 +40,7 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         }
       />
 
-      <section className="grid gap-4 rounded-2xl border p-5 md:grid-cols-[1fr_auto] md:items-center">
+      <section className="grid gap-4 rounded-2xl border p-5 md:grid-cols-[1fr_auto] md:items-center bg-card shadow-suave">
         <div>
           <p className="text-sm text-muted-foreground">Mensualidad</p>
           <p className="text-3xl font-bold tabular-nums">{formatearPesos(c.mensualidad)}</p>
@@ -52,7 +52,7 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="space-y-3 rounded-2xl border p-5">
+        <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-semibold">Locales</h2>
             <AgregarLocal empresaId={c.id} />
@@ -74,7 +74,7 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
           </ul>
         </section>
 
-        <section className="space-y-3 rounded-2xl border p-5">
+        <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
           <h2 className="font-semibold">Usuarios</h2>
           <p className="text-sm text-muted-foreground">
             Si alguien olvidó su contraseña o quedó bloqueado, genérale una nueva y díctasela.
@@ -97,13 +97,13 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         </section>
       </div>
 
-      <section className="space-y-3 rounded-2xl border p-5">
+      <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
         <h2 className="font-semibold">Módulos activos</h2>
         <p className="text-sm text-muted-foreground">Un módulo apagado desaparece del menú del cliente y deja de funcionar.</p>
         <Modulos id={c.id} activos={c.modulosActivos} opciones={MODULOS} />
       </section>
 
-      <section className="space-y-3 rounded-2xl border p-5">
+      <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
         <h2 className="font-semibold">Datos del cliente</h2>
         <FormularioEditarCliente
           cliente={{
@@ -120,7 +120,7 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         />
       </section>
 
-      <section className="space-y-3 rounded-2xl border p-5">
+      <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
         <h2 className="font-semibold">Historial</h2>
         {c.acciones.length === 0 ? (
           <p className="text-sm text-muted-foreground">Sin movimientos todavía.</p>

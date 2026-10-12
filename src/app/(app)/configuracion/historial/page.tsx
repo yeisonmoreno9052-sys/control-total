@@ -106,7 +106,7 @@ export default async function Historial({ searchParams }: PageProps<"/configurac
           {dias.map((d) => (
             <section key={d.dia} className="space-y-2">
               <h2 className="text-sm font-semibold text-muted-foreground">{d.dia}</h2>
-              <ul className="divide-y rounded-xl border">
+              <ul className="divide-y rounded-xl border bg-card shadow-suave">
                 {d.entradas.map((e) => (
                   <li key={e.id} className="flex gap-4 p-4">
                     <span className="w-20 shrink-0 pt-0.5 text-sm whitespace-nowrap text-muted-foreground tabular-nums">

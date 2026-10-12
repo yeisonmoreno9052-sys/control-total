@@ -43,11 +43,16 @@ export default async function PorPagar() {
       ) : (
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border p-5">
+            <div className="rounded-2xl border p-5 bg-card shadow-suave">
               <p className="text-sm text-muted-foreground">Total por pagar</p>
               <p className="text-3xl font-bold tabular-nums">{formatearPesos(cxp.total)}</p>
             </div>
-            <div className={cn("rounded-2xl border p-5", cxp.vencido > 0 && "border-destructive/40 bg-destructive/5")}>
+            <div
+              className={cn(
+                "rounded-2xl border p-5 bg-card shadow-suave",
+                cxp.vencido > 0 && "border-destructive/40 bg-destructive/5",
+              )}
+            >
               <p className="text-sm text-muted-foreground">Vencido</p>
               <p className={cn("text-3xl font-bold tabular-nums", cxp.vencido > 0 && "text-destructive")}>
                 {formatearPesos(cxp.vencido)}
@@ -57,7 +62,7 @@ export default async function PorPagar() {
 
           <section className="space-y-3">
             <h2 className="font-semibold">Por proveedor</h2>
-            <ul className="divide-y rounded-xl border">
+            <ul className="divide-y rounded-xl border bg-card shadow-suave">
               {cxp.porProveedor.map((p) => (
                 <li key={p.proveedorId}>
                   <Link
@@ -77,7 +82,7 @@ export default async function PorPagar() {
 
           <section className="space-y-3">
             <h2 className="font-semibold">Facturas, la que vence primero arriba</h2>
-            <ul className="divide-y rounded-xl border">
+            <ul className="divide-y rounded-xl border bg-card shadow-suave">
               {cxp.facturas.map((f) => (
                 <li
                   key={f.id}

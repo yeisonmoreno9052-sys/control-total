@@ -88,7 +88,7 @@ export default async function Caja({ searchParams }: PageProps<"/caja">) {
       ) : (
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border p-5">
+            <div className="rounded-2xl border p-5 bg-card shadow-suave">
               <p className="text-sm text-muted-foreground">Egresos</p>
               <p className="text-3xl font-bold tabular-nums" data-testid="total-egresos">
                 {formatearPesos(egresos)}
@@ -106,13 +106,13 @@ export default async function Caja({ searchParams }: PageProps<"/caja">) {
                 </ul>
               )}
             </div>
-            <div className="rounded-2xl border p-5">
+            <div className="rounded-2xl border p-5 bg-card shadow-suave">
               <p className="text-sm text-muted-foreground">Ingresos</p>
               <p className="text-3xl font-bold tabular-nums">{formatearPesos(ingresos)}</p>
             </div>
           </div>
 
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {movimientos.map((m) => {
               const cat = CATEGORIAS_CAJA[m.categoria];
               const egreso = m.tipo === "EGRESO";

@@ -56,11 +56,11 @@ export default async function Proveedor({ params }: PageProps<"/proveedores/dire
       />
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border p-5">
+        <div className="rounded-2xl border p-5 bg-card shadow-suave">
           <p className="text-sm text-muted-foreground">Le debes</p>
           <p className={cn("text-3xl font-bold tabular-nums", debe > 0 && "text-destructive")}>{formatearPesos(debe)}</p>
         </div>
-        <div className="rounded-2xl border p-5">
+        <div className="rounded-2xl border p-5 bg-card shadow-suave">
           <p className="text-sm text-muted-foreground">
             Comprado
             {total > facturas.length ? ` (últimas ${facturas.length} facturas)` : ""}
@@ -70,7 +70,7 @@ export default async function Proveedor({ params }: PageProps<"/proveedores/dire
       </div>
 
       {(proveedor.contacto || proveedor.telefono || proveedor.correo || proveedor.notas) && (
-        <div className="space-y-2 rounded-2xl border p-5 text-sm">
+        <div className="space-y-2 rounded-2xl border p-5 text-sm bg-card shadow-suave">
           {proveedor.contacto && (
             <p className="flex items-center gap-2">
               <User className="size-4 text-muted-foreground" /> {proveedor.contacto}
@@ -111,7 +111,7 @@ export default async function Proveedor({ params }: PageProps<"/proveedores/dire
             descripcion="Las compras a este proveedor aparecerán aquí."
           />
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {facturas.map((f) => (
               <li key={f.id}>
                 <Link href={`/proveedores/facturas/${f.id}`} className="flex items-center gap-3 p-4 hover:bg-muted/40">

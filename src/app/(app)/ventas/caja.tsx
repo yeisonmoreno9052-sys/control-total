@@ -341,7 +341,7 @@ export function Caja({ negocioId }: { negocioId: string }) {
             <p className="text-sm text-muted-foreground">Si lo escaneas otra vez, se suma uno más.</p>
           </div>
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {lineas.map((l, i) => {
               const calc = t?.lineas[i];
               return (
@@ -401,7 +401,7 @@ export function Caja({ negocioId }: { negocioId: string }) {
                     <button
                       type="button"
                       onClick={() => setDialogo({ tipo: "cantidad", producto: l.producto, nueva: false })}
-                      className="h-full min-w-16 bg-background px-2 font-semibold tabular-nums"
+                      className="h-full min-w-16 bg-card px-2 font-semibold tabular-nums"
                       aria-label="Cambiar cantidad"
                     >
                       {formatearCantidad(l.cantidad)}
@@ -431,7 +431,7 @@ export function Caja({ negocioId }: { negocioId: string }) {
       </section>
 
       <aside className="lg:sticky lg:top-20 lg:self-start">
-        <div className="space-y-4 rounded-xl border bg-card p-4 md:p-5">
+        <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-suave md:p-5">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Productos</dt>
@@ -456,14 +456,14 @@ export function Caja({ negocioId }: { negocioId: string }) {
               </div>
             )}
           </dl>
-          <div className="border-t pt-4">
-            <p className="text-sm text-muted-foreground">Total a pagar</p>
+          <div className="rounded-xl bg-franja px-4 py-4 text-white">
+            <p className="text-sm text-white/75">Total a pagar</p>
             <p className="text-4xl font-bold tracking-tight tabular-nums md:text-5xl" data-testid="total">
               {formatearPesos(t?.total ?? 0)}
             </p>
-            {!!t?.iva && <p className="mt-1 text-xs text-muted-foreground">Incluye IVA de {formatearPesos(t.iva)}</p>}
+            {!!t?.iva && <p className="mt-1 text-xs text-white/75">Incluye IVA de {formatearPesos(t.iva)}</p>}
             {errorTotales && (
-              <p role="alert" className="mt-2 text-sm text-destructive">
+              <p role="alert" className="mt-2 rounded-md bg-white/90 px-2 py-1 text-sm text-destructive">
                 {errorTotales}
               </p>
             )}
@@ -499,10 +499,10 @@ export function Caja({ negocioId }: { negocioId: string }) {
           </div>
         </div>
 
-        <div className="sticky bottom-20 z-20 mt-3 md:bottom-4 lg:static">
+        <div className="sticky bottom-[5.25rem] z-20 mt-3 md:bottom-4 lg:static">
           <Button
             size="lg"
-            className="h-16 w-full rounded-xl text-xl font-semibold shadow-lg lg:shadow-xs"
+            className="h-16 w-full rounded-xl bg-gradient-to-r from-destacado-desde to-destacado-hasta text-xl font-semibold text-white shadow-[var(--sombra-destacado)] hover:opacity-95"
             disabled={!puedeCobrar}
             onClick={() => setDialogo({ tipo: "cobrar" })}
           >
@@ -740,7 +740,7 @@ function Buscador({
         aria-expanded={!!mostrar}
         aria-controls="resultados-caja"
         aria-label="Buscar producto"
-        className="h-14 w-full rounded-xl border-2 border-primary/70 bg-background pr-14 pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20"
+        className="h-14 w-full rounded-xl border-2 border-primary/70 bg-card pr-14 shadow-suave pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20"
       />
       <span className="absolute top-1/2 right-4 -translate-y-1/2">
         <Tecla>F2</Tecla>

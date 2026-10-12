@@ -43,7 +43,7 @@ async function Impresion({ searchParams }: PageProps<"/reporte-impresion">) {
   return (
     <>
       <BarraImpresion imprimir={p.imprimir === "1"} />
-      <article className="mx-auto max-w-4xl rounded-xl bg-background p-6 shadow-sm print:max-w-none print:rounded-none print:p-0 print:shadow-none">
+      <article className="mx-auto max-w-4xl rounded-xl bg-card p-6 shadow-sm print:max-w-none print:rounded-none print:p-0 print:shadow-none">
         <header className="mb-5 flex items-start justify-between gap-4 border-b pb-4">
           <div>
             <h1 className="text-2xl font-semibold">{reporte.titulo}</h1>

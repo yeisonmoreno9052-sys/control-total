@@ -36,7 +36,10 @@ export function FormularioAjuste({
       <input type="hidden" name="modo" value={modo} />
 
       <p className="rounded-xl bg-muted p-4">
-        Stock actual: <strong className="tabular-nums">{formatearCantidad(stockActual)} {unidad}</strong>
+        Stock actual:{" "}
+        <strong className="tabular-nums">
+          {formatearCantidad(stockActual)} {unidad}
+        </strong>
       </p>
 
       <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Tipo de ajuste">
@@ -52,7 +55,7 @@ export function FormularioAjuste({
             role="radio"
             aria-checked={modo === v}
             onClick={() => setModo(v)}
-            className={cn("h-10 rounded-md text-sm font-medium", modo === v ? "bg-background shadow-sm" : "text-muted-foreground")}
+            className={cn("h-10 rounded-md text-sm font-medium", modo === v ? "bg-card shadow-sm" : "text-muted-foreground")}
           >
             {t}
           </button>
@@ -96,7 +99,14 @@ export function FormularioAjuste({
                 motivo === v && "border-primary bg-accent text-accent-foreground",
               )}
             >
-              <input type="radio" name="motivo" value={v} checked={motivo === v} onChange={() => setMotivo(v)} className="sr-only" />
+              <input
+                type="radio"
+                name="motivo"
+                value={v}
+                checked={motivo === v}
+                onChange={() => setMotivo(v)}
+                className="sr-only"
+              />
               {t}
             </label>
           ))}

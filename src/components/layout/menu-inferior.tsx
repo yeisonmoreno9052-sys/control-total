@@ -22,13 +22,13 @@ export function MenuInferior({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) 
   const clases = (activa: boolean) =>
     cn(
       "flex h-16 w-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 text-xs font-medium",
-      activa ? "text-primary" : "text-muted-foreground",
+      activa ? "text-white" : "text-menu-foreground",
     );
 
   return (
     <nav
       aria-label="Menú principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 rounded-[22px] bg-menu text-menu-foreground shadow-[0_16px_34px_-10px_rgb(15_19_48/0.6)] md:hidden"
     >
       {abierto && (
         <>
@@ -38,7 +38,7 @@ export function MenuInferior({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) 
             className="fixed inset-0 -z-10 cursor-default"
             onClick={() => setAbierto(false)}
           />
-          <ul className="absolute right-2 bottom-full mb-2 w-56 overflow-hidden rounded-xl border bg-background shadow-lg">
+          <ul className="absolute right-0 bottom-full mb-2 w-56 overflow-hidden rounded-2xl border bg-card text-foreground shadow-lg">
             {resto.map((o) => (
               <li key={o.href}>
                 <OpcionLista opcion={o} activa={esActiva(o.href)} alElegir={() => setAbierto(false)} />
@@ -96,7 +96,12 @@ function OpcionLista({ opcion, activa, alElegir }: { opcion: OpcionMenu; activa:
 /** Fondo de color detrás del ícono de la opción en la que se está. */
 function Pastilla({ activa, children }: { activa: boolean; children: React.ReactNode }) {
   return (
-    <span className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-colors", activa && "bg-accent")}>
+    <span
+      className={cn(
+        "flex h-8 w-14 items-center justify-center rounded-full transition-colors",
+        activa && "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/40",
+      )}
+    >
       {children}
     </span>
   );

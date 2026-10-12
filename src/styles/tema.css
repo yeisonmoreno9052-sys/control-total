@@ -12,11 +12,12 @@
   --marca-noche: #111633;
   --marca-gris: #5d6378;
   --marca-gris-claro: #f3f4f9;
-  --marca-gris-borde: #e3e5ef;
+  --marca-gris-borde: #e7e9f3;
 
   /* Tokens de la interfaz (los usa shadcn/ui) */
-  --background: #ffffff;
-  --foreground: #161a33;
+  /* Fondo gris azulado muy suave: las tarjetas blancas "flotan" encima. */
+  --background: #f4f5fb;
+  --foreground: #141833;
   --card: #ffffff;
   --card-foreground: #161a33;
   --popover: #ffffff;
@@ -43,8 +44,16 @@
   --menu-borde: rgb(255 255 255 / 0.08);
 
   /* Tarjeta principal (ventas de hoy, botón de cobrar grande) */
-  --destacado-desde: #4338ca;
-  --destacado-hasta: #6d28d9;
+  --destacado-desde: #4f46e5;
+  --destacado-hasta: #7c3aed;
+
+  /* Franja de color de los encabezados (inicio, caja) */
+  --franja:
+    radial-gradient(1200px 300px at 20% -40%, #7c3aed 0%, transparent 60%), linear-gradient(120deg, #1e1b6b, #312e81 55%, #4c1d95);
+
+  /* Sombra de las tarjetas */
+  --sombra-suave: 0 1px 2px rgb(20 24 51 / 0.04), 0 12px 32px -14px rgb(20 24 51 / 0.16);
+  --sombra-destacado: 0 18px 40px -12px rgb(79 70 229 / 0.55);
 }
 
 .dark {
@@ -68,4 +77,8 @@
 
   --destacado-desde: #3730a3;
   --destacado-hasta: #5b21b6;
+
+  --franja: linear-gradient(120deg, #141845, #1e1b4b 55%, #2e1065);
+  --sombra-suave: 0 1px 2px rgb(0 0 0 / 0.3);
+  --sombra-destacado: 0 18px 40px -16px rgb(55 48 163 / 0.6);
 }

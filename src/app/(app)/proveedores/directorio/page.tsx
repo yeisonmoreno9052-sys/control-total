@@ -72,7 +72,7 @@ export default async function Directorio({ searchParams }: PageProps<"/proveedor
               }
             />
           ) : (
-            <ul className="divide-y rounded-xl border">
+            <ul className="divide-y rounded-xl border bg-card shadow-suave">
               {proveedores.map((p) => (
                 <li key={p.id}>
                   <Link

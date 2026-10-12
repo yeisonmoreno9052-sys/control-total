@@ -15,16 +15,18 @@ export function MenuLateral({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) {
       {opciones.map(({ titulo, href, icono: Icono, disponible }) => {
         const activa = ruta === href || ruta.startsWith(`${href}/`);
         const clases = cn(
-          "flex h-11 items-center gap-3 rounded-md px-3 text-[15px] font-medium transition-colors",
+          "group flex h-12 items-center gap-3 rounded-xl px-2.5 text-[15px] font-medium transition-colors",
           activa
-            ? "bg-menu-activo text-menu-activo-foreground shadow-[inset_3px_0_0_0_#818cf8]"
+            ? "bg-gradient-to-r from-indigo-500/30 to-indigo-500/5 text-menu-activo-foreground"
             : "text-menu-foreground hover:bg-white/5 hover:text-white",
           !disponible && "pointer-events-none opacity-60",
         );
         if (!disponible) {
           return (
             <span key={href} className={clases} aria-disabled="true">
-              <Icono className="size-5" />
+              <Chip activa={false}>
+                <Icono className="size-[18px]" />
+              </Chip>
               {titulo}
               <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-xs font-normal">Pronto</span>
             </span>
@@ -32,11 +34,29 @@ export function MenuLateral({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) {
         }
         return (
           <Link key={href} href={href} className={clases} aria-current={activa ? "page" : undefined}>
-            <Icono className="size-5" />
+            <Chip activa={activa}>
+              <Icono className="size-[18px]" />
+            </Chip>
             {titulo}
           </Link>
         );
       })}
     </nav>
+  );
+}
+
+/** Cuadrito detrás del ícono: de color en la opción en la que se está. */
+function Chip({ activa, children }: { activa: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "flex size-8 shrink-0 items-center justify-center rounded-[10px] transition-colors",
+        activa
+          ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/40"
+          : "bg-white/5 group-hover:bg-white/10",
+      )}
+    >
+      {children}
+    </span>
   );
 }

@@ -48,11 +48,11 @@ export default async function MiCuenta() {
         </div>
         <InstalarApp />
       </section>
-      <section className="space-y-4 rounded-2xl border p-5 md:p-6">
+      <section className="space-y-4 rounded-2xl border p-5 md:p-6 bg-card shadow-suave">
         <h2 className="text-lg font-semibold">Cambiar mi contraseña</h2>
         <FormularioContrasena accion={cambiarMiContrasenaAccion} pedirActual textoBoton="Cambiar contraseña" />
       </section>
-      <section className="space-y-4 rounded-2xl border p-5 md:p-6">
+      <section className="space-y-4 rounded-2xl border p-5 md:p-6 bg-card shadow-suave">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Teclado de números en la caja</h2>
           <p className="text-sm text-muted-foreground">Para pantallas táctiles: se toca en pantalla en vez de usar el teclado.</p>

@@ -3,7 +3,7 @@ import { formatearPesos } from "@/lib/formato";
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const etiqueta = (dia: string) => `${Number(dia.slice(8))} ${MESES[Number(dia.slice(5, 7)) - 1]}`;
 
-/** Barras de ventas por día. Dibujada a mano (SVG), con el color de la marca, sin librerías. */
+/** Barras de ventas por día. Dibujada a mano (SVG), con degradado de la marca; el último día en violeta. */
 export function GraficaBarras({ datos, alto = 180 }: { datos: { dia: string; total: number }[]; alto?: number }) {
   if (!datos.length) return null;
   const maximo = Math.max(...datos.map((d) => d.total), 1);
@@ -29,6 +29,16 @@ export function GraficaBarras({ datos, alto = 180 }: { datos: { dia: string; tot
             vectorEffect="non-scaling-stroke"
           />
         ))}
+        <defs>
+          <linearGradient id="barra-dia" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#818cf8" />
+            <stop offset="1" stopColor="#4f46e5" />
+          </linearGradient>
+          <linearGradient id="barra-ultima" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#c084fc" />
+            <stop offset="1" stopColor="#7c3aed" />
+          </linearGradient>
+        </defs>
         {datos.map((d, i) => {
           const h = (d.total / maximo) * (alto - 4);
           return (
@@ -39,7 +49,7 @@ export function GraficaBarras({ datos, alto = 180 }: { datos: { dia: string; tot
               width={ancho * 0.7}
               height={Math.max(h, d.total ? 1 : 0)}
               rx="0.6"
-              className="fill-primary"
+              fill={i === datos.length - 1 ? "url(#barra-ultima)" : "url(#barra-dia)"}
             >
               <title>{`${etiqueta(d.dia)}: ${formatearPesos(d.total)}`}</title>
             </rect>

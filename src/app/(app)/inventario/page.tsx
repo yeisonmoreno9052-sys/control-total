@@ -94,11 +94,7 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
         <Buscador />
         <div className="flex gap-2">
           <FiltroCategoria categorias={categorias.map((c) => ({ id: c.id, nombre: c.nombre }))} />
-          <Button
-            asChild
-            variant={parametros.bajo ? "default" : "outline"}
-            className="h-12 shrink-0"
-          >
+          <Button asChild variant={parametros.bajo ? "default" : "outline"} className="h-12 shrink-0">
             <Link href={enlace(parametros, { bajo: parametros.bajo ? undefined : "1", pagina: undefined })}>
               <TriangleAlert /> Stock bajo
             </Link>
@@ -122,7 +118,11 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
           <EstadoVacio
             icono={Package}
             titulo="Todavía no hay productos"
-            descripcion={gestiona ? "Agrega uno por uno o importa tu inventario desde Excel." : "Cuando el administrador cargue productos, aparecerán aquí."}
+            descripcion={
+              gestiona
+                ? "Agrega uno por uno o importa tu inventario desde Excel."
+                : "Cuando el administrador cargue productos, aparecerán aquí."
+            }
             accion={
               gestiona && (
                 <div className="flex flex-wrap justify-center gap-2">
@@ -179,7 +179,7 @@ function TablaProductos({ productos, verCosto }: { productos: ProductoVista[]; v
   return (
     <>
       {/* Celular: tarjetas */}
-      <ul className="divide-y rounded-xl border md:hidden">
+      <ul className="divide-y rounded-xl border md:hidden bg-card shadow-suave">
         {productos.map((p) => (
           <li key={p.id}>
             <Link href={`/inventario/${p.id}`} className="flex items-center gap-3 p-4 active:bg-muted">
@@ -202,7 +202,7 @@ function TablaProductos({ productos, verCosto }: { productos: ProductoVista[]; v
       </ul>
 
       {/* Computador: tabla */}
-      <div className="hidden overflow-hidden rounded-xl border md:block">
+      <div className="hidden overflow-hidden rounded-xl border md:block bg-card shadow-suave">
         <table className="w-full text-sm">
           <thead className="bg-muted/60 text-left text-muted-foreground">
             <tr>

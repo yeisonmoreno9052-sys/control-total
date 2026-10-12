@@ -20,7 +20,8 @@ export const metadata: Metadata = { title: "Cierre de caja · Control Total" };
 export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/caja">) {
   const ctx = await obtenerContexto();
   exigirModulo(ctx, "VENTAS");
-  if (!ctx.negocioActivoId) return <EstadoVacio icono={Wallet} titulo="Sin negocio" descripcion="No tienes un negocio asignado." />;
+  if (!ctx.negocioActivoId)
+    return <EstadoVacio icono={Wallet} titulo="Sin negocio" descripcion="No tienes un negocio asignado." />;
   const negocioId = ctx.negocioActivoId;
   const gestiona = puedeGestionar(ctx);
   const { hoy, pendiente } = await estadoDeCaja(ctx, negocioId);
@@ -38,28 +39,32 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
       <EncabezadoPagina
         titulo="Cierre de caja"
         volver={{ href: "/ventas", texto: "Volver a la caja" }}
-        subtitulo={porCerrar ? `Caja del ${formatearDia(porCerrar.fecha)}, abierta a las ${formatearHora(porCerrar.abiertaEn)}` : undefined}
+        subtitulo={
+          porCerrar ? `Caja del ${formatearDia(porCerrar.fecha)}, abierta a las ${formatearHora(porCerrar.abiertaEn)}` : undefined
+        }
       />
 
       {porCerrar ? (
         <div className="grid gap-6 md:grid-cols-2">
           <CerrarCaja cajaId={porCerrar.id} esperado={resumen?.esperado ?? null} />
           {resumen && (
-            <dl className="space-y-2 self-start rounded-2xl border p-6 text-sm">
+            <dl className="space-y-2 self-start rounded-2xl border p-6 text-sm bg-card shadow-suave">
               <Fila nombre="Base" valor={resumen.base} />
               <Fila nombre="Ventas en efectivo" valor={resumen.ventasEfectivo} />
               {!!resumen.anulacionesEfectivo && <Fila nombre="Anulaciones en efectivo" valor={-resumen.anulacionesEfectivo} />}
               {!!resumen.devolucionesEfectivo && <Fila nombre="Devoluciones en efectivo" valor={-resumen.devolucionesEfectivo} />}
               {!!resumen.pagosProveedores && <Fila nombre="Pagos a proveedores en efectivo" valor={-resumen.pagosProveedores} />}
               {!!resumen.ingresosEfectivo && <Fila nombre="Otros ingresos en efectivo" valor={resumen.ingresosEfectivo} />}
-              {!!resumen.egresosEfectivo && <Fila nombre="Egresos en efectivo (nómina, arriendo…)" valor={-resumen.egresosEfectivo} />}
+              {!!resumen.egresosEfectivo && (
+                <Fila nombre="Egresos en efectivo (nómina, arriendo…)" valor={-resumen.egresosEfectivo} />
+              )}
               <div className="flex justify-between border-t pt-2 text-base font-semibold">
                 <dt>Efectivo esperado</dt>
                 <dd className="tabular-nums">{formatearPesos(resumen.esperado)}</dd>
               </div>
               <p className="pt-2 text-muted-foreground">
-                {resumen.ventas} {resumen.ventas === 1 ? "venta" : "ventas"} · Transferencias {formatearPesos(resumen.ventasTransferencia)} (no
-                están en la caja)
+                {resumen.ventas} {resumen.ventas === 1 ? "venta" : "ventas"} · Transferencias{" "}
+                {formatearPesos(resumen.ventasTransferencia)} (no están en la caja)
               </p>
             </dl>
           )}
@@ -68,7 +73,11 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
         <EstadoVacio
           icono={Wallet}
           titulo={hoy ? "La caja de hoy ya está cerrada" : "No hay caja abierta"}
-          descripcion={hoy ? "Mañana se abre una nueva desde la pantalla de ventas." : "Ábrela desde la pantalla de ventas para empezar a vender."}
+          descripcion={
+            hoy
+              ? "Mañana se abre una nueva desde la pantalla de ventas."
+              : "Ábrela desde la pantalla de ventas para empezar a vender."
+          }
           accion={
             <Button asChild variant="outline">
               <Link href="/ventas">Ir a ventas</Link>
@@ -82,13 +91,13 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
           <h2 className="text-lg font-semibold">Cierres anteriores</h2>
           <SelectorPeriodo periodo={periodo} />
           {cierres.length === 0 ? (
-            <p className="rounded-xl border p-6 text-center text-muted-foreground">
+            <p className="rounded-xl border p-6 text-center text-muted-foreground bg-card shadow-suave">
               No hay cajas del {describirPeriodo(periodo)}. Prueba con otras fechas.
             </p>
           ) : (
             <>
               <ResumenDiferencias diferencias={cierres.map((c) => c.diferencia)} />
-              <div className="relative overflow-x-auto rounded-xl border">
+              <div className="relative overflow-x-auto rounded-xl border bg-card shadow-suave">
                 <table className="w-full min-w-[640px] text-sm">
                   <thead className="bg-muted/60 text-left text-muted-foreground">
                     <tr>
@@ -110,8 +119,12 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
                           {c.estado === "ABIERTA" && <span className="ml-2 text-emerald-700 dark:text-emerald-400">Abierta</span>}
                           {c.nota && <p className="mt-1 text-muted-foreground">{c.nota}</p>}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums">{c.esperado === null ? "—" : formatearPesos(c.esperado)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{c.contado === null ? "—" : formatearPesos(c.contado)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {c.esperado === null ? "—" : formatearPesos(c.esperado)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {c.contado === null ? "—" : formatearPesos(c.contado)}
+                        </td>
                         <td
                           className={cn(
                             "px-4 py-3 text-right font-medium tabular-nums",

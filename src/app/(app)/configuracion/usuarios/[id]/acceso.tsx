@@ -38,7 +38,7 @@ export function Acceso({
   }
 
   return (
-    <section className="max-w-2xl space-y-4 rounded-2xl border p-5 md:p-6">
+    <section className="max-w-2xl space-y-4 rounded-2xl border p-5 md:p-6 bg-card shadow-suave">
       <div>
         <h2 className="text-lg font-semibold">Acceso</h2>
         <p className="text-sm text-muted-foreground">
