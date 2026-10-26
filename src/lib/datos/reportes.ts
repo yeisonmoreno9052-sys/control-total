@@ -321,7 +321,7 @@ export async function inventarioValorizado(ctx: Contexto, negocioIds: string[]) 
     SELECT p."categoriaId", COUNT(*) AS productos,
            COALESCE(SUM(ROUND(p."stock" * p."costo")), 0) AS costo, COALESCE(SUM(ROUND(p."stock" * p."precioVenta")), 0) AS venta
     FROM "Producto" p
-    WHERE p."empresaId" = ${ctx.empresaId} AND p."negocioId" IN (${Prisma.join(negocioIds)}) AND p."activo" AND p."stock" > 0
+    WHERE p."empresaId" = ${ctx.empresaId} AND p."negocioId" IN (${Prisma.join(negocioIds)}) AND p."activo" AND p."controlaStock" AND p."stock" > 0
     GROUP BY p."categoriaId" ORDER BY 3 DESC`;
   const categorias = await datosDe(ctx).categoria.findMany({
     where: { id: { in: filas.map((f) => f.categoriaId).filter((x): x is string => !!x) } },

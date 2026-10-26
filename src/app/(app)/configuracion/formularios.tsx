@@ -5,8 +5,10 @@ import { ImageUp } from "lucide-react";
 import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { DatosNegocio } from "@/lib/datos/negocios";
-import { guardarLogoAccion, guardarNegocioAccion, type EstadoConfig } from "./acciones";
+import { NativeSelect } from "@/components/ui/native-select";
+import type { DatosNegocio, PreferenciasVenta } from "@/lib/datos/negocios";
+import { IVAS } from "@/lib/inventario/unidades";
+import { guardarLogoAccion, guardarNegocioAccion, guardarPreferenciasVentaAccion, type EstadoConfig } from "./acciones";
 
 function Guardado({ ok }: { ok?: boolean }) {
   const [visible, setVisible] = useState(false);
@@ -49,6 +51,52 @@ export function FormularioNegocio({ negocio }: { negocio: DatosNegocio }) {
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={guardando}>
           {guardando ? "Guardando…" : "Guardar datos"}
+        </Button>
+        <Guardado ok={estado.ok} />
+      </div>
+    </form>
+  );
+}
+
+export function FormularioPreferenciasVenta({ preferencias }: { preferencias: PreferenciasVenta }) {
+  const [estado, accion, guardando] = useActionState<EstadoConfig, FormData>(guardarPreferenciasVentaAccion, {});
+  const e = estado.campos ?? {};
+  return (
+    <form action={accion} className="space-y-4">
+      <Campo
+        id="ivaPorDefecto"
+        etiqueta="IVA de los productos nuevos"
+        error={e.ivaPorDefecto}
+        ayuda="Si el negocio no cobra IVA, déjalo en 0 %. Los productos que ya existen no cambian."
+        className="max-w-xs"
+      >
+        <NativeSelect id="ivaPorDefecto" name="ivaPorDefecto" defaultValue={String(preferencias.ivaPorDefecto)}>
+          {IVAS.map((v) => (
+            <option key={v} value={v}>
+              {v} %
+            </option>
+          ))}
+        </NativeSelect>
+      </Campo>
+      <label className="flex items-start gap-3 rounded-lg border p-3">
+        <input
+          type="checkbox"
+          name="botonesRapidos"
+          defaultChecked={preferencias.botonesRapidos}
+          className="mt-0.5 size-5 accent-[var(--primary)]"
+        />
+        <span>
+          <span className="font-medium">Usar botones rápidos en la caja</span>
+          <span className="block text-sm text-muted-foreground">
+            Para cafeterías y negocios sin código de barras: los productos que marques como &quot;botón rápido&quot; salen
+            en la caja como cuadros grandes para tocar.
+          </span>
+        </span>
+      </label>
+      <AvisoError mensaje={estado.error} />
+      <div className="flex items-center gap-3">
+        <Button type="submit" size="lg" disabled={guardando}>
+          {guardando ? "Guardando…" : "Guardar"}
         </Button>
         <Guardado ok={estado.ok} />
       </div>

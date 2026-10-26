@@ -74,6 +74,9 @@ export const esquemaProducto = z
       .number()
       .refine((v) => (IVAS as readonly number[]).includes(v), "El IVA debe ser 0, 5 o 19 %."),
     condicion: z.enum(CondicionProducto, { message: "Elige si es nuevo o de segunda." }),
+    /** Opcionales: la importación puede no traerlos y entonces no se tocan. */
+    controlaStock: siNo.optional(),
+    botonRapido: siNo.optional(),
   })
   .superRefine((p, ctx) => {
     if (p.fraccionado && p.unidad === "UNIDAD") {

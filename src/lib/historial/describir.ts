@@ -35,6 +35,8 @@ const NOMBRES_CAMPO: Record<string, string> = {
   direccion: "dirección",
   telefono: "teléfono",
   mensajeRecibo: "mensaje del recibo",
+  ivaPorDefecto: "IVA por defecto",
+  botonesRapidos: "botones rápidos en la caja",
 };
 
 const CATEGORIAS: Record<string, string> = {

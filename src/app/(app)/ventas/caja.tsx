@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clock, Minus, Pause, Percent, Plus, ScanBarcode, Search, ShoppingCart, UserRound, X } from "lucide-react";
+import { Clock, Minus, Pause, Percent, Plus, ScanBarcode, Search, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { esErrorDeRed, useConexion } from "@/components/sin-conexion/conexion";
 import { Button } from "@/components/ui/button";
 import { Tecla } from "@/components/ui/dialogo";
 import type { ClienteVista } from "@/lib/datos/clientes";
-import type { ProductoCaja } from "@/lib/datos/productos";
+import type { BotonRapido, ProductoCaja } from "@/lib/datos/productos";
 import { formatearPesos } from "@/lib/formato";
 import { Decimal, formatearCantidad } from "@/lib/inventario/cantidades";
 import { UNIDADES } from "@/lib/inventario/unidades";
@@ -50,6 +50,7 @@ export function totalesDe(lineas: Linea[], descuentoGeneral: Descuento | null): 
 
 /** Mensaje si la cantidad pedida no está en stock; null si alcanza. */
 export function faltaStock(producto: ProductoCaja, cantidad: Decimal) {
+  if (producto.controlaStock === false) return null; // tinto, jugos: se venden siempre
   const stock = new Decimal(producto.stock);
   if (stock.lte(0)) return `No hay stock de "${producto.nombre}".`;
   if (cantidad.gt(stock)) {
@@ -82,7 +83,9 @@ function leerGuardado(clave: string): Guardado {
 }
 
 /** La caja solo se dibuja en el navegador (ver caja-cliente.tsx), así puede leer el carrito guardado desde el inicio. */
-export function Caja({ negocioId }: { negocioId: string }) {
+export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?: BotonRapido[] }) {
+  // Con botones rápidos (cafeterías) la caja muestra cuadros para tocar y el pedido va a un lado.
+  const modoBotones = botones.length > 0;
   const clave = `carrito:${negocioId}`;
   const [inicial] = useState(() => leerGuardado(clave));
   const [lineas, setLineas] = useState<Linea[]>(inicial.lineas);
@@ -171,9 +174,11 @@ export function Caja({ negocioId }: { negocioId: string }) {
   const enfocar = useCallback(() => {
     // En el computador de la caja (con mouse o pantalla táctil) el buscador siempre queda
     // listo para el lector de códigos. En el celular no: abriría el teclado a cada rato.
-    const celular = window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 768;
-    if (!celular) buscador.current?.focus();
-  }, []);
+    // Con botones rápidos en una tablet tampoco: se vende tocando cuadros, no escribiendo.
+    const tactil = window.matchMedia("(pointer: coarse)").matches;
+    const celular = tactil && window.innerWidth < 768;
+    if (!celular && !(modoBotones && tactil)) buscador.current?.focus();
+  }, [modoBotones]);
 
   const limpiar = useCallback(() => {
     setLineas([]);
@@ -276,9 +281,20 @@ export function Caja({ negocioId }: { negocioId: string }) {
     dialogo?.tipo === "descuento" && dialogo.productoId ? lineas.find((l) => l.producto.id === dialogo.productoId) : null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6">
-      <section className="min-w-0 space-y-3">
+    <div
+      className={cn(
+        "grid gap-4 lg:gap-6",
+        // Con botones, en pantalla ancha la caja ocupa justo la pantalla: los cuadros se desplazan
+        // por dentro y el pedido con el botón Cobrar siempre se ven.
+        modoBotones
+          ? "lg:h-[calc(100dvh-13rem)] lg:min-h-[28rem] lg:grid-cols-[minmax(0,1fr)_380px]"
+          : "lg:grid-cols-[minmax(0,1fr)_340px]",
+      )}
+    >
+      <section className={cn("min-w-0 space-y-3", modoBotones && "lg:-m-1 lg:overflow-y-auto lg:p-1")}>
         <Buscador
+          enfocarAlAbrir={!modoBotones}
+          placeholder={modoBotones ? "Busca un producto que no esté en los botones…" : undefined}
           refInput={buscador}
           buscarProductos={buscarProductos}
           alElegir={(p) => {
@@ -332,7 +348,9 @@ export function Caja({ negocioId }: { negocioId: string }) {
           )}
         </div>
 
-        {lineas.length === 0 ? (
+        {modoBotones ? (
+          <CuadrosRapidos botones={botones} lineas={lineas} alTocar={agregar} />
+        ) : lineas.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
               <ScanBarcode className="size-6" />
@@ -430,32 +448,51 @@ export function Caja({ negocioId }: { negocioId: string }) {
         )}
       </section>
 
-      <aside className="lg:sticky lg:top-20 lg:self-start">
-        <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-suave md:p-5">
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Productos</dt>
-              <dd className="tabular-nums">
-                {lineas.length}
-                {lineas.length > 0 && ` (${formatearCantidad(unidades)} ${unidades.eq(1) ? "unidad" : "unidades"})`}
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Subtotal</dt>
-              <dd className="tabular-nums">{formatearPesos(t?.subtotal ?? 0)}</dd>
-            </div>
-            {!!t?.descuento && (
-              <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
-                <dt>
-                  Descuentos
-                  {descuentoGeneral && (
-                    <span className="text-muted-foreground"> (general {textoDescuento(descuentoGeneral)})</span>
-                  )}
-                </dt>
-                <dd className="tabular-nums">− {formatearPesos(t.descuento)}</dd>
+      <aside className={modoBotones ? "lg:flex lg:min-h-0 lg:flex-col" : "lg:sticky lg:top-20 lg:self-start"}>
+        <div
+          className={cn(
+            "space-y-4 rounded-2xl border bg-card p-4 shadow-suave md:p-5",
+            modoBotones && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4",
+          )}
+        >
+          {modoBotones && (
+            <PedidoCompacto
+              lineas={lineas}
+              totales={t}
+              resaltado={resaltado}
+              alCambiar={cambiarEnUno}
+              alQuitar={quitar}
+              alCantidad={(l) => setDialogo({ tipo: "cantidad", producto: l.producto, nueva: false })}
+              alDescuento={(l) => setDialogo({ tipo: "descuento", productoId: l.producto.id })}
+            />
+          )}
+          {/* Con botones, el pedido ya muestra cada producto: el resumen solo sale si hay descuentos. */}
+          {(!modoBotones || !!t?.descuento) && (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Productos</dt>
+                <dd className="tabular-nums">
+                  {lineas.length}
+                  {lineas.length > 0 && ` (${formatearCantidad(unidades)} ${unidades.eq(1) ? "unidad" : "unidades"})`}
+                </dd>
               </div>
-            )}
-          </dl>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Subtotal</dt>
+                <dd className="tabular-nums">{formatearPesos(t?.subtotal ?? 0)}</dd>
+              </div>
+              {!!t?.descuento && (
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                  <dt>
+                    Descuentos
+                    {descuentoGeneral && (
+                      <span className="text-muted-foreground"> (general {textoDescuento(descuentoGeneral)})</span>
+                    )}
+                  </dt>
+                  <dd className="tabular-nums">− {formatearPesos(t.descuento)}</dd>
+                </div>
+              )}
+            </dl>
+          )}
           <div className="rounded-xl bg-franja px-4 py-4 text-white">
             <p className="text-sm text-white/75">Total a pagar</p>
             <p className="text-4xl font-bold tracking-tight tabular-nums md:text-5xl" data-testid="total">
@@ -615,15 +652,186 @@ export function Caja({ negocioId }: { negocioId: string }) {
   );
 }
 
+// ─── Botones rápidos (cafeterías) ─────────────────────────────────────────
+
+/** Un color por categoría para ubicar rápido los cuadros. Se repiten si hay más categorías. */
+const COLORES_CATEGORIA = ["#f59e0b", "#0ea5e9", "#10b981", "#ec4899", "#8b5cf6", "#ef4444", "#14b8a6", "#f97316"];
+
+function CuadrosRapidos({
+  botones,
+  lineas,
+  alTocar,
+}: {
+  botones: BotonRapido[];
+  lineas: Linea[];
+  alTocar: (p: ProductoCaja) => void;
+}) {
+  const [filtro, setFiltro] = useState<string | null>(null);
+  const categorias = useMemo(() => {
+    const vistas = new Map<string, string>();
+    for (const b of botones) {
+      const clave = b.categoriaId ?? "";
+      if (!vistas.has(clave)) vistas.set(clave, b.categoria ?? "Otros");
+    }
+    return [...vistas].map(([id, nombre], i) => ({ id, nombre, color: COLORES_CATEGORIA[i % COLORES_CATEGORIA.length] }));
+  }, [botones]);
+  const colorDe = new Map(categorias.map((c) => [c.id, c.color]));
+  const cantidad = new Map(lineas.map((l) => [l.producto.id, l.cantidad]));
+  const visibles = filtro === null ? botones : botones.filter((b) => (b.categoriaId ?? "") === filtro);
+
+  return (
+    <div className="space-y-3">
+      {categorias.length > 1 && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por categoría">
+          {[{ id: null, nombre: "Todos" }, ...categorias].map((c) => (
+            <button
+              key={c.id ?? "todos"}
+              type="button"
+              aria-pressed={filtro === c.id}
+              onClick={() => setFiltro(c.id)}
+              className={cn(
+                "h-12 rounded-full border px-5 text-base font-semibold transition-colors",
+                filtro === c.id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-card text-foreground hover:bg-muted",
+              )}
+            >
+              {c.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+        {visibles.map((b) => {
+          const n = cantidad.get(b.id);
+          return (
+            <li key={b.id}>
+              <button
+                type="button"
+                onClick={() => alTocar(b)}
+                style={{ borderTopColor: colorDe.get(b.categoriaId ?? "") }}
+                className="relative flex h-full min-h-28 w-full flex-col justify-between gap-2 rounded-2xl border border-t-[6px] bg-card p-3 text-left shadow-suave transition active:scale-[0.97] active:bg-accent"
+              >
+                <span className="line-clamp-3 pr-7 text-lg leading-tight font-semibold">{b.nombre}</span>
+                <span className="text-lg font-bold text-primary tabular-nums">{formatearPesos(b.precioVenta)}</span>
+                {n && (
+                  <span
+                    className="absolute top-2 right-2 min-w-8 rounded-full bg-primary px-2 py-0.5 text-center text-base font-bold text-primary-foreground tabular-nums"
+                    aria-label={`${formatearCantidad(n)} en el pedido`}
+                  >
+                    {formatearCantidad(n)}
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** El pedido al lado de los cuadros: renglones cortos, botones grandes para el dedo. */
+function PedidoCompacto({
+  lineas,
+  totales,
+  resaltado,
+  alCambiar,
+  alQuitar,
+  alCantidad,
+  alDescuento,
+}: {
+  lineas: Linea[];
+  totales: TotalesVenta | null;
+  resaltado: string | null;
+  alCambiar: (l: Linea, paso: 1 | -1) => void;
+  alQuitar: (id: string) => void;
+  alCantidad: (l: Linea) => void;
+  alDescuento: (l: Linea) => void;
+}) {
+  if (!lineas.length) {
+    return (
+      <div className="rounded-xl border border-dashed px-4 py-8 text-center lg:flex lg:flex-1 lg:flex-col lg:justify-center">
+        <p className="font-semibold">Pedido vacío</p>
+        <p className="text-sm text-muted-foreground">Toca un producto para empezar.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+      <h2 className="mb-1 font-semibold">Pedido</h2>
+      <ul className="divide-y">
+        {lineas.map((l, i) => {
+          const calc = totales?.lineas[i];
+          const uno = new Decimal(l.cantidad).lte(1);
+          return (
+            <li
+              key={l.producto.id}
+              className={cn("flex items-center gap-2 py-2 transition-colors", resaltado === l.producto.id && "bg-accent/40")}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 leading-snug font-semibold">{l.producto.nombre}</p>
+                <button
+                  type="button"
+                  onClick={() => alDescuento(l)}
+                  className={cn(
+                    "text-sm",
+                    l.descuento ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {l.descuento ? `Descuento ${textoDescuento(l.descuento)}` : "Descuento"}
+                </button>
+              </div>
+              <div className="flex h-11 shrink-0 items-center overflow-hidden rounded-lg border bg-muted/40">
+                <button
+                  type="button"
+                  onClick={() => (uno ? alQuitar(l.producto.id) : alCambiar(l, -1))}
+                  aria-label={uno ? `Quitar ${l.producto.nombre}` : "Uno menos"}
+                  className={cn("flex h-full w-11 items-center justify-center hover:bg-muted", uno && "text-destructive")}
+                >
+                  {uno ? <Trash2 className="size-4" /> : <Minus className="size-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alCantidad(l)}
+                  className="h-full min-w-10 bg-card px-1 text-lg font-semibold tabular-nums"
+                  aria-label="Cambiar cantidad"
+                >
+                  {formatearCantidad(l.cantidad)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alCambiar(l, 1)}
+                  aria-label="Uno más"
+                  className="flex h-full w-11 items-center justify-center hover:bg-muted"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
+              <p className="w-20 shrink-0 text-right font-semibold whitespace-nowrap tabular-nums">
+                {calc ? formatearPesos(calc.subtotal - calc.descuentoLinea) : "—"}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 // ─── Buscador ─────────────────────────────────────────────────────────────
 
 function Buscador({
+  enfocarAlAbrir = true,
+  placeholder = "Escanea o escribe código o nombre…",
   refInput,
   buscarProductos,
   alElegir,
   alAvisar,
   onEscapeVacio,
 }: {
+  enfocarAlAbrir?: boolean;
+  placeholder?: string;
   refInput: React.RefObject<HTMLInputElement | null>;
   buscarProductos: (q: string) => Promise<{ exacto: ProductoCaja | null; resultados: ProductoCaja[] }>;
   alElegir: (p: ProductoCaja) => void;
@@ -732,9 +940,9 @@ function Buscador({
         onKeyDown={alPresionar}
         onFocus={() => setAbierto(true)}
         onBlur={() => setTimeout(() => setAbierto(false), 150)}
-        placeholder="Escanea o escribe código o nombre…"
+        placeholder={placeholder}
         autoComplete="off"
-        autoFocus
+        autoFocus={enfocarAlAbrir}
         enterKeyHint="search"
         role="combobox"
         aria-expanded={!!mostrar}
@@ -755,7 +963,8 @@ function Buscador({
             <li className="px-4 py-3 text-muted-foreground">No encontramos productos con &quot;{buscado}&quot;.</li>
           ) : (
             resultados.map((p, i) => {
-              const sinStock = new Decimal(p.stock).lte(0);
+              const seCuenta = p.controlaStock !== false;
+              const sinStock = seCuenta && new Decimal(p.stock).lte(0);
               return (
                 <li key={p.id} role="option" aria-selected={i === indice}>
                   <button
@@ -768,7 +977,8 @@ function Buscador({
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{p.nombre}</p>
                       <p className={cn("truncate text-sm", sinStock ? "text-destructive" : "text-muted-foreground")}>
-                        {p.codigo} · {sinStock ? "Sin stock" : `Quedan ${formatearCantidad(p.stock)} ${unidadCorta(p.unidad)}`}
+                        {p.codigo}
+                        {seCuenta && ` · ${sinStock ? "Sin stock" : `Quedan ${formatearCantidad(p.stock)} ${unidadCorta(p.unidad)}`}`}
                       </p>
                     </div>
                     <p className="font-semibold tabular-nums">{formatearPesos(p.precioVenta)}</p>

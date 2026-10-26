@@ -61,7 +61,7 @@ function FormularioCantidad({
   return (
     <form onSubmit={confirmar} className="space-y-4" noValidate>
       <p className="text-sm text-muted-foreground">
-        Quedan {formatearCantidad(producto.stock)} {unidad?.corto}.
+        {producto.controlaStock !== false && `Quedan ${formatearCantidad(producto.stock)} ${unidad?.corto ?? ""}.`}
         {producto.fraccionado && " Puedes escribir decimales, por ejemplo 2,5 o 0,350."}
       </p>
       <div className="relative">

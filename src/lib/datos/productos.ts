@@ -23,6 +23,8 @@ const camposBase = {
   fraccionado: true,
   porcentajeIva: true,
   condicion: true,
+  controlaStock: true,
+  botonRapido: true,
   activo: true,
 } as const;
 
@@ -45,6 +47,8 @@ type Fila = {
   fraccionado: boolean;
   porcentajeIva: number;
   condicion: string;
+  controlaStock: boolean;
+  botonRapido: boolean;
   activo: boolean;
   costo?: number;
 };
@@ -69,7 +73,10 @@ function aVista(p: Fila, categorias: Map<string, string>) {
     costo: p.costo,
     stock,
     stockMinimo,
-    stockBajo: Number(stockMinimo) > 0 && Number(stock) <= Number(stockMinimo),
+    stockBajo: p.controlaStock && Number(stockMinimo) > 0 && Number(stock) <= Number(stockMinimo),
+    /** false: no se cuenta (tinto, jugos); se vende siempre. */
+    controlaStock: p.controlaStock,
+    botonRapido: p.botonRapido,
     unidad: p.unidad as import("@/generated/prisma/enums").UnidadMedida,
     fraccionado: p.fraccionado,
     porcentajeIva: p.porcentajeIva,
@@ -235,10 +242,13 @@ export type ProductoCaja = {
   unidad: string;
   fraccionado: boolean;
   stock: string;
+  /** false: se vende sin mirar el stock. Puede faltar en copias sin internet guardadas antes de existir. */
+  controlaStock?: boolean;
 };
 
 const CAMPOS_CAJA = {
   id: true, codigo: true, nombre: true, precioVenta: true, porcentajeIva: true, unidad: true, fraccionado: true, stock: true,
+  controlaStock: true,
 } as const;
 
 /**
@@ -285,6 +295,33 @@ export async function productosParaVenta(ctx: Contexto, negocioId: string, ids: 
     select: CAMPOS_CAJA,
   });
   return filas.map((p) => ({ ...p, stock: p.stock.toString() }));
+}
+
+export type BotonRapido = ProductoCaja & { categoriaId: string | null; categoria: string | null };
+
+/**
+ * Productos que la caja muestra como cuadros para tocar, ordenados por categoría y nombre.
+ * Vacío si el negocio no usa botones rápidos.
+ */
+export async function botonesRapidos(ctx: Contexto, negocioId: string): Promise<BotonRapido[]> {
+  if (!ctx.negociosPermitidos.includes(negocioId)) throw new AccesoDenegado("no tienes acceso a ese negocio");
+  const datos = datosDe(ctx);
+  const negocio = await datos.negocio.findFirst({ where: { id: negocioId }, select: { botonesRapidos: true } });
+  if (!negocio?.botonesRapidos) return [];
+  const filas = await datos.producto.findMany({
+    where: { negocioId, activo: true, botonRapido: true },
+    select: { ...CAMPOS_CAJA, categoriaId: true },
+    orderBy: [{ nombre: "asc" }, { id: "asc" }],
+    take: 200,
+  });
+  const categorias = await nombresCategorias(ctx, filas.map((f) => f.categoriaId));
+  return filas
+    .map((p) => ({
+      ...p,
+      stock: p.stock.toString(),
+      categoria: p.categoriaId ? (categorias.get(p.categoriaId) ?? null) : null,
+    }))
+    .sort((a, b) => (a.categoria ?? "~").localeCompare(b.categoria ?? "~", "es") || a.nombre.localeCompare(b.nombre, "es"));
 }
 
 export type ProductoCatalogo = ProductoCaja & { codigoBarras: string | null; activo: boolean };

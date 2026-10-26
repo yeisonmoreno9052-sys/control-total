@@ -75,14 +75,18 @@ export async function registrarMovimiento(
   },
 ) {
   // FOR UPDATE bloquea la fila hasta que termine la transacción.
-  const filas = await tx.$queryRaw<{ stock: Prisma.Decimal; negocioId: string; empresaId: string }[]>`
-    SELECT "stock", "negocioId", "empresaId" FROM "Producto" WHERE "id" = ${mov.productoId} FOR UPDATE`;
+  const filas = await tx.$queryRaw<{ stock: Prisma.Decimal; negocioId: string; empresaId: string; controlaStock: boolean }[]>`
+    SELECT "stock", "negocioId", "empresaId", "controlaStock" FROM "Producto" WHERE "id" = ${mov.productoId} FOR UPDATE`;
   const fila = filas[0];
   if (!fila || fila.empresaId !== ctx.empresaId || !ctx.negociosPermitidos.includes(fila.negocioId)) {
     throw new AccesoDenegado("producto no encontrado");
   }
 
   const antes = new Decimal(fila.stock.toString());
+  // Un producto que no se cuenta (tinto, jugos) no lleva stock: ventas, compras y
+  // anulaciones pasan por aquí sin moverlo ni dejar movimiento.
+  if (!fila.controlaStock) return { antes, despues: antes, negocioId: fila.negocioId };
+
   const despues = antes.plus(mov.cantidad);
   if (despues.isNegative() && !mov.permitirNegativo) {
     throw new StockInsuficiente();
@@ -131,11 +135,15 @@ function datosProducto(p: ProductoEntrada) {
     categoriaId: p.categoriaId ?? null,
     costo: p.costo,
     precioVenta: p.precioVenta,
-    stockMinimo: p.stockMinimo,
+    // Lo que no se cuenta no puede quedar "con stock bajo".
+    stockMinimo: p.controlaStock === false ? "0" : p.stockMinimo,
     unidad: p.unidad,
     fraccionado: p.fraccionado,
     porcentajeIva: p.porcentajeIva,
     condicion: p.condicion,
+    // undefined (importación sin esas columnas) deja el valor que ya tenía.
+    controlaStock: p.controlaStock,
+    botonRapido: p.botonRapido,
   };
 }
 
@@ -238,9 +246,12 @@ export async function ajustarStock(ctx: Contexto, productoId: string, ajuste: En
   exigirGestion(ctx);
   const producto = await datosDe(ctx).producto.findFirst({
     where: { id: productoId },
-    select: { id: true, codigo: true, negocioId: true, fraccionado: true },
+    select: { id: true, codigo: true, negocioId: true, fraccionado: true, controlaStock: true },
   });
   if (!producto) return { ok: false, error: "No encontramos ese producto." };
+  if (!producto.controlaStock) {
+    return { ok: false, error: "Este producto no se cuenta, así que no tiene stock que ajustar." };
+  }
 
   const nota = ajuste.nota?.trim() || null;
   if (ajuste.motivo === "OTRO" && !nota) {

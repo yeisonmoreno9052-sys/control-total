@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { SinPermiso } from "@/components/layout/sin-permiso";
 import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
+import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { exigirModulo } from "@/lib/modulos";
 import { puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
@@ -14,9 +15,10 @@ export default async function NuevoProducto({ searchParams }: PageProps<"/invent
   exigirModulo(ctx, "INVENTARIO");
   if (!puedeGestionar(ctx) || !ctx.negocioActivoId) return <SinPermiso />;
   const { creado } = await searchParams;
-  const [categorias, margen] = await Promise.all([
+  const [categorias, margen, preferencias] = await Promise.all([
     listarCategorias(ctx, ctx.negocioActivoId),
     obtenerMargenNegocio(ctx, ctx.negocioActivoId),
+    obtenerPreferenciasVenta(ctx, ctx.negocioActivoId),
   ]);
 
   return (
@@ -27,7 +29,13 @@ export default async function NuevoProducto({ searchParams }: PageProps<"/invent
           Producto creado. Puedes seguir con el siguiente.
         </p>
       )}
-      <FormularioProducto key={String(creado)} categorias={categorias} margenNegocio={margen} />
+      <FormularioProducto
+        key={String(creado)}
+        categorias={categorias}
+        margenNegocio={margen}
+        ivaPorDefecto={preferencias.ivaPorDefecto}
+        usaBotonesRapidos={preferencias.botonesRapidos}
+      />
     </div>
   );
 }

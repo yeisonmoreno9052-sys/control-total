@@ -27,6 +27,8 @@ export type ValoresProducto = {
   fraccionado: boolean;
   porcentajeIva: number;
   condicion: CondicionProducto;
+  controlaStock: boolean;
+  botonRapido: boolean;
 };
 
 /** En los campos de texto, Enter pasa al siguiente campo en vez de enviar el formulario. */
@@ -48,10 +50,16 @@ export function FormularioProducto({
   valores,
   categorias,
   margenNegocio,
+  ivaPorDefecto,
+  usaBotonesRapidos,
 }: {
   valores?: ValoresProducto;
   categorias: { id: string; nombre: string; margenSugerido: number | null }[];
   margenNegocio: number;
+  /** IVA con el que nace un producto nuevo en este negocio (0 si no cobra IVA). */
+  ivaPorDefecto: number;
+  /** Si el negocio tiene encendidos los botones rápidos en la caja. */
+  usaBotonesRapidos: boolean;
 }) {
   const [estado, accion, guardando] = useActionState<EstadoFormulario, FormData>(guardarProducto, {});
   const nuevo = !valores?.id;
@@ -62,6 +70,7 @@ export function FormularioProducto({
   const [categoriaId, setCategoriaId] = useState(valores?.categoriaId ?? "");
   const [unidad, setUnidad] = useState<UnidadMedida>(valores?.unidad ?? "UNIDAD");
   const [fraccionado, setFraccionado] = useState(valores?.fraccionado ?? false);
+  const [sinStock, setSinStock] = useState(valores ? !valores.controlaStock : false);
   const e = estado.campos ?? {};
   const primerCampo = useRef<HTMLInputElement>(null);
 
@@ -195,7 +204,7 @@ export function FormularioProducto({
             </div>
           </div>
           <Campo id="porcentajeIva" etiqueta="IVA" error={e.porcentajeIva}>
-            <NativeSelect id="porcentajeIva" name="porcentajeIva" defaultValue={String(valores?.porcentajeIva ?? 19)}>
+            <NativeSelect id="porcentajeIva" name="porcentajeIva" defaultValue={String(valores?.porcentajeIva ?? ivaPorDefecto)}>
               {IVAS.map((v) => (
                 <option key={v} value={v}>
                   {v} %
@@ -227,7 +236,7 @@ export function FormularioProducto({
               ))}
             </NativeSelect>
           </Campo>
-          {nuevo && (
+          {nuevo && !sinStock && (
             <Campo
               id="stockInicial"
               etiqueta="Stock inicial"
@@ -237,17 +246,34 @@ export function FormularioProducto({
               <Input id="stockInicial" name="stockInicial" inputMode="decimal" placeholder="0" aria-invalid={!!e.stockInicial} />
             </Campo>
           )}
-          <Campo id="stockMinimo" etiqueta="Stock mínimo" error={e.stockMinimo} ayuda="Te avisamos cuando quede esto o menos.">
-            <Input
-              id="stockMinimo"
-              name="stockMinimo"
-              inputMode="decimal"
-              defaultValue={valores?.stockMinimo === "0" ? "" : valores?.stockMinimo.replace(".", ",")}
-              placeholder="0"
-              aria-invalid={!!e.stockMinimo}
-            />
-          </Campo>
+          {!sinStock && (
+            <Campo id="stockMinimo" etiqueta="Stock mínimo" error={e.stockMinimo} ayuda="Te avisamos cuando quede esto o menos.">
+              <Input
+                id="stockMinimo"
+                name="stockMinimo"
+                inputMode="decimal"
+                defaultValue={valores?.stockMinimo === "0" ? "" : valores?.stockMinimo.replace(".", ",")}
+                placeholder="0"
+                aria-invalid={!!e.stockMinimo}
+              />
+            </Campo>
+          )}
         </div>
+        <label className="flex items-start gap-3 rounded-lg border p-3">
+          <input
+            type="checkbox"
+            name="sinStock"
+            checked={sinStock}
+            onChange={(ev) => setSinStock(ev.target.checked)}
+            className="mt-0.5 size-5 accent-[var(--primary)]"
+          />
+          <span>
+            <span className="font-medium">No controlar stock</span>
+            <span className="block text-sm text-muted-foreground">
+              Para lo que se prepara al momento (tinto, jugos, aromáticas). Se vende siempre y no se cuenta en el inventario.
+            </span>
+          </span>
+        </label>
         <label className="flex items-start gap-3 rounded-lg border p-3 has-[:disabled]:opacity-60">
           <input
             type="checkbox"
@@ -267,6 +293,23 @@ export function FormularioProducto({
           </span>
         </label>
         {e.fraccionado && <p className="text-sm text-destructive">{e.fraccionado}</p>}
+        {usaBotonesRapidos && (
+          <label className="flex items-start gap-3 rounded-lg border p-3">
+            <input type="hidden" name="conBotonRapido" value="1" />
+            <input
+              type="checkbox"
+              name="botonRapido"
+              defaultChecked={valores?.botonRapido ?? false}
+              className="mt-0.5 size-5 accent-[var(--primary)]"
+            />
+            <span>
+              <span className="font-medium">Botón rápido en la caja</span>
+              <span className="block text-sm text-muted-foreground">
+                Aparece como un cuadro grande en la caja: se toca y se suma al pedido.
+              </span>
+            </span>
+          </label>
+        )}
       </section>
 
       <Campo id="descripcion" etiqueta="Descripción (opcional)" error={e.descripcion}>
