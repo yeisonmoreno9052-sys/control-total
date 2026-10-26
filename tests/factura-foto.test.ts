@@ -6,8 +6,8 @@ import { prisma } from "@/lib/datos/cliente";
 import { guardarProveedor } from "@/lib/datos/compras";
 import { cargarContexto, type Contexto } from "@/lib/datos/contexto";
 import { crearProducto } from "@/lib/datos/inventario";
-import { estadoFotos, inicioDelMes, leerFacturaConFoto } from "@/lib/datos/lectura-factura";
-import { cantidadTexto, costoConIva, mismoNit, totalNoCuadra } from "@/lib/compras/lectura";
+import { crearProductosLeidos, estadoFotos, inicioDelMes, leerFacturaConFoto, type ProductoLeido } from "@/lib/datos/lectura-factura";
+import { cantidadTexto, costoConIva, ivaLeido, mismoNit, totalNoCuadra, unidadLeida } from "@/lib/compras/lectura";
 import { costoEnPesos } from "@/lib/ia/costo";
 import type { FacturaLeida, LineaLeida } from "@/lib/ia/factura";
 import type { LectorFacturas } from "@/lib/ia/lector";
@@ -318,5 +318,56 @@ describe("aislamiento", () => {
         data: { negocioId: e.motos.id, usuarioId: e.ctx.admin.usuarioId, paginas: 1, modelo: "x" } as never,
       }),
     ).rejects.toThrow(AccesoDenegado);
+  });
+});
+
+describe("crear de una vez los productos que no estaban", () => {
+  const leido = (datos: Partial<ProductoLeido>): ProductoLeido => ({
+    clave: "x",
+    descripcion: "Producto",
+    codigo: null,
+    codigoBarras: null,
+    unidad: null,
+    porcentajeIva: null,
+    costo: 1000,
+    ...datos,
+  });
+
+  it("reconoce la unidad y el IVA de la factura", () => {
+    expect(unidadLeida("MT")).toBe("METRO");
+    expect(unidadLeida("Kg")).toBe("KILO");
+    expect(unidadLeida("GL")).toBe("GALON");
+    expect(unidadLeida("UND")).toBe("UNIDAD");
+    expect(unidadLeida(null)).toBe("UNIDAD");
+    expect(ivaLeido(19, 0)).toBe(19);
+    expect(ivaLeido(0, 19)).toBe(0);
+    expect(ivaLeido(8, 19)).toBe(19);
+    expect(ivaLeido(null, 5)).toBe(5);
+  });
+
+  it("crea los productos con stock 0, precio sugerido y código nuevo si el de la factura está ocupado", async () => {
+    await producto(e.ferreteria.id, { codigo: "OCUPADO", nombre: "Otro producto" });
+    const r = await crearProductosLeidos(e.ctx.admin, e.ferreteria.id, [
+      leido({ clave: "a", descripcion: "SUPER PEGA INFINITA X 14", codigo: "SP-14", costo: 6337, porcentajeIva: 19 }),
+      leido({ clave: "b", descripcion: "PUNTILLA 2 PULGADAS", codigo: "OCUPADO", unidad: "KG", costo: 9000 }),
+      leido({ clave: "c", descripcion: "BROCHA 2", costo: 4000, porcentajeIva: 8 }),
+    ]);
+    expect(r.fallidos).toEqual([]);
+    expect(r.creados.map((c) => c.clave)).toEqual(["a", "b", "c"]);
+    const [a, b, c] = r.creados.map((x) => x.producto);
+    expect(a).toMatchObject({ codigo: "SP-14", nombre: "SUPER PEGA INFINITA X 14", costo: 6337, stock: "0" });
+    // Margen del negocio por defecto 30 %: 6.337 × 1,3 = 8.238,1 → $ 8.300.
+    expect(a.precioVenta).toBe(8300);
+    expect(b).toMatchObject({ codigo: "FAC-0001", unidad: "KILO", fraccionado: true });
+    expect(c.codigo).toBe("FAC-0002");
+    const brocha = await prisma.producto.findUniqueOrThrow({ where: { id: c.id }, select: { porcentajeIva: true } });
+    expect(brocha.porcentajeIva).toBe(19);
+  });
+
+  it("solo el administrador o el socio, y solo en sus negocios", async () => {
+    await expect(crearProductosLeidos(e.ctx.cajero, e.motos.id, [leido({})])).rejects.toThrow(AccesoDenegado);
+    await expect(crearProductosLeidos(e.ctx.socio, e.motos.id, [leido({})])).rejects.toThrow(AccesoDenegado);
+    await expect(crearProductosLeidos(e.ctx.adminOtra, e.motos.id, [leido({})])).rejects.toThrow(AccesoDenegado);
+    expect(await prisma.producto.count({ where: { negocioId: e.motos.id } })).toBe(0);
   });
 });

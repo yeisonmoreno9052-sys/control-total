@@ -7,17 +7,21 @@
 //    código (encontrado), por nombre parecido (revisar) o no está (nuevo).
 // Aquí no se guarda la factura: la persona revisa y guarda con registrarFactura.
 import { diaEnBogota } from "@/lib/formato";
-import { cantidadTexto, costoConIva, fechaValida, mismoNit, parecido } from "@/lib/compras/lectura";
+import { cantidadTexto, costoConIva, fechaValida, ivaLeido, mismoNit, parecido, unidadLeida } from "@/lib/compras/lectura";
 import { costoEnPesos } from "@/lib/ia/costo";
 import type { FacturaLeida } from "@/lib/ia/factura";
 import type { ArchivoFactura, LectorFacturas } from "@/lib/ia/lector";
 import { tieneModulo } from "@/lib/modulos";
+import { esquemaProducto } from "@/lib/inventario/esquemas";
+import { precioSugerido } from "@/lib/inventario/precios";
 import { exigirGestion } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import { prisma } from "./cliente";
 import { productosParaCompra, tipoDeArchivo, type ProductoCompra } from "./compras";
 import type { Contexto } from "./contexto";
-import { exigirNegocioPermitido, type Resultado } from "./inventario";
+import { obtenerMargenNegocio } from "./categorias";
+import { crearProducto, exigirNegocioPermitido, type Resultado } from "./inventario";
+import { obtenerPreferenciasVenta } from "./negocios";
 
 export const HOJAS_POR_FACTURA = 3;
 export const HOJA_MAXIMA = 5 * 1024 * 1024;
@@ -53,6 +57,9 @@ export type LineaRevisada = {
   cantidad: string;
   /** Costo unitario con IVA, en pesos. */
   costo: number;
+  /** Como viene en la factura ("MT", "UND"…), para crear el producto si no existe. */
+  unidad: string | null;
+  porcentajeIva: number | null;
   estado: EstadoLinea;
   /** El producto reconocido (encontrado) o el más parecido (revisar). */
   producto: ProductoCompra | null;
@@ -182,6 +189,8 @@ async function reconocerLinea(ctx: Contexto, negocioId: string, l: FacturaLeida[
     codigoBarras: l.codigoBarras?.replace(/\s/g, "").slice(0, 60) || null,
     cantidad: cantidadTexto(l.cantidad),
     costo: costoConIva(l),
+    unidad: l.unidad?.trim().slice(0, 20) || null,
+    porcentajeIva: l.porcentajeIva,
   };
   const datos = datosDe(ctx);
   const codigos = [base.codigoBarras, base.codigo].filter((c): c is string => !!c);
@@ -219,4 +228,97 @@ async function parecidos(ctx: Contexto, negocioId: string, nombre: string) {
   const productos = await productosParaCompra(ctx, negocioId, filas.map((f) => f.id));
   const porId = new Map(productos.map((p) => [p.id, p]));
   return filas.map((f) => porId.get(f.id)).filter((p): p is ProductoCompra => !!p);
+}
+
+// ─── Crear de una vez los productos que no estaban ──────────────────────────
+
+export type ProductoLeido = {
+  clave: string;
+  descripcion: string;
+  codigo: string | null;
+  codigoBarras: string | null;
+  unidad: string | null;
+  porcentajeIva: number | null;
+  /** Costo con IVA, en pesos. */
+  costo: number;
+};
+
+/** Siguiente código FAC-0001, FAC-0002… para productos que llegan sin código en la factura. */
+async function ultimoCodigoFactura(negocioId: string) {
+  const filas = await prisma.$queryRaw<{ n: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING("codigo" FROM 5) AS INTEGER))::int AS n
+    FROM "Producto" WHERE "negocioId" = ${negocioId} AND "codigo" ~ '^FAC-[0-9]{1,9}$'`;
+  return filas[0]?.n ?? 0;
+}
+
+/**
+ * Crea en el inventario, con stock 0, los productos de la foto que no existían.
+ * Precio de venta = el sugerido por el margen del negocio. Si el código de la
+ * factura ya lo usa otro producto, se le pone uno nuevo (FAC-0001…).
+ * Devuelve los creados (para agregarlos a la factura) y los que no se pudieron.
+ */
+export async function crearProductosLeidos(ctx: Contexto, negocioId: string, items: ProductoLeido[]) {
+  exigirGestion(ctx);
+  exigirNegocioPermitido(ctx, negocioId);
+  const lista = items.slice(0, 300);
+  const datos = datosDe(ctx);
+  const [margen, preferencias, usados] = await Promise.all([
+    obtenerMargenNegocio(ctx, negocioId),
+    obtenerPreferenciasVenta(ctx, negocioId),
+    datos.producto.findMany({
+      where: {
+        negocioId,
+        OR: [
+          { codigo: { in: lista.flatMap((i) => [i.codigo, i.codigoBarras]).filter((c): c is string => !!c), mode: "insensitive" } },
+          { codigoBarras: { in: lista.map((i) => i.codigoBarras).filter((c): c is string => !!c) } },
+        ],
+      },
+      select: { codigo: true, codigoBarras: true },
+    }),
+  ]);
+  const codigosUsados = new Set(usados.map((u) => u.codigo.toLowerCase()));
+  const barrasUsadas = new Set(usados.map((u) => u.codigoBarras).filter(Boolean));
+  let consecutivo = await ultimoCodigoFactura(negocioId);
+  const siguiente = () => `FAC-${String(++consecutivo).padStart(4, "0")}`;
+
+  const creados: { clave: string; producto: ProductoCompra }[] = [];
+  const fallidos: { clave: string; descripcion: string; error: string }[] = [];
+  for (const item of lista) {
+    const barras = item.codigoBarras && !barrasUsadas.has(item.codigoBarras) ? item.codigoBarras : null;
+    const propio = item.codigo || barras;
+    let codigo = propio && !codigosUsados.has(propio.toLowerCase()) ? propio : siguiente();
+    const unidad = unidadLeida(item.unidad);
+    const entrada = esquemaProducto.safeParse({
+      codigo,
+      codigoBarras: barras ?? "",
+      nombre: item.descripcion || "Producto de factura",
+      descripcion: "",
+      costo: item.costo,
+      precioVenta: precioSugerido(item.costo, margen),
+      stockMinimo: "0",
+      unidad,
+      fraccionado: unidad !== "UNIDAD",
+      porcentajeIva: ivaLeido(item.porcentajeIva, preferencias.ivaPorDefecto),
+      condicion: "NUEVO",
+    });
+    if (!entrada.success) {
+      fallidos.push({ clave: item.clave, descripcion: item.descripcion, error: "Faltan datos; créalo a mano." });
+      continue;
+    }
+    let r = await crearProducto(ctx, negocioId, entrada.data, "0");
+    // Otro producto tomó el código mientras tanto: se intenta una vez con uno nuevo.
+    if (!r.ok && r.campos?.codigo) {
+      codigo = siguiente();
+      r = await crearProducto(ctx, negocioId, { ...entrada.data, codigo }, "0");
+    }
+    if (!r.ok) {
+      fallidos.push({ clave: item.clave, descripcion: item.descripcion, error: r.error });
+      continue;
+    }
+    codigosUsados.add(codigo.toLowerCase());
+    if (barras) barrasUsadas.add(barras);
+    const [producto] = await productosParaCompra(ctx, negocioId, [r.id]);
+    creados.push({ clave: item.clave, producto });
+  }
+  return { creados, fallidos };
 }

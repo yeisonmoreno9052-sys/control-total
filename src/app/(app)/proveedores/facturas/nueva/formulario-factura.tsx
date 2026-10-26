@@ -37,6 +37,7 @@ import type { UnidadMedida } from "@/generated/prisma/enums";
 import {
   buscarProductoFactura,
   crearProductoFactura,
+  crearProductosLeidosAccion,
   crearProveedorRapido,
   guardarFacturaAccion,
   leerFacturaFotoAccion,
@@ -68,6 +69,8 @@ type Pendiente = {
   codigoBarras: string | null;
   cantidad: string;
   costo: number;
+  unidad?: string | null;
+  porcentajeIva?: number | null;
   estado: "revisar" | "nuevo";
   candidatos: ProductoCompra[];
 };
@@ -290,11 +293,56 @@ export function FormularioFactura({
 
   /** Une un producto leído de la foto con uno del inventario: pasa a ser una línea más. */
   function vincular(claveP: string, p: ProductoCompra) {
-    const pend = pendientes.find((x) => x.clave === claveP);
-    if (!pend) return;
-    setPendientes((ps) => ps.filter((x) => x.clave !== claveP));
-    setLineas((ls) => sumarLinea(ls, p, pend.cantidad, pend.costo));
+    vincularVarios([{ clave: claveP, producto: p }]);
+  }
+
+  function vincularVarios(pares: { clave: string; producto: ProductoCompra }[]) {
+    const porClave = new Map(pendientes.map((x) => [x.clave, x]));
+    const validos = pares.filter((x) => porClave.has(x.clave));
+    if (!validos.length) return;
+    const claves = new Set(validos.map((x) => x.clave));
+    setPendientes((ps) => ps.filter((x) => !claves.has(x.clave)));
+    setLineas((ls) =>
+      validos.reduce((acc, { clave: c, producto }) => {
+        const pend = porClave.get(c)!;
+        return sumarLinea(acc, producto, pend.cantidad, pend.costo);
+      }, ls),
+    );
     setError(null);
+  }
+
+  const [creandoTodos, setCreandoTodos] = useState(false);
+  const nuevos = pendientes.filter((x) => x.estado === "nuevo");
+  const conSugerencia = pendientes.filter((x) => x.estado === "revisar" && x.candidatos.length > 0);
+
+  async function crearTodos() {
+    if (creandoTodos || !nuevos.length) return;
+    setCreandoTodos(true);
+    setError(null);
+    try {
+      const r = await crearProductosLeidosAccion(
+        nuevos.map((x) => ({
+          clave: x.clave,
+          descripcion: x.descripcion,
+          codigo: x.codigo,
+          codigoBarras: x.codigoBarras,
+          unidad: x.unidad ?? null,
+          porcentajeIva: x.porcentajeIva ?? null,
+          costo: x.costo,
+        })),
+      );
+      vincularVarios(r.creados);
+      if (r.fallidos.length)
+        setError(
+          `No se pudieron crear ${r.fallidos.length === 1 ? "1 producto" : `${r.fallidos.length} productos`}: ${r.fallidos
+            .map((f) => f.descripcion)
+            .join(", ")}. Créalos con "Crear producto".`,
+        );
+    } catch {
+      setError("No pudimos crear los productos. Revisa la conexión a internet e intenta de nuevo.");
+    } finally {
+      setCreandoTodos(false);
+    }
   }
 
   async function leerFoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -347,6 +395,8 @@ export function FormularioFactura({
           codigoBarras: l.codigoBarras,
           cantidad: l.cantidad,
           costo: l.costo,
+          unidad: l.unidad,
+          porcentajeIva: l.porcentajeIva,
           estado: l.estado === "revisar" ? "revisar" : "nuevo",
           candidatos: l.candidatos,
         });
@@ -575,6 +625,46 @@ export function FormularioFactura({
           </div>
           <Buscador key={claveBuscador} refInput={buscador} alElegir={agregar} alAvisar={setAviso} />
           {aviso && <p className="text-sm text-destructive">{aviso}</p>}
+
+          {(nuevos.length > 0 || conSugerencia.length > 0) && (
+            <div className="space-y-3 rounded-2xl border border-primary/30 bg-accent/50 p-4">
+              <p className="font-medium">
+                {pendientes.length === 1
+                  ? "1 producto de la foto necesita tu revisión."
+                  : `${pendientes.length} productos de la foto necesitan tu revisión.`}{" "}
+                Puedes resolverlos todos de una vez:
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {nuevos.length > 0 && (
+                  <Button type="button" size="lg" className="h-12" onClick={crearTodos} disabled={creandoTodos}>
+                    <PackagePlus />
+                    {creandoTodos
+                      ? "Creando…"
+                      : nuevos.length === 1
+                        ? "Crear el producto nuevo"
+                        : `Crear los ${nuevos.length} productos nuevos`}
+                  </Button>
+                )}
+                {conSugerencia.length > 0 && (
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    className="h-12"
+                    disabled={creandoTodos}
+                    onClick={() => vincularVarios(conSugerencia.map((x) => ({ clave: x.clave, producto: x.candidatos[0] })))}
+                  >
+                    <Link2 />
+                    {conSugerencia.length === 1 ? "Usar el producto sugerido" : `Usar los ${conSugerencia.length} sugeridos`}
+                  </Button>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {nuevos.length > 0 && "Los nuevos quedan en el inventario con el nombre y el costo de la factura y el precio sugerido por tu margen. "}
+                {conSugerencia.length > 0 && "Los sugeridos se unen al primer producto parecido de cada uno; revisa que sea el correcto."}
+              </p>
+            </div>
+          )}
 
           {pendientes.length > 0 && (
             <ul className="space-y-3" aria-label="Productos de la foto por revisar">

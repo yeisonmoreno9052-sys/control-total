@@ -16,7 +16,7 @@ import {
   registrarFactura,
 } from "@/lib/datos/compras";
 import { crearProducto } from "@/lib/datos/inventario";
-import { HOJAS_POR_FACTURA, leerFacturaConFoto } from "@/lib/datos/lectura-factura";
+import { crearProductosLeidos, HOJAS_POR_FACTURA, leerFacturaConFoto } from "@/lib/datos/lectura-factura";
 import { obtenerLector } from "@/lib/ia/lector";
 import { erroresPorCampo, esquemaProducto } from "@/lib/inventario/esquemas";
 import { exigirModulo } from "@/lib/modulos";
@@ -123,6 +123,28 @@ export async function leerFacturaFotoAccion(f: FormData) {
   if (hojas.length > HOJAS_POR_FACTURA) return { ok: false as const, error: `Sube máximo ${HOJAS_POR_FACTURA} fotos por factura.` };
   const bytes = await Promise.all(hojas.map(async (h) => new Uint8Array(await h.arrayBuffer())));
   return leerFacturaConFoto(ctx, negocioId, bytes, await obtenerLector());
+}
+
+const esquemaLeidos = z
+  .array(
+    z.object({
+      clave: z.string().max(60),
+      descripcion: z.string().max(150),
+      codigo: z.string().max(50).nullable(),
+      codigoBarras: z.string().max(60).nullable(),
+      unidad: z.string().max(20).nullable(),
+      porcentajeIva: z.number().nullable(),
+      costo: z.number().int().min(0),
+    }),
+  )
+  .max(300);
+
+/** Crea de una vez, con stock 0, los productos de la foto que no estaban en el inventario. */
+export async function crearProductosLeidosAccion(items: z.infer<typeof esquemaLeidos>) {
+  const { ctx, negocioId } = await negocioActivo();
+  const r = await crearProductosLeidos(ctx, negocioId, esquemaLeidos.parse(items));
+  if (r.creados.length) revalidatePath("/inventario");
+  return r;
 }
 
 const medio = z.enum(["EFECTIVO", "TRANSFERENCIA"]);
