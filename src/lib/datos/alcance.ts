@@ -53,6 +53,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja", "accionesEmy",
+      "lecturasFactura",
     ],
   },
   Negocio: {
@@ -62,6 +63,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
+      "lecturasFactura",
     ],
   },
   Usuario: {
@@ -71,7 +73,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "negocios", "movimientos", "auditorias",
       "ventas", "ventasAnuladas", "devoluciones", "cajasAbiertas", "cajasCerradas",
       "facturasCompra", "facturasAnuladas", "abonosFactura", "abonosAnulados", "adjuntosFactura", "movimientosCaja", "movimientosCajaAnulados",
-      "accionesEmy",
+      "accionesEmy", "lecturasFactura",
     ],
   },
   UsuarioNegocio: {
@@ -201,6 +203,14 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "factura", "usuario"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  // Las lecturas con foto solo se escriben desde lectura-factura.ts.
+  LecturaFactura: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "usuario"],
     porNegocio: true,
     soloLectura: true,
   },

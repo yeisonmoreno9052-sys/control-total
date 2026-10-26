@@ -16,6 +16,8 @@ import {
   registrarFactura,
 } from "@/lib/datos/compras";
 import { crearProducto } from "@/lib/datos/inventario";
+import { HOJAS_POR_FACTURA, leerFacturaConFoto } from "@/lib/datos/lectura-factura";
+import { obtenerLector } from "@/lib/ia/lector";
 import { erroresPorCampo, esquemaProducto } from "@/lib/inventario/esquemas";
 import { exigirModulo } from "@/lib/modulos";
 import { exigirGestion } from "@/lib/permisos";
@@ -112,6 +114,15 @@ export async function crearProductoFactura(entrada: Record<string, unknown>) {
   revalidatePath("/inventario");
   const [producto] = await productosParaCompra(ctx, negocioId, [r.id]);
   return { ok: true as const, producto };
+}
+
+/** Lee la foto de la factura con IA y devuelve el formulario lleno para revisar. No guarda la factura. */
+export async function leerFacturaFotoAccion(f: FormData) {
+  const { ctx, negocioId } = await negocioActivo();
+  const hojas = f.getAll("hoja").filter((a): a is File => a instanceof File);
+  if (hojas.length > HOJAS_POR_FACTURA) return { ok: false as const, error: `Sube máximo ${HOJAS_POR_FACTURA} fotos por factura.` };
+  const bytes = await Promise.all(hojas.map(async (h) => new Uint8Array(await h.arrayBuffer())));
+  return leerFacturaConFoto(ctx, negocioId, bytes, await obtenerLector());
 }
 
 const medio = z.enum(["EFECTIVO", "TRANSFERENCIA"]);

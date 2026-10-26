@@ -13,6 +13,7 @@ import { fechaDeHoy } from "@/lib/formato";
 import { erroresPorCampo } from "@/lib/inventario/esquemas";
 import { AccesoDenegado } from "./alcance";
 import { cifrarContrasena } from "./autenticacion";
+import { cuentaParaLimite, inicioDelMes } from "./lectura-factura";
 import { prisma } from "./cliente";
 import type { Resultado, Tx } from "./inventario";
 
@@ -42,6 +43,7 @@ export const MODULOS: { valor: Modulo; nombre: string }[] = [
   { valor: "PROVEEDORES", nombre: "Proveedores y compras" },
   { valor: "CAJA", nombre: "Ingresos, egresos y cierres" },
   { valor: "REPORTES", nombre: "Reportes" },
+  { valor: "FACTURA_FOTO", nombre: "Facturas con foto (IA, se cobra aparte)" },
 ];
 
 // ─── Contraseñas temporales ─────────────────────────────────────────────────
@@ -182,11 +184,12 @@ export async function obtenerCliente(ce: ContextoEmy, id: string) {
       proximoPago: true,
       notasEmy: true,
       esDemo: true,
+      limiteFotosMes: true,
       creadoEn: true,
     },
   });
   if (!empresa) return null;
-  const [locales, usuarios, acciones] = await Promise.all([
+  const [locales, usuarios, acciones, fotos] = await Promise.all([
     prisma.negocio.findMany({
       where: { empresaId: id },
       orderBy: { nombre: "asc" },
@@ -211,8 +214,20 @@ export async function obtenerCliente(ce: ContextoEmy, id: string) {
       take: 30,
       select: { id: true, accion: true, detalle: true, creadoEn: true, usuario: { select: { nombre: true } } },
     }),
+    prisma.lecturaFactura.aggregate({
+      where: { empresaId: id, creadoEn: { gte: inicioDelMes() }, ...cuentaParaLimite },
+      _count: true,
+      _sum: { costoPesos: true },
+    }),
   ]);
-  return { ...empresa, activa: empresa.activo && empresa.estadoSuscripcion === "ACTIVA", locales, usuarios, acciones };
+  return {
+    ...empresa,
+    activa: empresa.activo && empresa.estadoSuscripcion === "ACTIVA",
+    locales,
+    usuarios,
+    acciones,
+    fotosMes: { usadas: fotos._count, costo: fotos._sum.costoPesos ?? 0 },
+  };
 }
 
 // ─── Crear un cliente ───────────────────────────────────────────────────────
@@ -445,6 +460,21 @@ export async function cambiarModulos(ce: ContextoEmy, id: string, modulos: unkno
   );
 }
 
+/** Cuántas facturas con foto puede leer el cliente cada mes. */
+export async function cambiarLimiteFotos(ce: ContextoEmy, id: string, limite: unknown): Promise<Resultado> {
+  exigir(ce);
+  const n = z.coerce.number().int().min(0).max(1000).safeParse(limite);
+  if (!n.success) return { ok: false, error: "Escribe un número entre 0 y 1.000." };
+  return comoResultado(() =>
+    prisma.$transaction(async (tx) => {
+      const e = await clienteReal(tx, id);
+      await tx.empresa.update({ where: { id }, data: { limiteFotosMes: n.data } });
+      await registrarAccion(tx, ce, id, "CAMBIAR_LIMITE_FOTOS", { nombre: e.nombre, limite: n.data });
+      return { ok: true as const, id };
+    }),
+  );
+}
+
 export async function agregarLocal(ce: ContextoEmy, empresaId: string, entrada: unknown): Promise<Resultado> {
   exigir(ce);
   const datos = esquemaLocal.safeParse(entrada);
@@ -510,6 +540,7 @@ export const NOMBRE_ACCION: Record<string, string> = {
   REACTIVAR_CLIENTE: "Reactivó el cliente",
   REGISTRAR_PAGO: "Registró un pago",
   CAMBIAR_MODULOS: "Cambió los módulos",
+  CAMBIAR_LIMITE_FOTOS: "Cambió el límite de facturas con foto",
   AGREGAR_LOCAL: "Agregó un local",
   RESTABLECER_CONTRASENA: "Restableció una contraseña",
   REINICIAR_DEMO: "Reinició la demo",

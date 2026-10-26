@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   agregarLocalAccion,
   cambiarEstadoClienteAccion,
+  cambiarLimiteFotosAccion,
   cambiarModulosAccion,
   crearClienteAccion,
   editarClienteAccion,
@@ -368,6 +369,36 @@ export function Modulos({
       </div>
       <AvisoError mensaje={error} />
     </div>
+  );
+}
+
+export function LimiteFotos({ id, limite }: { id: string; limite: number }) {
+  const { pendiente, error, correr } = useAccion();
+  const [valor, setValor] = useState(String(limite));
+  return (
+    <form
+      className="space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        correr(() => cambiarLimiteFotosAccion(id, valor));
+      }}
+    >
+      <Campo id="limiteFotos" etiqueta="Facturas con foto al mes">
+        <div className="flex gap-2">
+          <Input
+            id="limiteFotos"
+            inputMode="numeric"
+            value={valor}
+            onChange={(e) => setValor(e.target.value.replace(/\D/g, ""))}
+            className="max-w-32"
+          />
+          <Button type="submit" variant="outline" disabled={pendiente || valor === String(limite)}>
+            {pendiente ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+      </Campo>
+      <AvisoError mensaje={error} />
+    </form>
   );
 }
 

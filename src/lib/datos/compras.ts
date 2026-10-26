@@ -939,7 +939,7 @@ export const ADJUNTO_MAXIMO = 2 * 1024 * 1024;
 export const ADJUNTOS_POR_FACTURA = 3;
 
 /** Tipo real del archivo según sus primeros bytes. */
-function tipoDeArchivo(b: Uint8Array) {
+export function tipoDeArchivo(b: Uint8Array) {
   if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return "application/pdf";
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";

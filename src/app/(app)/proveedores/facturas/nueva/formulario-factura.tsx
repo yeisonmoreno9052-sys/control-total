@@ -2,7 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, Landmark, PackagePlus, Plus, Search, Trash2, TrendingDown, TrendingUp, UserPlus } from "lucide-react";
+import {
+  Banknote,
+  Camera,
+  CircleAlert,
+  Landmark,
+  Link2,
+  PackagePlus,
+  Plus,
+  Search,
+  Sparkles,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  UserPlus,
+} from "lucide-react";
 import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
@@ -11,7 +25,9 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { CampoPesos } from "@/components/ventas/campo-pesos";
 import { costoPromedio, totalLinea } from "@/lib/compras/costos";
+import { totalNoCuadra } from "@/lib/compras/lectura";
 import type { ProductoCompra } from "@/lib/datos/compras";
+import type { EstadoFotos, FacturaRevisada } from "@/lib/datos/lectura-factura";
 import { formatearPesos } from "@/lib/formato";
 import { formatearCantidad, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
 import { precioSugerido } from "@/lib/inventario/precios";
@@ -23,8 +39,11 @@ import {
   crearProductoFactura,
   crearProveedorRapido,
   guardarFacturaAccion,
+  leerFacturaFotoAccion,
   refrescarProductosFactura,
+  subirAdjuntoAccion,
 } from "../../acciones";
+import { prepararHoja } from "./hojas";
 
 type Proveedor = { id: string; nombre: string };
 
@@ -37,7 +56,23 @@ type Linea = {
   /** Precio escrito a mano. null = el sugerido por el margen. */
   precio: number | null;
   confirmado: boolean;
+  /** La línea vino de la foto de la factura. */
+  deFoto?: boolean;
 };
+
+/** Producto leído de la foto que todavía no se ha unido a uno del inventario. */
+type Pendiente = {
+  clave: string;
+  descripcion: string;
+  codigo: string | null;
+  codigoBarras: string | null;
+  cantidad: string;
+  costo: number;
+  estado: "revisar" | "nuevo";
+  candidatos: ProductoCompra[];
+};
+
+type ProveedorLeido = { nombre: string; nit: string | null; telefono: string | null };
 
 type Borrador = {
   proveedorId: string;
@@ -50,6 +85,9 @@ type Borrador = {
   vencimiento: string;
   nota: string;
   lineas: Linea[];
+  pendientes?: Pendiente[];
+  totalImpreso?: number | null;
+  proveedorLeido?: ProveedorLeido | null;
 };
 
 const unidadCorta = (u: string) => UNIDADES[u as UnidadMedida]?.corto ?? "";
@@ -97,6 +135,31 @@ function calcularLinea(l: Linea) {
   };
 }
 
+type InicialProducto = { nombre: string; codigo: string; codigoBarras: string; costo: number | null };
+
+/** Agrega un producto leído de la foto; si ya estaba en la factura, suma la cantidad. */
+function sumarLinea(ls: Linea[], p: ProductoCompra, cantidad: string, costo: number): Linea[] {
+  const existente = ls.find((l) => l.producto.id === p.id);
+  if (existente) {
+    const a = leerCantidad(existente.cantidad);
+    const b = leerCantidad(cantidad);
+    const suma = a && b ? a.plus(b).toString() : existente.cantidad || cantidad;
+    return ls.map((l) => (l.producto.id === p.id ? { ...l, cantidad: suma } : l));
+  }
+  return [
+    ...ls,
+    {
+      producto: p,
+      cantidad,
+      costo: costo > 0 ? costo : p.costo || null,
+      actualizar: null,
+      precio: null,
+      confirmado: false,
+      deFoto: true,
+    },
+  ];
+}
+
 export function FormularioFactura({
   negocioId,
   hoy,
@@ -104,6 +167,7 @@ export function FormularioFactura({
   proveedorInicial,
   margenNegocio,
   cajaAbierta,
+  fotos,
 }: {
   negocioId: string;
   hoy: string;
@@ -111,6 +175,7 @@ export function FormularioFactura({
   proveedorInicial: string | null;
   margenNegocio: number;
   cajaAbierta: boolean;
+  fotos: EstadoFotos;
 }) {
   const router = useRouter();
   const clave = `factura:${negocioId}`;
@@ -129,8 +194,20 @@ export function FormularioFactura({
   const [vencimiento, setVencimiento] = useState(inicial?.vencimiento ?? "");
   const [nota, setNota] = useState(inicial?.nota ?? "");
   const [lineas, setLineas] = useState<Linea[]>(inicial?.lineas ?? []);
-  const [dialogo, setDialogo] = useState<"proveedor" | "producto" | null>(null);
+  const [pendientes, setPendientes] = useState<Pendiente[]>(inicial?.pendientes ?? []);
+  const [totalImpreso, setTotalImpreso] = useState<number | null>(inicial?.totalImpreso ?? null);
+  const [proveedorLeido, setProveedorLeido] = useState<ProveedorLeido | null>(inicial?.proveedorLeido ?? null);
+  // Las fotos quedan como adjunto de la factura al guardar (solo en memoria, no en el borrador).
+  const [hojas, setHojas] = useState<File[]>([]);
+  const [leyendo, setLeyendo] = useState(false);
+  const [usadas, setUsadas] = useState(fotos.usadas);
+  const [notaLectura, setNotaLectura] = useState<string | null>(null);
+  const [dialogo, setDialogo] = useState<"proveedor" | "producto" | "buscar" | null>(null);
   const [textoNuevo, setTextoNuevo] = useState("");
+  const [inicialProducto, setInicialProducto] = useState<InicialProducto | null>(null);
+  /** Pendiente de la foto que se está uniendo a un producto (al crear o buscar). */
+  const [paraPendiente, setParaPendiente] = useState<string | null>(null);
+  const archivoFoto = useRef<HTMLInputElement>(null);
   // Cambiarla reinicia el buscador (lo deja vacío después de crear un producto).
   const [claveBuscador, setClaveBuscador] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -165,13 +242,19 @@ export function FormularioFactura({
         vencimiento,
         nota,
         lineas,
+        pendientes,
+        totalImpreso,
+        proveedorLeido,
       };
-      if (lineas.length || numero) localStorage.setItem(clave, JSON.stringify(borrador));
+      if (lineas.length || pendientes.length || numero) localStorage.setItem(clave, JSON.stringify(borrador));
       else localStorage.removeItem(clave);
     } catch {
       // Sin almacenamiento: el borrador vive solo en la pantalla.
     }
-  }, [clave, proveedorId, numero, fecha, tipo, medio, desdeCaja, referencia, vencimiento, nota, lineas]);
+  }, [
+    clave, proveedorId, numero, fecha, tipo, medio, desdeCaja, referencia, vencimiento, nota, lineas, pendientes,
+    totalImpreso, proveedorLeido,
+  ]);
 
   // Después de agregar un producto, el cursor pasa a su cantidad, ya con la línea en pantalla.
   // La marca se cambia junto con las líneas, así que al correr el efecto la línea ya existe.
@@ -205,6 +288,76 @@ export function FormularioFactura({
     setPorEnfocar({ id: p.id });
   }, []);
 
+  /** Une un producto leído de la foto con uno del inventario: pasa a ser una línea más. */
+  function vincular(claveP: string, p: ProductoCompra) {
+    const pend = pendientes.find((x) => x.clave === claveP);
+    if (!pend) return;
+    setPendientes((ps) => ps.filter((x) => x.clave !== claveP));
+    setLineas((ls) => sumarLinea(ls, p, pend.cantidad, pend.costo));
+    setError(null);
+  }
+
+  async function leerFoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const elegidos = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!elegidos.length || leyendo) return;
+    if (elegidos.length > 3) return setError("Elige máximo 3 fotos de la misma factura.");
+    if ((lineas.length || pendientes.length) && !window.confirm("Se reemplazan los productos que llevas en esta factura. ¿Seguir?")) return;
+    setLeyendo(true);
+    setError(null);
+    setAviso(null);
+    try {
+      const preparadas = await Promise.all(elegidos.map(prepararHoja));
+      const f = new FormData();
+      for (const h of preparadas) f.append("hoja", h);
+      const r = await leerFacturaFotoAccion(f);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      setUsadas((n) => n + 1);
+      setHojas(preparadas);
+      aplicarLectura(r.factura);
+    } catch (err) {
+      setError(err instanceof Error && err.message.startsWith("Foto:") ? err.message.slice(5) : "No pudimos leer la factura. Revisa la conexión a internet e intenta de nuevo.");
+    } finally {
+      setLeyendo(false);
+    }
+  }
+
+  function aplicarLectura(f: FacturaRevisada) {
+    const conocido = f.proveedor.id && proveedores.some((p) => p.id === f.proveedor.id) ? f.proveedor.id : "";
+    setProveedorId(conocido);
+    setProveedorLeido(conocido || !f.proveedor.nombre ? null : { nombre: f.proveedor.nombre, nit: f.proveedor.nit, telefono: f.proveedor.telefono });
+    if (f.numero) setNumero(f.numero);
+    if (f.fecha) setFecha(f.fecha);
+    if (f.formaPago === "credito" || (f.formaPago === "desconocida" && f.vencimiento)) {
+      setTipo("credito");
+      setVencimiento(f.vencimiento ?? "");
+    } else if (f.formaPago === "contado") setTipo("contado");
+    let nuevas: Linea[] = [];
+    const porRevisar: Pendiente[] = [];
+    f.lineas.forEach((l, i) => {
+      if (l.estado === "encontrado" && l.producto) nuevas = sumarLinea(nuevas, l.producto, l.cantidad, l.costo);
+      else
+        porRevisar.push({
+          clave: `${Date.now()}-${i}`,
+          descripcion: l.descripcion,
+          codigo: l.codigo,
+          codigoBarras: l.codigoBarras,
+          cantidad: l.cantidad,
+          costo: l.costo,
+          estado: l.estado === "revisar" ? "revisar" : "nuevo",
+          candidatos: l.candidatos,
+        });
+    });
+    setLineas(nuevas);
+    setPendientes(porRevisar);
+    setTotalImpreso(f.total);
+    setNotaLectura(f.nota);
+    setErrores({});
+  }
+
   const cambiar = (id: string, cambios: Partial<Linea>) => {
     setLineas((ls) => ls.map((l) => (l.producto.id === id ? { ...l, ...cambios } : l)));
     setError(null);
@@ -232,6 +385,12 @@ export function FormularioFactura({
       if (calc.segunda && !linea.confirmado) campos[`confirmado-${id}`] = "Confirma el costo y el precio.";
     }
     setErrores(campos);
+    if (pendientes.length)
+      return setError(
+        pendientes.length === 1
+          ? "Falta revisar 1 producto leído de la foto."
+          : `Faltan revisar ${pendientes.length} productos leídos de la foto.`,
+      );
     if (!lineas.length) return setError("Agrega al menos un producto a la factura.");
     if (Object.keys(campos).length) return setError("Revisa los campos marcados.");
 
@@ -271,6 +430,13 @@ export function FormularioFactura({
       } catch {
         // nada que limpiar
       }
+      // La foto de la factura queda guardada con ella. Si no sube, la factura igual quedó.
+      for (const h of hojas.slice(0, 3)) {
+        const f = new FormData();
+        f.append("facturaId", r.id);
+        f.append("archivo", h);
+        await subirAdjuntoAccion(f).catch(() => undefined);
+      }
       router.push(`/proveedores/facturas/${r.id}?nueva=1`);
     } catch {
       setError("No pudimos guardar la factura. Revisa la conexión a internet e intenta de nuevo.");
@@ -282,6 +448,11 @@ export function FormularioFactura({
   function descartar() {
     if (!window.confirm("¿Borrar este borrador de factura? No se guarda nada.")) return;
     setLineas([]);
+    setPendientes([]);
+    setTotalImpreso(null);
+    setProveedorLeido(null);
+    setHojas([]);
+    setNotaLectura(null);
     setNumero("");
     setNota("");
     setReferencia("");
@@ -293,6 +464,49 @@ export function FormularioFactura({
   return (
     <>
       <form onSubmit={guardar} noValidate className="space-y-6 pb-28 lg:pb-0">
+        {fotos.disponible && (
+          <section className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-accent/50 p-4 sm:flex-row sm:items-center md:p-5">
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 font-semibold">
+                <Sparkles className="size-5 text-primary" /> Llena la factura con una foto
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {usadas >= fotos.limite
+                  ? "Ya se usaron las lecturas de este mes. Puedes registrar la factura a mano."
+                  : `Toma la foto (o hasta 3, si tiene varias hojas). Te quedan ${fotos.limite - usadas} de ${fotos.limite} este mes.`}
+              </p>
+            </div>
+            <input
+              ref={archivoFoto}
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={leerFoto}
+              aria-label="Foto de la factura"
+            />
+            <Button
+              type="button"
+              size="lg"
+              className="h-14 px-6 text-lg"
+              disabled={leyendo || usadas >= fotos.limite}
+              onClick={() => archivoFoto.current?.click()}
+            >
+              <Camera /> {leyendo ? "Leyendo la factura…" : "Leer factura con foto"}
+            </Button>
+          </section>
+        )}
+        {leyendo && (
+          <p className="rounded-xl border border-dashed p-4 text-center text-muted-foreground" role="status">
+            Estamos leyendo la factura. Tarda de 15 a 30 segundos; no cierres esta pantalla.
+          </p>
+        )}
+        {notaLectura && (
+          <p className="flex items-start gap-2 rounded-xl border bg-card p-3 text-sm shadow-suave">
+            <CircleAlert className="mt-0.5 size-4 shrink-0 text-primary" /> {notaLectura}
+          </p>
+        )}
+
         <section className="grid gap-4 rounded-2xl border p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] md:p-6 bg-card shadow-suave">
           <Campo id="proveedorId" etiqueta="Proveedor" error={errores.proveedorId}>
             <div className="flex gap-2">
@@ -320,6 +534,15 @@ export function FormularioFactura({
                 <UserPlus /> <span className="hidden sm:inline">Nuevo</span>
               </Button>
             </div>
+            {proveedorLeido && !proveedorId && (
+              <p className="mt-2 text-sm">
+                En la foto dice <span className="font-medium">{proveedorLeido.nombre}</span>
+                {proveedorLeido.nit && <> (NIT {proveedorLeido.nit})</>}, que no está en tu lista.{" "}
+                <button type="button" className="font-medium text-primary underline" onClick={() => setDialogo("proveedor")}>
+                  Crearlo
+                </button>
+              </p>
+            )}
           </Campo>
           <Campo id="numero" etiqueta="Nº de factura" error={errores.numero}>
             <Input
@@ -353,12 +576,40 @@ export function FormularioFactura({
           <Buscador key={claveBuscador} refInput={buscador} alElegir={agregar} alAvisar={setAviso} />
           {aviso && <p className="text-sm text-destructive">{aviso}</p>}
 
-          {lineas.length === 0 ? (
+          {pendientes.length > 0 && (
+            <ul className="space-y-3" aria-label="Productos de la foto por revisar">
+              {pendientes.map((pend) => (
+                <FilaPendiente
+                  key={pend.clave}
+                  pendiente={pend}
+                  onElegir={(p) => vincular(pend.clave, p)}
+                  onBuscar={() => {
+                    setParaPendiente(pend.clave);
+                    setDialogo("buscar");
+                  }}
+                  onCrear={() => {
+                    setParaPendiente(pend.clave);
+                    setTextoNuevo("");
+                    setInicialProducto({
+                      nombre: pend.descripcion,
+                      codigo: pend.codigo ?? "",
+                      codigoBarras: pend.codigoBarras ?? "",
+                      costo: pend.costo || null,
+                    });
+                    setDialogo("producto");
+                  }}
+                  onQuitar={() => setPendientes((ps) => ps.filter((x) => x.clave !== pend.clave))}
+                />
+              ))}
+            </ul>
+          )}
+
+          {lineas.length === 0 && pendientes.length === 0 ? (
             <div className="rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
               Escanea o busca los productos de la factura. Si alguno no existe, créalo con &quot;Producto nuevo&quot;.
             </div>
           ) : (
-            <ul className="space-y-3">
+            lineas.length > 0 && <ul className="space-y-3">
               {calculadas.map(({ linea, calc }) => (
                 <FilaLinea
                   key={linea.producto.id}
@@ -474,8 +725,20 @@ export function FormularioFactura({
               <p className="text-2xl font-bold tabular-nums md:text-3xl" data-testid="total-factura">
                 {formatearPesos(total)}
               </p>
+              {totalImpreso !== null && (
+                <p
+                  className={cn(
+                    "text-sm",
+                    !pendientes.length && totalNoCuadra(total, totalImpreso) ? "font-medium text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {!pendientes.length && totalNoCuadra(total, totalImpreso)
+                    ? `La suma no coincide con el total de la factura (${formatearPesos(totalImpreso)}). Revisa las cantidades.`
+                    : `Total en la factura: ${formatearPesos(totalImpreso)}`}
+                </p>
+              )}
             </div>
-            {lineas.length > 0 && (
+            {(lineas.length > 0 || pendientes.length > 0) && (
               <Button type="button" variant="ghost" className="hidden md:inline-flex" onClick={descartar}>
                 Descartar
               </Button>
@@ -490,23 +753,64 @@ export function FormularioFactura({
       {/* Fuera del formulario de la factura: un formulario no puede ir dentro de otro. */}
       <Dialogo abierto={dialogo === "proveedor"} onCerrar={() => setDialogo(null)} titulo="Nuevo proveedor">
         <FormularioProveedorRapido
+          inicial={proveedorLeido}
           onCreado={(p) => {
             setProveedores((ps) => [...ps, p].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")));
             setProveedorId(p.id);
+            setProveedorLeido(null);
             setDialogo(null);
           }}
         />
       </Dialogo>
-      <Dialogo abierto={dialogo === "producto"} onCerrar={() => setDialogo(null)} titulo="Producto nuevo" className="max-w-lg">
+      <Dialogo
+        abierto={dialogo === "producto"}
+        onCerrar={() => {
+          setDialogo(null);
+          setParaPendiente(null);
+          setInicialProducto(null);
+        }}
+        titulo="Producto nuevo"
+        className="max-w-lg"
+      >
         <FormularioProductoNuevo
           texto={textoNuevo}
+          inicial={paraPendiente ? inicialProducto : null}
           margen={margenNegocio}
           onCreado={(p) => {
             setDialogo(null);
-            setClaveBuscador((n) => n + 1);
-            agregar(p);
+            setInicialProducto(null);
+            if (paraPendiente) {
+              vincular(paraPendiente, p);
+              setParaPendiente(null);
+            } else {
+              setClaveBuscador((n) => n + 1);
+              agregar(p);
+            }
           }}
         />
+      </Dialogo>
+      <Dialogo
+        abierto={dialogo === "buscar"}
+        onCerrar={() => {
+          setDialogo(null);
+          setParaPendiente(null);
+        }}
+        titulo="¿Cuál producto es?"
+        className="max-w-lg"
+      >
+        <div className="min-h-72 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {pendientes.find((x) => x.clave === paraPendiente)?.descripcion ?? ""}
+          </p>
+          <Buscador
+            alElegir={(p) => {
+              if (paraPendiente) vincular(paraPendiente, p);
+              setParaPendiente(null);
+              setDialogo(null);
+            }}
+            alAvisar={() => undefined}
+          />
+        </div>
       </Dialogo>
     </>
   );
@@ -533,7 +837,14 @@ function FilaLinea({
     <li className="space-y-3 rounded-xl border p-4 bg-card shadow-suave">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-medium">{p.nombre}</p>
+          <p className="font-medium">
+            {linea.deFoto && (
+              <span className="mr-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                🟢 De la foto
+              </span>
+            )}
+            {p.nombre}
+          </p>
           <p className="text-sm text-muted-foreground">
             {p.codigo} · hay {formatearCantidad(p.stock)} {corto} · costo {formatearPesos(p.costo)} · precio{" "}
             {formatearPesos(p.precioVenta)}
@@ -648,12 +959,83 @@ function FilaLinea({
   );
 }
 
+function FilaPendiente({
+  pendiente: p,
+  onElegir,
+  onBuscar,
+  onCrear,
+  onQuitar,
+}: {
+  pendiente: Pendiente;
+  onElegir: (producto: ProductoCompra) => void;
+  onBuscar: () => void;
+  onCrear: () => void;
+  onQuitar: () => void;
+}) {
+  const revisar = p.estado === "revisar";
+  return (
+    <li
+      className={cn(
+        "space-y-3 rounded-xl border-2 border-dashed p-4 bg-card shadow-suave",
+        revisar ? "border-amber-400" : "border-destructive/50",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className={cn("text-sm font-medium", revisar ? "text-amber-700 dark:text-amber-400" : "text-destructive")}>
+            {revisar ? "🟡 Revisar: ¿es alguno de estos?" : "🔴 No está en el inventario"}
+          </p>
+          <p className="font-medium">{p.descripcion}</p>
+          <p className="text-sm text-muted-foreground">
+            {[p.codigo, p.codigoBarras].filter(Boolean).join(" · ")}
+            {(p.codigo || p.codigoBarras) && " · "}
+            {p.cantidad || "?"} × {formatearPesos(p.costo)}
+          </p>
+        </div>
+        <Button type="button" variant="ghost" size="icon" onClick={onQuitar} aria-label={`Quitar ${p.descripcion}`}>
+          <Trash2 className="size-5 text-muted-foreground" />
+        </Button>
+      </div>
+      {p.candidatos.length > 0 && (
+        <ul className="space-y-2">
+          {p.candidatos.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => onElegir(c)}
+                className="flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left hover:bg-accent"
+              >
+                <Link2 className="size-4 shrink-0 text-primary" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{c.nombre}</span>
+                  <span className="block truncate text-sm text-muted-foreground">
+                    {c.codigo} · hay {formatearCantidad(c.stock)} {unidadCorta(c.unidad)} · costo {formatearPesos(c.costo)}
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-medium text-primary">Es este</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" onClick={onBuscar}>
+          <Search /> {revisar ? "Es otro" : "Buscar en el inventario"}
+        </Button>
+        <Button type="button" variant={revisar ? "outline" : "default"} onClick={onCrear}>
+          <PackagePlus /> Crear producto
+        </Button>
+      </div>
+    </li>
+  );
+}
+
 function Buscador({
   refInput,
   alElegir,
   alAvisar,
 }: {
-  refInput: React.RefObject<HTMLInputElement | null>;
+  refInput?: React.RefObject<HTMLInputElement | null>;
   alElegir: (p: ProductoCompra) => void;
   alAvisar: (mensaje: string | null) => void;
 }) {
@@ -786,10 +1168,16 @@ function Buscador({
   );
 }
 
-function FormularioProveedorRapido({ onCreado }: { onCreado: (p: Proveedor) => void }) {
-  const [nombre, setNombre] = useState("");
-  const [nit, setNit] = useState("");
-  const [telefono, setTelefono] = useState("");
+function FormularioProveedorRapido({
+  inicial,
+  onCreado,
+}: {
+  inicial?: ProveedorLeido | null;
+  onCreado: (p: Proveedor) => void;
+}) {
+  const [nombre, setNombre] = useState(inicial?.nombre ?? "");
+  const [nit, setNit] = useState(inicial?.nit ?? "");
+  const [telefono, setTelefono] = useState(inicial?.telefono ?? "");
   const [error, setError] = useState<string>();
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
@@ -835,23 +1223,26 @@ function FormularioProveedorRapido({ onCreado }: { onCreado: (p: Proveedor) => v
 
 function FormularioProductoNuevo({
   texto,
+  inicial,
   margen,
   onCreado,
 }: {
   texto: string;
+  /** Datos leídos de la foto de la factura. */
+  inicial?: InicialProducto | null;
   margen: number;
   onCreado: (p: ProductoCompra) => void;
 }) {
   // Lo que se había escrito en el buscador: si son solo números parece un código de barras; si no, un nombre.
   const pareceCodigo = /^\d{6,}$/.test(texto.trim());
-  const [nombre, setNombre] = useState(pareceCodigo ? "" : texto.trim());
-  const [codigo, setCodigo] = useState("");
-  const [codigoBarras, setCodigoBarras] = useState(pareceCodigo ? texto.trim() : "");
+  const [nombre, setNombre] = useState(inicial?.nombre ?? (pareceCodigo ? "" : texto.trim()));
+  const [codigo, setCodigo] = useState(inicial?.codigo ?? "");
+  const [codigoBarras, setCodigoBarras] = useState(inicial?.codigoBarras ?? (pareceCodigo ? texto.trim() : ""));
   const [unidad, setUnidad] = useState<UnidadMedida>("UNIDAD");
   const [fraccionado, setFraccionado] = useState(false);
   const [iva, setIva] = useState("19");
   const [condicion, setCondicion] = useState<"NUEVO" | "DE_SEGUNDA">("NUEVO");
-  const [costo, setCosto] = useState<number | null>(null);
+  const [costo, setCosto] = useState<number | null>(inicial?.costo ?? null);
   const [precio, setPrecio] = useState<number | null>(null);
   const [error, setError] = useState<string>();
   const [campos, setCampos] = useState<Record<string, string>>({});
