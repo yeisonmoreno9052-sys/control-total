@@ -1,6 +1,8 @@
 // Cálculos para convertir lo que la IA leyó de una factura en líneas de la factura de compra.
 // Sin base de datos: se prueban solos.
+import type { UnidadMedida } from "@/generated/prisma/enums";
 import type { LineaLeida } from "@/lib/ia/factura";
+import { IVAS } from "@/lib/inventario/unidades";
 
 /**
  * Costo unitario con IVA incluido, en pesos enteros (así se lleva el costo en la fase 3).
@@ -69,4 +71,26 @@ export function fechaValida(dia: string | null | undefined) {
 export function totalNoCuadra(suma: number, totalImpreso: number | null | undefined) {
   if (!totalImpreso || totalImpreso <= 0) return false;
   return Math.abs(suma - totalImpreso) > Math.max(100, totalImpreso * 0.01);
+}
+
+const UNIDADES_LEIDAS: [RegExp, UnidadMedida][] = [
+  [/^(m|mt|mts|mtr|metro|metros)$/, "METRO"],
+  [/^(cm|cms|centimetro|centimetros)$/, "CENTIMETRO"],
+  [/^(kg|kgs|kilo|kilos|kilogramo|kilogramos)$/, "KILO"],
+  [/^(g|gr|grs|gramo|gramos)$/, "GRAMO"],
+  [/^(lb|lbs|libra|libras)$/, "LIBRA"],
+  [/^(l|lt|lts|litro|litros)$/, "LITRO"],
+  [/^(gl|gal|galon|galones)$/, "GALON"],
+];
+
+/** Unidad de medida a partir de lo que dice la factura ("MT", "KG", "UND"…). Si no se reconoce: unidad. */
+export function unidadLeida(texto: string | null | undefined): UnidadMedida {
+  const t = normalizarTexto(texto ?? "").replace(/\s/g, "");
+  return UNIDADES_LEIDAS.find(([re]) => re.test(t))?.[1] ?? "UNIDAD";
+}
+
+/** IVA leído si es uno de los que maneja el sistema (0, 5 o 19); si no, el del negocio. */
+export function ivaLeido(porcentaje: number | null | undefined, porDefecto: number) {
+  const v = porcentaje === null || porcentaje === undefined ? NaN : Math.round(porcentaje);
+  return (IVAS as readonly number[]).includes(v) ? v : porDefecto;
 }
