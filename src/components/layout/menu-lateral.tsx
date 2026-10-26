@@ -15,7 +15,7 @@ export function MenuLateral({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) {
       {opciones.map(({ titulo, href, icono: Icono, disponible }) => {
         const activa = ruta === href || ruta.startsWith(`${href}/`);
         const clases = cn(
-          "group flex h-12 items-center gap-3 rounded-xl px-2.5 text-[15px] font-medium transition-colors",
+          "group flex h-12 items-center gap-3 rounded-xl px-2.5 text-[15px] font-medium transition-colors max-lg:justify-center",
           activa
             ? "bg-gradient-to-r from-indigo-500/30 to-indigo-500/5 text-menu-activo-foreground"
             : "text-menu-foreground hover:bg-white/5 hover:text-white",
@@ -27,17 +27,17 @@ export function MenuLateral({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) {
               <Chip activa={false}>
                 <Icono className="size-[18px]" />
               </Chip>
-              {titulo}
-              <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-xs font-normal">Pronto</span>
+              <span className="max-lg:sr-only">{titulo}</span>
+              <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-xs font-normal max-lg:hidden">Pronto</span>
             </span>
           );
         }
         return (
-          <Link key={href} href={href} className={clases} aria-current={activa ? "page" : undefined}>
+          <Link key={href} href={href} className={clases} aria-current={activa ? "page" : undefined} title={titulo}>
             <Chip activa={activa}>
               <Icono className="size-[18px]" />
             </Chip>
-            {titulo}
+            <span className="max-lg:sr-only">{titulo}</span>
           </Link>
         );
       })}
