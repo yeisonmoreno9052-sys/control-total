@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   agregarLocal,
   cambiarEstadoCliente,
+  cambiarLimiteFotos,
   cambiarModulos,
   crearCliente,
   editarCliente,
@@ -88,6 +89,14 @@ export async function registrarPagoAccion(id: string): Promise<EstadoEmy> {
 export async function cambiarModulosAccion(id: string, modulos: string[]): Promise<EstadoEmy> {
   const ce = await obtenerSuperadmin();
   const r = await cambiarModulos(ce, String(id), Array.isArray(modulos) ? modulos.map(String) : []);
+  if (!r.ok) return { error: r.error };
+  refrescar(id);
+  return { ok: true };
+}
+
+export async function cambiarLimiteFotosAccion(id: string, limite: string): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const r = await cambiarLimiteFotos(ce, String(id), String(limite));
   if (!r.ok) return { error: r.error };
   refrescar(id);
   return { ok: true };

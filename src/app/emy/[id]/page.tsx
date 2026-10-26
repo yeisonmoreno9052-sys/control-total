@@ -6,7 +6,14 @@ import { estadoPago, MODULOS, NOMBRE_ACCION, obtenerCliente } from "@/lib/datos/
 import { formatearDia, formatearFecha, formatearHora, formatearPesos } from "@/lib/formato";
 import { obtenerSuperadmin } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
-import { AgregarLocal, BotonesEstado, FormularioEditarCliente, Modulos, RestablecerContrasena } from "../componentes";
+import {
+  AgregarLocal,
+  BotonesEstado,
+  FormularioEditarCliente,
+  LimiteFotos,
+  Modulos,
+  RestablecerContrasena,
+} from "../componentes";
 
 const NOMBRE_ROL: Record<string, string> = { ADMINISTRADOR: "Administrador", SOCIO: "Socio", CAJERO: "Cajero" };
 const TEXTO_PAGO = { al_dia: "Al día", vence_pronto: "Vence pronto", vencido: "Pago vencido", sin_fecha: "Sin fecha de pago" };
@@ -101,6 +108,28 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         <h2 className="font-semibold">Módulos activos</h2>
         <p className="text-sm text-muted-foreground">Un módulo apagado desaparece del menú del cliente y deja de funcionar.</p>
         <Modulos id={c.id} activos={c.modulosActivos} opciones={MODULOS} />
+      </section>
+
+      <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
+        <h2 className="font-semibold">Facturas con foto</h2>
+        <p className="text-sm text-muted-foreground">
+          {c.modulosActivos.includes("FACTURA_FOTO")
+            ? "Activo. Cada lectura te cuesta en la cuenta de Anthropic de EMY TELECOM."
+            : 'Apagado. Préndelo en "Módulos activos" cuando el cliente lo pague.'}
+        </p>
+        <dl className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-muted/60 p-3">
+            <dt className="text-sm text-muted-foreground">Usadas este mes</dt>
+            <dd className="text-2xl font-bold tabular-nums">
+              {c.fotosMes.usadas} <span className="text-base font-normal text-muted-foreground">de {c.limiteFotosMes}</span>
+            </dd>
+          </div>
+          <div className="rounded-xl bg-muted/60 p-3">
+            <dt className="text-sm text-muted-foreground">Te costaron (aprox.)</dt>
+            <dd className="text-2xl font-bold tabular-nums">{formatearPesos(c.fotosMes.costo)}</dd>
+          </div>
+        </dl>
+        <LimiteFotos id={c.id} limite={c.limiteFotosMes} />
       </section>
 
       <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">

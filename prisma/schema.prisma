@@ -29,6 +29,8 @@ enum Modulo {
   PROVEEDORES
   CAJA
   REPORTES
+  /// Leer facturas de compra con foto (IA). Se cobra aparte: viene apagado.
+  FACTURA_FOTO
 }
 
 /// Cliente de EMY TELECOM (ej. "Camila").
@@ -53,6 +55,8 @@ model Empresa {
   notasEmy          String?
   /// Empresa de demostración: no cuenta como cliente y se puede reiniciar.
   esDemo            Boolean           @default(false)
+  /// Cuántas facturas puede leer con foto cada mes (módulo FACTURA_FOTO).
+  limiteFotosMes    Int               @default(50)
   activo            Boolean           @default(true)
   creadoEn          DateTime          @default(now())
   actualizadoEn     DateTime          @updatedAt
@@ -78,6 +82,7 @@ model Empresa {
   adjuntosFactura    AdjuntoFactura[]
   movimientosCaja    MovimientoCaja[]
   accionesEmy        AccionEmy[]
+  lecturasFactura    LecturaFactura[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
@@ -122,6 +127,7 @@ model Negocio {
   abonosFactura      AbonoFactura[]
   adjuntosFactura    AdjuntoFactura[]
   movimientosCaja    MovimientoCaja[]
+  lecturasFactura    LecturaFactura[]
 
   @@index([empresaId])
 }
@@ -163,6 +169,7 @@ model Usuario {
   movimientosCajaAnulados MovimientoCaja[]       @relation("MovimientoCajaAnulador")
   adjuntosFactura         AdjuntoFactura[]
   accionesEmy             AccionEmy[]
+  lecturasFactura         LecturaFactura[]
 
   @@index([empresaId])
 }
@@ -738,6 +745,31 @@ model AdjuntoFactura {
 
   @@index([facturaId])
   @@index([empresaId])
+}
+
+/// Cada vez que se lee una factura con foto (IA). Sirve para el límite del mes
+/// y para que EMY TELECOM vea cuánto le cuesta cada cliente.
+model LecturaFactura {
+  id            String   @id @default(cuid())
+  empresaId     String
+  negocioId     String
+  usuarioId     String
+  paginas       Int
+  /// false mientras se lee o si la lectura falló.
+  exito         Boolean  @default(false)
+  error         String?
+  modelo        String
+  tokensEntrada Int      @default(0)
+  tokensSalida  Int      @default(0)
+  /// Costo aproximado en pesos (tokens × precio del modelo × dólar).
+  costoPesos    Int      @default(0)
+  creadoEn      DateTime @default(now())
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId, creadoEn])
 }
 
 // ─── Fase 4: ingresos y egresos ─────────────────────────────────────────────

@@ -4,7 +4,9 @@ import { SinPermiso } from "@/components/layout/sin-permiso";
 import { estadoDeCaja } from "@/lib/datos/caja";
 import { obtenerMargenNegocio } from "@/lib/datos/categorias";
 import { listarProveedores } from "@/lib/datos/compras";
+import { estadoFotos } from "@/lib/datos/lectura-factura";
 import { diaEnBogota } from "@/lib/formato";
+import { hayLector } from "@/lib/ia/lector";
 import { exigirModulo } from "@/lib/modulos";
 import { puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
@@ -20,10 +22,11 @@ export default async function NuevaFactura({ searchParams }: PageProps<"/proveed
   if (!puedeGestionar(ctx) || !ctx.negocioActivoId) return <SinPermiso />;
   const negocioId = ctx.negocioActivoId;
   const sp = await searchParams;
-  const [proveedores, margen, caja] = await Promise.all([
+  const [proveedores, margen, caja, fotos] = await Promise.all([
     listarProveedores(ctx, negocioId),
     obtenerMargenNegocio(ctx, negocioId),
     estadoDeCaja(ctx, negocioId),
+    estadoFotos(ctx, hayLector()),
   ]);
 
   return (
@@ -36,6 +39,7 @@ export default async function NuevaFactura({ searchParams }: PageProps<"/proveed
         proveedorInicial={typeof sp.proveedor === "string" ? sp.proveedor : null}
         margenNegocio={margen}
         cajaAbierta={caja.hoy?.estado === "ABIERTA"}
+        fotos={fotos}
       />
     </div>
   );
