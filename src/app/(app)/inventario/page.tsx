@@ -226,9 +226,9 @@ function TablaProductos({ productos, verCosto }: { productos: ProductoVista[]; v
                   </div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{p.categoria ?? "—"}</td>
-                {verCosto && <td className="px-4 py-3 text-right tabular-nums">{formatearPesos(p.costo ?? 0)}</td>}
-                <td className="px-4 py-3 text-right font-medium tabular-nums">{formatearPesos(p.precioVenta)}</td>
-                <td className="px-4 py-3 text-right">
+                {verCosto && <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{formatearPesos(p.costo ?? 0)}</td>}
+                <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatearPesos(p.precioVenta)}</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
                   <Stock p={p} />
                   {p.stockBajo && (
                     <div>

@@ -28,7 +28,7 @@ export default function LayoutApp({ children }: { children: React.ReactNode }) {
 function Cargando() {
   return (
     <div className="flex min-h-dvh" aria-busy="true" aria-label="Cargando">
-      <aside className="hidden w-60 shrink-0 bg-menu md:block" />
+      <aside className="hidden w-20 shrink-0 bg-menu md:block lg:w-60" />
       <div className="flex-1">
         <div className="h-16 border-b" />
         <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 md:px-6">
@@ -60,26 +60,35 @@ async function Marco({ children }: { children: React.ReactNode }) {
       ventas={ctx.modulosActivos.includes("VENTAS")}
     >
       <div className="flex min-h-dvh">
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col bg-menu text-menu-foreground md:flex">
-          <div className="flex h-16 items-center gap-3 border-b border-menu-borde px-4">
+        {/* En tablets en vertical (md a lg) el menú queda angosto, solo con íconos, para dejarle espacio a la pantalla. */}
+        <aside className="sticky top-0 hidden h-dvh w-20 shrink-0 flex-col bg-menu text-menu-foreground md:flex lg:w-60">
+          <div className="flex h-16 items-center gap-3 border-b border-menu-borde px-4 max-lg:justify-center">
             {logo}
-            <span className="truncate font-semibold text-white">{empresa?.nombre}</span>
+            <span className="truncate font-semibold text-white max-lg:hidden">{empresa?.nombre}</span>
           </div>
           <div className="flex-1 overflow-y-auto">
             <MenuLateral rol={ctx.rol} modulos={ctx.modulosActivos} />
           </div>
           <div className="space-y-1 border-t border-menu-borde p-3">
-            <Link href="/mi-cuenta" className="block rounded-lg px-3 py-2 text-sm hover:bg-white/5" title="Mi cuenta">
-              <p className="truncate font-medium text-white">{ctx.nombre}</p>
-              <p>{NOMBRE_ROL[ctx.rol]} · Mi cuenta</p>
+            <Link
+              href="/mi-cuenta"
+              className="flex items-center rounded-lg px-3 py-2 text-sm hover:bg-white/5 max-lg:justify-center"
+              title="Mi cuenta"
+            >
+              <CircleUser className="size-5 text-white lg:hidden" aria-hidden />
+              <span className="min-w-0 max-lg:sr-only">
+                <span className="block truncate font-medium text-white">{ctx.nombre}</span>
+                <span className="block">{NOMBRE_ROL[ctx.rol]} · Mi cuenta</span>
+              </span>
             </Link>
             <form action={salir}>
               <Button
                 type="submit"
                 variant="ghost"
-                className="w-full justify-start text-menu-foreground hover:bg-white/5 hover:text-white"
+                className="w-full justify-start text-menu-foreground hover:bg-white/5 hover:text-white max-lg:justify-center"
+                title="Salir"
               >
-                <LogOut /> Salir
+                <LogOut /> <span className="max-lg:sr-only">Salir</span>
               </Button>
             </form>
           </div>

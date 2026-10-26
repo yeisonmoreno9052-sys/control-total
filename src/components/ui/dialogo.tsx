@@ -89,10 +89,10 @@ export function Dialogo({
   );
 }
 
-/** Tecla de atajo pequeña al lado de un botón ("F4"). Se oculta en celular. */
+/** Tecla de atajo pequeña al lado de un botón ("F4"). Se oculta en celular y en tablets (sin teclado). */
 export function Tecla({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="hidden rounded border border-current/25 px-1.5 py-0.5 font-sans text-[11px] font-medium opacity-70 md:inline">
+    <kbd className="hidden rounded border border-current/25 px-1.5 py-0.5 font-sans text-[11px] font-medium opacity-70 md:inline pointer-coarse:hidden">
       {children}
     </kbd>
   );

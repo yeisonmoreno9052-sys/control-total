@@ -348,12 +348,12 @@ export function Caja({ negocioId }: { negocioId: string }) {
                 <li
                   key={l.producto.id}
                   className={cn(
-                    "grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 p-3 transition-colors md:grid-cols-[minmax(0,1fr)_auto_90px_100px_auto] md:px-4",
+                    "grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 p-3 transition-colors md:grid-cols-[minmax(0,1fr)_auto_100px_auto] md:px-4 xl:grid-cols-[minmax(0,1fr)_auto_90px_100px_auto]",
                     resaltado === l.producto.id && "bg-accent/40",
                   )}
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">{l.producto.nombre}</p>
+                    <p className="line-clamp-2 font-semibold leading-snug">{l.producto.nombre}</p>
                     <p className="truncate text-sm text-muted-foreground">
                       {l.producto.codigo} · {formatearPesos(l.producto.precioVenta)}
                       {l.producto.unidad !== "UNIDAD" && ` / ${unidadCorta(l.producto.unidad)}`}
@@ -383,7 +383,7 @@ export function Caja({ negocioId }: { negocioId: string }) {
                     type="button"
                     onClick={() => quitar(l.producto.id)}
                     aria-label={`Quitar ${l.producto.nombre}`}
-                    className="row-start-1 col-start-2 self-start rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:col-start-5 md:self-center"
+                    className="row-start-1 col-start-2 self-start rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:col-start-4 md:self-center xl:col-start-5"
                   >
                     <X className="size-5" />
                   </button>
@@ -417,10 +417,10 @@ export function Caja({ negocioId }: { negocioId: string }) {
                     </button>
                   </div>
 
-                  <p className="hidden text-right tabular-nums text-muted-foreground md:block">
+                  <p className="hidden text-right tabular-nums text-muted-foreground xl:block">
                     {formatearPesos(l.producto.precioVenta)}
                   </p>
-                  <p className="text-right text-lg font-semibold tabular-nums md:text-base">
+                  <p className="text-right text-lg font-semibold whitespace-nowrap tabular-nums md:text-base">
                     {calc ? formatearPesos(calc.subtotal - calc.descuentoLinea) : "—"}
                   </p>
                 </li>
