@@ -168,6 +168,7 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
 }
 
 function Stock({ p }: { p: ProductoVista }) {
+  if (!p.controlaStock) return <span className="text-muted-foreground">No se cuenta</span>;
   return (
     <span className={cn("tabular-nums", p.stockBajo && "font-semibold text-destructive")}>
       {formatearCantidad(p.stock)} <span className="text-muted-foreground font-normal">{UNIDADES[p.unidad].corto}</span>

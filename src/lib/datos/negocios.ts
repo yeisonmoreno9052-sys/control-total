@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { exigirGestion } from "@/lib/permisos";
 import { erroresPorCampo } from "@/lib/inventario/esquemas";
+import { IVAS } from "@/lib/inventario/unidades";
 import { datosDe } from "./alcance";
 import { prisma } from "./cliente";
 import type { Contexto } from "./contexto";
-import { registrarAuditoria, type Resultado } from "./inventario";
+import { exigirNegocioPermitido, registrarAuditoria, type Resultado } from "./inventario";
 
 const campos = { id: true, nombre: true, tipo: true, direccion: true } as const;
 
@@ -79,4 +80,51 @@ export async function guardarDatosNegocio(ctx: Contexto, id: string, entrada: un
     }
   });
   return { ok: true, id };
+}
+
+// ─── Cómo vende el negocio ──────────────────────────────────────────────────
+
+export type PreferenciasVenta = { ivaPorDefecto: number; botonesRapidos: boolean };
+
+/** IVA con el que nacen los productos y si la caja usa botones rápidos. */
+export async function obtenerPreferenciasVenta(ctx: Contexto, negocioId: string): Promise<PreferenciasVenta> {
+  const n = await datosDe(ctx).negocio.findFirst({
+    where: { id: negocioId },
+    select: { ivaPorDefecto: true, botonesRapidos: true },
+  });
+  return n ?? { ivaPorDefecto: 19, botonesRapidos: false };
+}
+
+export const esquemaPreferenciasVenta = z.object({
+  ivaPorDefecto: z.coerce
+    .number()
+    .refine((v) => (IVAS as readonly number[]).includes(v), "El IVA debe ser 0, 5 o 19 %."),
+  botonesRapidos: z.boolean(),
+});
+
+export async function guardarPreferenciasVenta(ctx: Contexto, negocioId: string, entrada: unknown): Promise<Resultado> {
+  exigirGestion(ctx);
+  exigirNegocioPermitido(ctx, negocioId);
+  const datos = esquemaPreferenciasVenta.safeParse(entrada);
+  if (!datos.success) return { ok: false, error: "Revisa los campos marcados.", campos: erroresPorCampo(datos.error) };
+  const [antes, negocio] = await Promise.all([obtenerPreferenciasVenta(ctx, negocioId), obtenerNegocio(ctx, negocioId)]);
+  if (!negocio) return { ok: false, error: "No encontramos ese negocio." };
+  await prisma.$transaction(async (tx) => {
+    await tx.negocio.update({ where: { id: negocioId }, data: datos.data });
+    const cambios: Record<string, { antes: number | boolean; despues: number | boolean }> = {};
+    for (const [campo, valor] of Object.entries(datos.data)) {
+      const previo = antes[campo as keyof PreferenciasVenta];
+      if (previo !== valor) cambios[campo] = { antes: previo, despues: valor };
+    }
+    if (Object.keys(cambios).length) {
+      await registrarAuditoria(tx, ctx, {
+        negocioId,
+        accion: "CAMBIO_DATOS_NEGOCIO",
+        entidad: "Negocio",
+        entidadId: negocioId,
+        detalle: { negocio: negocio.nombre, cambios },
+      });
+    }
+  });
+  return { ok: true, id: negocioId };
 }

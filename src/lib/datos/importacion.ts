@@ -33,6 +33,18 @@ export const COLUMNAS = [
   { clave: "fraccionado", titulo: "Venta fraccionada", ejemplo: "no", nota: "sí o no (ej. cable por metros: sí)." },
   { clave: "iva", titulo: "IVA %", ejemplo: "19", nota: "0, 5 o 19." },
   { clave: "condicion", titulo: "Condición", ejemplo: "nuevo", nota: "nuevo o segunda." },
+  {
+    clave: "controlaStock",
+    titulo: "Controlar stock",
+    ejemplo: "sí",
+    nota: "sí o no. No = se prepara al momento (tinto, jugos): se vende siempre y no se cuenta. Vacío = sí.",
+  },
+  {
+    clave: "botonRapido",
+    titulo: "Botón rápido",
+    ejemplo: "no",
+    nota: "sí o no. Sí = sale como cuadro para tocar en la caja (si el negocio usa botones rápidos).",
+  },
 ] as const;
 
 type Clave = (typeof COLUMNAS)[number]["clave"];
@@ -51,7 +63,18 @@ const ALIAS: Record<string, Clave> = {
   "venta fraccionada": "fraccionado", fraccionado: "fraccionado", granel: "fraccionado",
   iva: "iva", "iva %": "iva", impuesto: "iva", "% iva": "iva",
   condicion: "condicion", estado: "condicion",
+  "controlar stock": "controlaStock", "controla stock": "controlaStock", "maneja inventario": "controlaStock",
+  "boton rapido": "botonRapido", rapido: "botonRapido", favorito: "botonRapido",
 };
+
+/** "sí"/"no" escrito a mano → true/false; vacío → undefined (no se toca). */
+function leerSiNo(texto: string | undefined): boolean | undefined | null {
+  const t = normalizar(texto ?? "");
+  if (!t) return undefined;
+  if (["si", "s", "x", "1", "true"].includes(t)) return true;
+  if (["no", "n", "0", "false"].includes(t)) return false;
+  return null;
+}
 
 const UNIDADES_TEXTO: Record<string, string> = {
   "": "UNIDAD", unidad: "UNIDAD", und: "UNIDAD", un: "UNIDAD", u: "UNIDAD", pieza: "UNIDAD", pza: "UNIDAD",
@@ -167,6 +190,8 @@ type ProductoImportado = {
     fraccionado?: boolean;
     porcentajeIva?: number;
     condicion?: string;
+    controlaStock?: boolean;
+    botonRapido?: boolean;
   };
   stock: Decimal | null;
 };
@@ -209,6 +234,7 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
         stockMinimo: true,
         porcentajeIva: true,
         condicion: true,
+        controlaStock: true,
       },
     }),
     datos.categoria.findMany({ where: { negocioId }, select: { id: true, nombre: true, margenSugerido: true } }),
@@ -295,6 +321,14 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
       }
     }
 
+    const controlaStock = leerSiNo(v.controlaStock);
+    const botonRapido = leerSiNo(v.botonRapido);
+    if (controlaStock === null || botonRapido === null) {
+      errorFila(`Escribe sí o no en "${controlaStock === null ? "Controlar stock" : "Botón rápido"}".`);
+      continue;
+    }
+    const seCuenta = controlaStock ?? existente?.controlaStock ?? true;
+
     const ivaTexto = (v.iva ?? "").replace("%", "").trim();
     const entrada = {
       codigo,
@@ -302,11 +336,13 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
       nombre: (v.nombre ?? "").trim() || existente?.nombre || "",
       costo,
       precioVenta,
-      stockMinimo: (v.stockMinimo ?? "").trim() || existente?.stockMinimo.toString() || "0",
+      stockMinimo: seCuenta ? (v.stockMinimo ?? "").trim() || existente?.stockMinimo.toString() || "0" : "0",
       unidad,
       fraccionado,
       porcentajeIva: ivaTexto ? Number(ivaTexto.replace(",", ".")) : existente?.porcentajeIva ?? 0,
       condicion,
+      controlaStock,
+      botonRapido,
     };
     const validado = esquemaProducto.safeParse(entrada);
     if (!validado.success) {
@@ -328,7 +364,8 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
       barrasVistas.set(barras, numero);
     }
 
-    const stockTexto = (v.stock ?? "").trim();
+    // Lo que no se cuenta no lleva stock: la columna se ignora.
+    const stockTexto = seCuenta ? (v.stock ?? "").trim() : "";
     let stock: Decimal | null = null;
     if (stockTexto) {
       stock = leerCantidad(stockTexto);

@@ -104,6 +104,10 @@ model Negocio {
   consecutivoDevolucion Int      @default(0)
   /// Margen sugerido por defecto, en % sobre el costo. Las categorías pueden tener el suyo.
   margenSugerido        Decimal  @default(30) @db.Decimal(6, 2)
+  /// IVA con el que nacen los productos nuevos (formulario e importación). 0 si el local no cobra IVA.
+  ivaPorDefecto         Int      @default(19)
+  /// Si la caja muestra cuadros para tocar los productos marcados como botón rápido (cafeterías).
+  botonesRapidos        Boolean  @default(false)
   activo                Boolean  @default(true)
   creadoEn              DateTime @default(now())
   actualizadoEn         DateTime @updatedAt
@@ -284,6 +288,10 @@ model Producto {
   /// Porcentaje de IVA: 0, 5 o 19.
   porcentajeIva Int               @default(0)
   condicion     CondicionProducto @default(NUEVO)
+  /// false = no se cuenta (tinto, jugos, lo que se prepara al momento): se vende siempre y no mueve stock.
+  controlaStock Boolean           @default(true)
+  /// Aparece como cuadro para tocar en la caja (si el negocio usa botones rápidos).
+  botonRapido   Boolean           @default(false)
   activo        Boolean           @default(true)
   creadoEn      DateTime          @default(now())
   actualizadoEn DateTime          @updatedAt

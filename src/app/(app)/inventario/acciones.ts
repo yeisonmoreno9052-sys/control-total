@@ -49,6 +49,9 @@ export async function guardarProducto(_: EstadoFormulario, formulario: FormData)
     fraccionado: formulario.get("fraccionado") === "on",
     porcentajeIva: texto(formulario, "porcentajeIva"),
     condicion: texto(formulario, "condicion"),
+    controlaStock: formulario.get("sinStock") !== "on",
+    // La casilla solo se muestra si el negocio usa botones rápidos; si no se mostró, no se toca.
+    botonRapido: formulario.get("conBotonRapido") === "1" ? formulario.get("botonRapido") === "on" : undefined,
   });
   if (!datos.success) {
     return { error: "Revisa los campos marcados.", campos: erroresPorCampo(datos.error) };

@@ -75,6 +75,7 @@ type ProductoBloqueado = {
   porcentajeIva: number;
   fraccionado: boolean;
   activo: boolean;
+  controlaStock: boolean;
   stock: { toString(): string };
 };
 
@@ -82,7 +83,7 @@ type ProductoBloqueado = {
 export async function bloquearProductos(tx: Tx, ids: string[]) {
   const filas = await tx.$queryRaw<ProductoBloqueado[]>`
     SELECT "id", "empresaId", "negocioId", "codigo", "nombre", "unidad", "precioVenta", "costo",
-           "porcentajeIva", "fraccionado", "activo", "stock"
+           "porcentajeIva", "fraccionado", "activo", "controlaStock", "stock"
     FROM "Producto" WHERE "id" = ANY(${ids}) ORDER BY "id" FOR UPDATE`;
   return new Map(filas.map((f) => [f.id, f]));
 }
@@ -151,6 +152,7 @@ export async function registrarVenta(
 
         for (const [id, cantidad] of pedido) {
           const p = productos.get(id)!;
+          if (!p.controlaStock) continue; // tinto, jugos: se venden siempre
           const stock = new Decimal(p.stock.toString());
           if (cantidad.greaterThan(stock)) {
             throw new ErrorVenta(

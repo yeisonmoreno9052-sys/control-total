@@ -4,6 +4,7 @@ import { History, Lock, Store, TriangleAlert, Wallet } from "lucide-react";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Button } from "@/components/ui/button";
 import { estadoDeCaja } from "@/lib/datos/caja";
+import { botonesRapidos } from "@/lib/datos/productos";
 import { formatearDia, formatearPesos } from "@/lib/formato";
 import { exigirModulo } from "@/lib/modulos";
 import { puedeGestionar } from "@/lib/permisos";
@@ -84,6 +85,8 @@ export default async function Ventas() {
     );
   }
 
+  const botones = await botonesRapidos(ctx, negocioId);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -94,7 +97,7 @@ export default async function Ventas() {
         {enlaces}
       </div>
       {/* key: al cambiar de negocio arriba, la caja arranca con el carrito de ese negocio */}
-      <CajaCliente key={negocioId} negocioId={negocioId} />
+      <CajaCliente key={negocioId} negocioId={negocioId} botones={botones} />
     </div>
   );
 }

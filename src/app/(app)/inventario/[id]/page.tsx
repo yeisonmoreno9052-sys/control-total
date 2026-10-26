@@ -59,11 +59,13 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
                   <Pencil /> Editar
                 </Link>
               </Button>
-              <Button asChild>
-                <Link href={`/inventario/${id}/ajustar`}>
-                  <SlidersHorizontal /> Ajustar stock
-                </Link>
-              </Button>
+              {producto.controlaStock && (
+                <Button asChild>
+                  <Link href={`/inventario/${id}/ajustar`}>
+                    <SlidersHorizontal /> Ajustar stock
+                  </Link>
+                </Button>
+              )}
             </>
           )
         }
@@ -77,7 +79,13 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Dato titulo="Stock" destacado={producto.stockBajo}>
-          {formatearCantidad(producto.stock)} {unidad.corto}
+          {producto.controlaStock ? (
+            <>
+              {formatearCantidad(producto.stock)} {unidad.corto}
+            </>
+          ) : (
+            <span className="text-xl text-muted-foreground">No se cuenta</span>
+          )}
           {producto.stockBajo && (
             <Badge variant="aviso" className="ml-2 align-middle">
               Stock bajo
@@ -102,9 +110,12 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
           {unidad.nombre}
           {producto.fraccionado ? " · se vende fraccionado" : ""}
         </Fila>
-        <Fila titulo="Stock mínimo">
-          {formatearCantidad(producto.stockMinimo)} {unidad.corto}
-        </Fila>
+        {producto.controlaStock && (
+          <Fila titulo="Stock mínimo">
+            {formatearCantidad(producto.stockMinimo)} {unidad.corto}
+          </Fila>
+        )}
+        {producto.botonRapido && <Fila titulo="Caja">Botón rápido</Fila>}
         <Fila titulo="IVA">{producto.porcentajeIva} %</Fila>
         {producto.descripcion && <Fila titulo="Descripción">{producto.descripcion}</Fila>}
       </dl>

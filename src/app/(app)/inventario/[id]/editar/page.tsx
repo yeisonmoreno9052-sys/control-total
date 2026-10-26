@@ -3,6 +3,7 @@ import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { SinPermiso } from "@/components/layout/sin-permiso";
 import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
+import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { obtenerProducto } from "@/lib/datos/productos";
 import { exigirModulo } from "@/lib/modulos";
 import { puedeGestionar } from "@/lib/permisos";
@@ -18,9 +19,10 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
   const { id } = await params;
   const producto = await obtenerProducto(ctx, id);
   if (!producto) return <NoEncontrado />;
-  const [categorias, margen] = await Promise.all([
+  const [categorias, margen, preferencias] = await Promise.all([
     listarCategorias(ctx, producto.negocioId),
     obtenerMargenNegocio(ctx, producto.negocioId),
+    obtenerPreferenciasVenta(ctx, producto.negocioId),
   ]);
 
   return (
@@ -29,6 +31,8 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
       <FormularioProducto
         categorias={categorias}
         margenNegocio={margen}
+        ivaPorDefecto={preferencias.ivaPorDefecto}
+        usaBotonesRapidos={preferencias.botonesRapidos}
         valores={{
           id: producto.id,
           codigo: producto.codigo,
@@ -43,6 +47,8 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
           fraccionado: producto.fraccionado,
           porcentajeIva: producto.porcentajeIva,
           condicion: producto.condicion,
+          controlaStock: producto.controlaStock,
+          botonRapido: producto.botonRapido,
         }}
       />
     </div>

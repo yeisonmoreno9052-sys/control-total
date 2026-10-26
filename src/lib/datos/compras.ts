@@ -262,11 +262,12 @@ type ProductoBloqueado = {
   condicion: string;
   fraccionado: boolean;
   activo: boolean;
+  controlaStock: boolean;
 };
 
 async function bloquearProductos(tx: Tx, ids: string[]) {
   const filas = await tx.$queryRaw<ProductoBloqueado[]>`
-    SELECT "id", "empresaId", "negocioId", "nombre", "costo", "precioVenta", "stock", "condicion", "fraccionado", "activo"
+    SELECT "id", "empresaId", "negocioId", "nombre", "costo", "precioVenta", "stock", "condicion", "fraccionado", "activo", "controlaStock"
     FROM "Producto" WHERE "id" = ANY(${ids}) ORDER BY "id" FOR UPDATE`;
   return new Map(filas.map((f) => [f.id, f]));
 }
@@ -376,7 +377,8 @@ export async function guardarFactura(
       throw new ErrorCompra(`${p.nombre} es de segunda: confirma el costo y el precio de venta.`);
     }
     const actual = estado.get(p.id) ?? {
-      stock: new Decimal(p.stock.toString()),
+      // Lo que no se cuenta no tiene stock que pese en el promedio: el costo queda el de esta compra.
+      stock: p.controlaStock ? new Decimal(p.stock.toString()) : new Decimal(0),
       costo: p.costo,
       precio: p.precioVenta,
       entra: new Decimal(0),

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { guardarLogo, LOGO_MAXIMO } from "@/lib/datos/empresa";
-import { guardarDatosNegocio } from "@/lib/datos/negocios";
+import { guardarDatosNegocio, guardarPreferenciasVenta } from "@/lib/datos/negocios";
 import { exigirGestion } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 
@@ -21,6 +21,19 @@ export async function guardarNegocioAccion(_: EstadoConfig, formulario: FormData
     direccion: campo("direccion"),
     telefono: campo("telefono"),
     mensajeRecibo: campo("mensajeRecibo"),
+  });
+  if (!r.ok) return { error: r.error, campos: r.campos };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function guardarPreferenciasVentaAccion(_: EstadoConfig, formulario: FormData): Promise<EstadoConfig> {
+  const ctx = await obtenerContexto();
+  exigirGestion(ctx);
+  if (!ctx.negocioActivoId) return { error: "No tienes un negocio asignado." };
+  const r = await guardarPreferenciasVenta(ctx, ctx.negocioActivoId, {
+    ivaPorDefecto: String(formulario.get("ivaPorDefecto") ?? ""),
+    botonesRapidos: formulario.get("botonesRapidos") === "on",
   });
   if (!r.ok) return { error: r.error, campos: r.campos };
   revalidatePath("/", "layout");
