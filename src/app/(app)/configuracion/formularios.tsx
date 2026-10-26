@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { ImageUp } from "lucide-react";
 import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,16 @@ export function FormularioPreferenciasVenta({ preferencias }: { preferencias: Pr
   const [estado, accion, guardando] = useActionState<EstadoConfig, FormData>(guardarPreferenciasVentaAccion, {});
   const e = estado.campos ?? {};
   return (
-    <form action={accion} className="space-y-4">
+    <form
+      // Con action={accion}, React reinicia el formulario al guardar y la lista volvía
+      // a mostrar el IVA con que se abrió la página (19 %) aunque se hubiera guardado 0 %.
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        const datos = new FormData(ev.currentTarget);
+        startTransition(() => accion(datos));
+      }}
+      className="space-y-4"
+    >
       <Campo
         id="ivaPorDefecto"
         etiqueta="IVA de los productos nuevos"
