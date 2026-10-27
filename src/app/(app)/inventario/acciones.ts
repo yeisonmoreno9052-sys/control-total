@@ -6,6 +6,7 @@ import { z } from "zod";
 import { MotivoAjuste } from "@/generated/prisma/enums";
 import { guardarCategoria, guardarMargenNegocio } from "@/lib/datos/categorias";
 import { registrarPiezaSegunda } from "@/lib/datos/compras";
+import { FOTO_MAXIMO, guardarFotoProducto } from "@/lib/datos/fotos-producto";
 import { analizarImportacion, ejecutarImportacion, type AnalisisImportacion } from "@/lib/datos/importacion";
 import { actualizarProducto, ajustarStock, cambiarActivoProducto, crearProducto } from "@/lib/datos/inventario";
 import { buscarPorCodigoExacto } from "@/lib/datos/productos";
@@ -181,4 +182,20 @@ export async function importarAccion(_: EstadoImportacion, formulario: FormData)
   const analisis = await ejecutarImportacion(ctx, ctx.negocioActivoId, archivo.bytes, archivo.nombre);
   if (analisis.ok) revalidatePath("/inventario");
   return { analisis, importado: analisis.ok };
+}
+
+/** Pone o quita (sin archivo) la foto del producto. La foto ya llega achicada desde el navegador. */
+export async function guardarFotoAccion(productoId: string, formulario: FormData): Promise<EstadoFormulario> {
+  const ctx = await contextoInventario();
+  const archivo = formulario.get("foto");
+  let bytes: Uint8Array | null = null;
+  if (archivo instanceof File && archivo.size > 0) {
+    if (archivo.size > FOTO_MAXIMO) return { error: "La foto pesa demasiado. Prueba con otra." };
+    bytes = new Uint8Array(await archivo.arrayBuffer());
+  }
+  const r = await guardarFotoProducto(ctx, productoId, bytes);
+  if (!r.ok) return { error: r.error };
+  revalidatePath("/inventario");
+  revalidatePath("/ventas");
+  return { ok: true };
 }

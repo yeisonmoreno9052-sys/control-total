@@ -9,6 +9,7 @@ import { exigirModulo } from "@/lib/modulos";
 import { puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { FormularioProducto } from "../../formulario-producto";
+import { FotoProducto } from "./foto-producto";
 
 export const metadata: Metadata = { title: "Editar producto · Control Total" };
 
@@ -28,6 +29,7 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
   return (
     <div className="max-w-3xl">
       <EncabezadoPagina titulo="Editar producto" subtitulo={producto.nombre} volver={{ href: `/inventario/${id}`, texto: "Volver al producto" }} />
+      <FotoProducto productoId={producto.id} fotoUrl={producto.fotoUrl} />
       <FormularioProducto
         categorias={categorias}
         margenNegocio={margen}

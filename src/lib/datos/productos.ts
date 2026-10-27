@@ -5,6 +5,7 @@
 import { puedeVerCostos } from "@/lib/permisos";
 import { AccesoDenegado, datosDe } from "./alcance";
 import type { Contexto } from "./contexto";
+import { urlFoto } from "./fotos-producto";
 
 export const POR_PAGINA = 50;
 
@@ -25,6 +26,7 @@ const camposBase = {
   condicion: true,
   controlaStock: true,
   botonRapido: true,
+  fotoEn: true,
   activo: true,
 } as const;
 
@@ -49,6 +51,7 @@ type Fila = {
   condicion: string;
   controlaStock: boolean;
   botonRapido: boolean;
+  fotoEn: Date | null;
   activo: boolean;
   costo?: number;
 };
@@ -77,6 +80,7 @@ function aVista(p: Fila, categorias: Map<string, string>) {
     /** false: no se cuenta (tinto, jugos); se vende siempre. */
     controlaStock: p.controlaStock,
     botonRapido: p.botonRapido,
+    fotoUrl: urlFoto(p.id, p.fotoEn),
     unidad: p.unidad as import("@/generated/prisma/enums").UnidadMedida,
     fraccionado: p.fraccionado,
     porcentajeIva: p.porcentajeIva,
@@ -244,12 +248,21 @@ export type ProductoCaja = {
   stock: string;
   /** false: se vende sin mirar el stock. Puede faltar en copias sin internet guardadas antes de existir. */
   controlaStock?: boolean;
+  /** Puede faltar en copias sin internet guardadas antes de existir. */
+  fotoUrl?: string | null;
 };
 
 const CAMPOS_CAJA = {
   id: true, codigo: true, nombre: true, precioVenta: true, porcentajeIva: true, unidad: true, fraccionado: true, stock: true,
-  controlaStock: true,
+  controlaStock: true, fotoEn: true,
 } as const;
+
+type FilaCaja = { id: string; stock: { toString(): string }; fotoEn: Date | null };
+
+/** Pasa una fila de la base a lo que recibe la caja: stock en texto y la dirección de la foto. */
+function aCaja<T extends FilaCaja>({ fotoEn, ...p }: T) {
+  return { ...p, stock: p.stock.toString(), fotoUrl: urlFoto(p.id, fotoEn) };
+}
 
 /**
  * Búsqueda de la caja. Si el texto es exactamente un código o código de barras
@@ -259,10 +272,6 @@ export async function buscarParaVenta(ctx: Contexto, negocioId: string, texto: s
   const q = texto.trim().slice(0, 100);
   if (!q) return { exacto: null, resultados: [] as ProductoCaja[] };
   const datos = datosDe(ctx);
-  const aCaja = (p: { stock: { toString(): string } } & Omit<ProductoCaja, "stock">): ProductoCaja => ({
-    ...p,
-    stock: p.stock.toString(),
-  });
 
   const exacto = await datos.producto.findFirst({
     where: { negocioId, activo: true, OR: [{ codigoBarras: q }, { codigo: { equals: q, mode: "insensitive" } }] },
@@ -294,7 +303,7 @@ export async function productosParaVenta(ctx: Contexto, negocioId: string, ids: 
     where: { negocioId, activo: true, id: { in: ids.slice(0, 300) } },
     select: CAMPOS_CAJA,
   });
-  return filas.map((p) => ({ ...p, stock: p.stock.toString() }));
+  return filas.map(aCaja);
 }
 
 export type BotonRapido = ProductoCaja & { categoriaId: string | null; categoria: string | null };
@@ -317,8 +326,7 @@ export async function botonesRapidos(ctx: Contexto, negocioId: string): Promise<
   const categorias = await nombresCategorias(ctx, filas.map((f) => f.categoriaId));
   return filas
     .map((p) => ({
-      ...p,
-      stock: p.stock.toString(),
+      ...aCaja(p),
       categoria: p.categoriaId ? (categorias.get(p.categoriaId) ?? null) : null,
     }))
     .sort((a, b) => (a.categoria ?? "~").localeCompare(b.categoria ?? "~", "es") || a.nombre.localeCompare(b.nombre, "es"));
@@ -341,6 +349,6 @@ export async function catalogoCaja(ctx: Contexto, negocioId: string, desde: Date
   return {
     hasta: hasta.toISOString(),
     completo: !desde,
-    productos: filas.map((p): ProductoCatalogo => ({ ...p, stock: p.stock.toString() })),
+    productos: filas.map((p): ProductoCatalogo => aCaja(p)),
   };
 }
