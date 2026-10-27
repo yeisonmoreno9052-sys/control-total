@@ -77,6 +77,11 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
         </p>
       )}
 
+      {producto.fotoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={producto.fotoUrl} alt={producto.nombre} className="size-40 rounded-2xl border bg-muted object-cover shadow-suave" />
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Dato titulo="Stock" destacado={producto.stockBajo}>
           {producto.controlaStock ? (

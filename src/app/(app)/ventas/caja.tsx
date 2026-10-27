@@ -13,6 +13,7 @@ import { UNIDADES } from "@/lib/inventario/unidades";
 import { calcularTotales, ErrorTotales, type Descuento, type TotalesVenta } from "@/lib/ventas/totales";
 import { buscarEnCopia } from "@/lib/sin-conexion/buscar";
 import { cn } from "@/lib/utils";
+import { Miniatura } from "@/components/inventario/miniatura";
 import type { UnidadMedida } from "@/generated/prisma/enums";
 import { buscarProductoCaja, refrescarCarrito } from "./acciones";
 import { DialogoCliente } from "./dialogo-cliente";
@@ -678,6 +679,9 @@ function CuadrosRapidos({
   const colorDe = new Map(categorias.map((c) => [c.id, c.color]));
   const cantidad = new Map(lineas.map((l) => [l.producto.id, l.cantidad]));
   const visibles = filtro === null ? botones : botones.filter((b) => (b.categoriaId ?? "") === filtro);
+  // Si algún producto tiene foto, los que no tienen llevan un cuadro de color del mismo tamaño
+  // para que la cuadrícula quede pareja.
+  const conFotos = botones.some((b) => b.fotoUrl);
 
   return (
     <div className="space-y-3">
@@ -710,13 +714,20 @@ function CuadrosRapidos({
                 type="button"
                 onClick={() => alTocar(b)}
                 style={{ borderTopColor: colorDe.get(b.categoriaId ?? "") }}
-                className="relative flex h-full min-h-28 w-full flex-col justify-between gap-2 rounded-2xl border border-t-[6px] bg-card p-3 text-left shadow-suave transition active:scale-[0.97] active:bg-accent"
+                className="relative flex h-full min-h-28 w-full flex-col overflow-hidden rounded-2xl border border-t-[6px] bg-card text-left shadow-suave transition active:scale-[0.97] active:bg-accent"
               >
-                <span className="line-clamp-3 pr-7 text-lg leading-tight font-semibold">{b.nombre}</span>
-                <span className="text-lg font-bold text-primary tabular-nums">{formatearPesos(b.precioVenta)}</span>
+                {b.fotoUrl ? (
+                  <FotoCuadro src={b.fotoUrl} />
+                ) : (
+                  conFotos && <SinFoto nombre={b.nombre} color={colorDe.get(b.categoriaId ?? "")} />
+                )}
+                <span className="flex flex-1 flex-col justify-between gap-2 p-3">
+                  <span className={cn("line-clamp-3 text-lg leading-tight font-semibold", !b.fotoUrl && "pr-7")}>{b.nombre}</span>
+                  <span className="text-lg font-bold text-primary tabular-nums">{formatearPesos(b.precioVenta)}</span>
+                </span>
                 {n && (
                   <span
-                    className="absolute top-2 right-2 min-w-8 rounded-full bg-primary px-2 py-0.5 text-center text-base font-bold text-primary-foreground tabular-nums"
+                    className="absolute top-2 right-2 min-w-8 rounded-full bg-primary px-2 py-0.5 text-center text-base font-bold text-primary-foreground tabular-nums shadow-md"
                     aria-label={`${formatearCantidad(n)} en el pedido`}
                   >
                     {formatearCantidad(n)}
@@ -728,6 +739,29 @@ function CuadrosRapidos({
         })}
       </ul>
     </div>
+  );
+}
+
+/** Lugar de la foto para un producto que no tiene: su inicial sobre el color de la categoría. */
+function SinFoto({ nombre, color }: { nombre: string; color: string | undefined }) {
+  return (
+    <span
+      aria-hidden
+      style={{ backgroundColor: color }}
+      className="flex aspect-[4/3] w-full items-center justify-center text-5xl font-bold text-white/90"
+    >
+      {nombre.trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+/** Foto del cuadro. Sin internet y sin copia en el navegador, el cuadro queda solo con el nombre. */
+function FotoCuadro({ src }: { src: string }) {
+  const [falla, setFalla] = useState(false);
+  if (falla) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" loading="lazy" onError={() => setFalla(true)} className="aspect-[4/3] w-full bg-muted object-cover" />
   );
 }
 
@@ -974,6 +1008,7 @@ function Buscador({
                     onMouseEnter={() => setIndice(i)}
                     className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left", i === indice && "bg-accent")}
                   >
+                    <Miniatura src={p.fotoUrl} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{p.nombre}</p>
                       <p className={cn("truncate text-sm", sinStock ? "text-destructive" : "text-muted-foreground")}>

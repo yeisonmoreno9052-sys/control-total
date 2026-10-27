@@ -53,7 +53,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja", "accionesEmy",
-      "lecturasFactura",
+      "lecturasFactura", "fotosProducto",
     ],
   },
   Negocio: {
@@ -63,7 +63,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
-      "lecturasFactura",
+      "lecturasFactura", "fotosProducto",
     ],
   },
   Usuario: {
@@ -92,7 +92,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Producto: {
     filtro: deNegocios,
     alCrear: deEmpresa,
-    relaciones: ["empresa", "negocio", "categoria", "movimientos", "detallesVenta", "detallesDevolucion", "detallesCompra"],
+    relaciones: ["empresa", "negocio", "categoria", "movimientos", "detallesVenta", "detallesDevolucion", "detallesCompra", "foto"],
     porNegocio: true,
   },
   // Los movimientos y la auditoría solo se escriben desde inventario.ts,
@@ -203,6 +203,14 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "factura", "usuario"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  // Las fotos de productos solo se escriben desde fotos-producto.ts.
+  FotoProducto: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "producto"],
     porNegocio: true,
     soloLectura: true,
   },

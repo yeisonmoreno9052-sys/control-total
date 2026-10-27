@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FileSpreadsheet, FolderTree, Package, Plus, Recycle, SearchX, TriangleAlert } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
+import { Miniatura } from "@/components/inventario/miniatura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { listarCategorias } from "@/lib/datos/categorias";
@@ -184,6 +185,7 @@ function TablaProductos({ productos, verCosto }: { productos: ProductoVista[]; v
         {productos.map((p) => (
           <li key={p.id}>
             <Link href={`/inventario/${p.id}`} className="flex items-center gap-3 p-4 active:bg-muted">
+              <Miniatura src={p.fotoUrl} />
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="truncate font-medium">{p.nombre}</p>
                 <p className="truncate text-sm text-muted-foreground">
@@ -218,12 +220,17 @@ function TablaProductos({ productos, verCosto }: { productos: ProductoVista[]; v
             {productos.map((p) => (
               <tr key={p.id} className="relative hover:bg-muted/40">
                 <td className="px-4 py-3">
-                  <Link href={`/inventario/${p.id}`} className="font-medium after:absolute after:inset-0">
-                    {p.nombre}
-                  </Link>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <span>{p.codigo}</span>
-                    {p.condicion === "DE_SEGUNDA" && <Badge variant="secondary">De segunda</Badge>}
+                  <div className="flex items-center gap-3">
+                    <Miniatura src={p.fotoUrl} />
+                    <div className="min-w-0">
+                      <Link href={`/inventario/${p.id}`} className="font-medium after:absolute after:inset-0">
+                        {p.nombre}
+                      </Link>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span>{p.codigo}</span>
+                        {p.condicion === "DE_SEGUNDA" && <Badge variant="secondary">De segunda</Badge>}
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{p.categoria ?? "—"}</td>

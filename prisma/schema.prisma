@@ -80,6 +80,7 @@ model Empresa {
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
   adjuntosFactura    AdjuntoFactura[]
+  fotosProducto      FotoProducto[]
   movimientosCaja    MovimientoCaja[]
   accionesEmy        AccionEmy[]
   lecturasFactura    LecturaFactura[]
@@ -130,6 +131,7 @@ model Negocio {
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
   adjuntosFactura    AdjuntoFactura[]
+  fotosProducto      FotoProducto[]
   movimientosCaja    MovimientoCaja[]
   lecturasFactura    LecturaFactura[]
 
@@ -292,6 +294,8 @@ model Producto {
   controlaStock Boolean           @default(true)
   /// Aparece como cuadro para tocar en la caja (si el negocio usa botones rápidos).
   botonRapido   Boolean           @default(false)
+  /// Cuándo se puso la foto (null = sin foto). Va en la dirección de la imagen para que el navegador pida la nueva.
+  fotoEn        DateTime?
   activo        Boolean           @default(true)
   creadoEn      DateTime          @default(now())
   actualizadoEn DateTime          @updatedAt
@@ -303,6 +307,7 @@ model Producto {
   detallesVenta      DetalleVenta[]
   detallesDevolucion DetalleDevolucion[]
   detallesCompra     DetalleFacturaCompra[]
+  foto               FotoProducto?
 
   @@unique([negocioId, codigo])
   @@unique([negocioId, codigoBarras])
@@ -730,6 +735,23 @@ model AbonoFactura {
 
   @@index([facturaId])
   @@index([cajaId])
+  @@index([empresaId])
+}
+
+/// Foto del producto (cuadro de la caja, inventario). Tabla aparte para que las listas
+/// de productos no carguen las imágenes. Se guarda en la base para que entre en las copias.
+model FotoProducto {
+  productoId    String   @id
+  empresaId     String
+  negocioId     String
+  tipo          String
+  datos         Bytes
+  actualizadoEn DateTime @updatedAt
+
+  empresa  Empresa  @relation(fields: [empresaId], references: [id])
+  negocio  Negocio  @relation(fields: [negocioId], references: [id])
+  producto Producto @relation(fields: [productoId], references: [id])
+
   @@index([empresaId])
 }
 
