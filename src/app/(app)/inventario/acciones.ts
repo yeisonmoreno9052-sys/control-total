@@ -6,7 +6,7 @@ import { z } from "zod";
 import { MotivoAjuste } from "@/generated/prisma/enums";
 import { guardarCategoria, guardarMargenNegocio } from "@/lib/datos/categorias";
 import { registrarPiezaSegunda } from "@/lib/datos/compras";
-import { FOTO_MAXIMO, guardarFotoProducto } from "@/lib/datos/fotos-producto";
+import { FOTO_MAXIMO, guardarFotoPorArchivo, guardarFotoProducto } from "@/lib/datos/fotos-producto";
 import { analizarImportacion, ejecutarImportacion, type AnalisisImportacion } from "@/lib/datos/importacion";
 import { actualizarProducto, ajustarStock, cambiarActivoProducto, crearProducto } from "@/lib/datos/inventario";
 import { buscarPorCodigoExacto } from "@/lib/datos/productos";
@@ -198,4 +198,17 @@ export async function guardarFotoAccion(productoId: string, formulario: FormData
   revalidatePath("/inventario");
   revalidatePath("/ventas");
   return { ok: true };
+}
+
+/** Una de varias fotos subidas de una vez; el nombre del archivo dice de qué producto es. */
+export async function guardarFotoPorArchivoAccion(formulario: FormData): Promise<{ error?: string; producto?: string }> {
+  const ctx = await contextoInventario();
+  if (!ctx.negocioActivoId) return { error: "Elige un negocio primero." };
+  const archivo = formulario.get("foto");
+  const nombre = texto(formulario, "nombre");
+  if (!(archivo instanceof File) || archivo.size === 0 || !nombre) return { error: "Falta la foto." };
+  if (archivo.size > FOTO_MAXIMO) return { error: "La foto pesa demasiado. Prueba con otra." };
+  const r = await guardarFotoPorArchivo(ctx, ctx.negocioActivoId, nombre, new Uint8Array(await archivo.arrayBuffer()));
+  if (!r.ok) return { error: r.error };
+  return { producto: r.producto };
 }

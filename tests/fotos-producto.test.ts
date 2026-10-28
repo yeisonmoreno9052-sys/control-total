@@ -1,7 +1,7 @@
 // Fotos de productos: quién las pone, quién las ve y que no se crucen entre empresas ni negocios.
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/datos/cliente";
-import { guardarFotoProducto, obtenerFotoProducto } from "@/lib/datos/fotos-producto";
+import { guardarFotoPorArchivo, guardarFotoProducto, obtenerFotoProducto } from "@/lib/datos/fotos-producto";
 import { crearProducto } from "@/lib/datos/inventario";
 import { guardarPreferenciasVenta } from "@/lib/datos/negocios";
 import { botonesRapidos, catalogoCaja, obtenerProducto } from "@/lib/datos/productos";
@@ -83,5 +83,47 @@ describe("fotos de productos", () => {
     expect(await guardarFotoProducto(e.ctx.adminOtra, id, null)).toMatchObject({ ok: false });
     expect(await guardarFotoProducto(e.ctx.socio, id, null)).toMatchObject({ ok: false });
     expect(await obtenerFotoProducto(e.ctx.admin, id)).not.toBeNull();
+  });
+
+  it("varias de una vez: el nombre del archivo dice de qué producto es", async () => {
+    const id = await tinto();
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "Tinto.jpg", WEBP)).toMatchObject({ ok: true, id, producto: "Tinto" });
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "C001 tintó.webp", WEBP)).toMatchObject({ ok: true, id });
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "TINTO.jpg", WEBP)).toMatchObject({ ok: true, id });
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "Empanada.jpg", WEBP)).toMatchObject({ ok: false });
+    expect((await obtenerProducto(e.ctx.admin, id))?.fotoUrl).not.toBeNull();
+  });
+
+  it("encuentra el producto aunque el archivo no tenga tildes ni signos", async () => {
+    const r = await crearProducto(
+      e.ctx.admin,
+      e.motos.id,
+      esquemaProducto.parse({
+        codigo: "C022", nombre: "Torta (porción) de Buñuelo", costo: "0", precioVenta: "3500", stockMinimo: "0",
+        unidad: "UNIDAD", fraccionado: false, porcentajeIva: 0, condicion: "NUEVO", controlaStock: false,
+      }),
+      "0",
+    );
+    if (!r.ok) throw new Error(r.error);
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "C022 Torta porcion de Bunuelo.jpg", WEBP)).toMatchObject({ ok: true, id: r.id });
+    // Y con la tilde escrita "a la Mac" (letra + tilde aparte).
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "Torta (porcio\u0301n) de Bun\u0303uelo.png", WEBP)).toMatchObject({ ok: true, id: r.id });
+  });
+
+  it("si el archivo trae nombre, no cae en otro producto aunque el código coincida", async () => {
+    const id = await tinto(); // código TINTO
+    await prisma.producto.update({ where: { id }, data: { codigo: "C002" } });
+    // En el archivo C002 es "Tinto grande", pero en esta tienda C002 es "Tinto": no se pone.
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "C002 Tinto grande.jpg", WEBP)).toMatchObject({ ok: false });
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.motos.id, "C002.jpg", WEBP)).toMatchObject({ ok: true, id });
+  });
+
+  it("varias de una vez no llega a otro negocio, otra empresa ni a un cajero sin permiso", async () => {
+    await tinto();
+    expect(await guardarFotoPorArchivo(e.ctx.admin, e.ferreteria.id, "TINTO.jpg", WEBP)).toMatchObject({ ok: false });
+    await expect(guardarFotoPorArchivo(e.ctx.adminOtra, e.motos.id, "TINTO.jpg", WEBP)).rejects.toThrow();
+    await expect(guardarFotoPorArchivo(e.ctx.socio, e.motos.id, "TINTO.jpg", WEBP)).rejects.toThrow();
+    await expect(guardarFotoPorArchivo(e.ctx.cajero, e.motos.id, "TINTO.jpg", WEBP)).rejects.toThrow();
+    expect(await prisma.fotoProducto.count()).toBe(0);
   });
 });
