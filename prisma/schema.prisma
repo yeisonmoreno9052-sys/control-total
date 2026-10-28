@@ -57,6 +57,8 @@ model Empresa {
   esDemo            Boolean           @default(false)
   /// Cuántas facturas puede leer con foto cada mes (módulo FACTURA_FOTO).
   limiteFotosMes    Int               @default(50)
+  /// Colores de la app para esta empresa (ver src/lib/paletas.ts y src/styles/tema.css).
+  paleta            String            @default("indigo")
   activo            Boolean           @default(true)
   creadoEn          DateTime          @default(now())
   actualizadoEn     DateTime          @updatedAt

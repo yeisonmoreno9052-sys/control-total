@@ -1,4 +1,5 @@
 import { tipoDeImagen } from "@/lib/imagenes";
+import { esPaleta, PALETA_POR_DEFECTO } from "@/lib/paletas";
 import { exigirRol } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import type { Contexto } from "./contexto";
@@ -8,7 +9,7 @@ import { registrarAuditoria, type Resultado } from "./inventario";
 /** Datos de la empresa del usuario para el encabezado y los recibos. */
 export async function obtenerEmpresa(ctx: Contexto) {
   const empresa = await datosDe(ctx).empresa.findFirst({
-    select: { id: true, nombre: true, logoTipo: true, actualizadoEn: true },
+    select: { id: true, nombre: true, logoTipo: true, paleta: true, actualizadoEn: true },
   });
   if (!empresa) return null;
   return {
@@ -16,6 +17,7 @@ export async function obtenerEmpresa(ctx: Contexto) {
     nombre: empresa.nombre,
     // La versión en la dirección hace que el navegador pida el logo nuevo cuando cambia.
     logoUrl: empresa.logoTipo ? `/api/logo?v=${empresa.actualizadoEn.getTime()}` : null,
+    paleta: esPaleta(empresa.paleta) ? empresa.paleta : PALETA_POR_DEFECTO,
   };
 }
 

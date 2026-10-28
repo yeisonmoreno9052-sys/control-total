@@ -656,7 +656,8 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
 // ─── Botones rápidos (cafeterías) ─────────────────────────────────────────
 
 /** Un color por categoría para ubicar rápido los cuadros. Se repiten si hay más categorías. */
-const COLORES_CATEGORIA = ["#f59e0b", "#0ea5e9", "#10b981", "#ec4899", "#8b5cf6", "#ef4444", "#14b8a6", "#f97316"];
+// Un color por categoría. Cambian con la paleta de la empresa (--categoria-N en tema.css).
+const COLORES_CATEGORIA = Array.from({ length: 8 }, (_, i) => `var(--categoria-${i + 1})`);
 
 function CuadrosRapidos({
   botones,

@@ -20,5 +20,8 @@ export function BotonTema() {
   );
 }
 
-/** Se ejecuta antes de pintar la página para que no parpadee al cargar en modo oscuro. */
-export const SCRIPT_TEMA = `try{if(localStorage.getItem("tema")==="oscuro")document.documentElement.classList.add("dark")}catch(e){}`;
+/**
+ * Se ejecuta antes de pintar la página para que no parpadee al cargar en modo oscuro
+ * ni con los colores de otra empresa (la paleta la recuerda AplicarPaleta).
+ */
+export const SCRIPT_TEMA = `try{var d=document.documentElement;if(localStorage.getItem("tema")==="oscuro")d.classList.add("dark");var p=localStorage.getItem("paleta");if(p&&p!=="indigo")d.dataset.paleta=p}catch(e){}`;

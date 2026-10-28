@@ -99,7 +99,7 @@ function Pastilla({ activa, children }: { activa: boolean; children: React.React
     <span
       className={cn(
         "flex h-8 w-14 items-center justify-center rounded-full transition-colors",
-        activa && "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/40",
+        activa && "bg-gradient-to-br from-chip-desde to-chip-hasta text-white shadow-lg shadow-chip-sombra",
       )}
     >
       {children}

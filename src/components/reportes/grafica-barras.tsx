@@ -31,12 +31,12 @@ export function GraficaBarras({ datos, alto = 180 }: { datos: { dia: string; tot
         ))}
         <defs>
           <linearGradient id="barra-dia" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#818cf8" />
-            <stop offset="1" stopColor="#4f46e5" />
+            <stop offset="0" style={{ stopColor: "var(--barra-claro)" }} />
+            <stop offset="1" style={{ stopColor: "var(--barra)" }} />
           </linearGradient>
           <linearGradient id="barra-ultima" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#c084fc" />
-            <stop offset="1" stopColor="#7c3aed" />
+            <stop offset="0" style={{ stopColor: "var(--barra-ultima-claro)" }} />
+            <stop offset="1" style={{ stopColor: "var(--barra-ultima)" }} />
           </linearGradient>
         </defs>
         {datos.map((d, i) => {

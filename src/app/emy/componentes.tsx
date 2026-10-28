@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PALETAS } from "@/lib/paletas";
 import { cn } from "@/lib/utils";
 import {
   agregarLocalAccion,
   cambiarEstadoClienteAccion,
   cambiarLimiteFotosAccion,
+  cambiarPaletaAccion,
   cambiarModulosAccion,
   crearClienteAccion,
   editarClienteAccion,
@@ -399,6 +401,44 @@ export function LimiteFotos({ id, limite }: { id: string; limite: number }) {
       </Campo>
       <AvisoError mensaje={error} />
     </form>
+  );
+}
+
+export function ElegirPaleta({ id, actual }: { id: string; actual: string }) {
+  const { pendiente, error, correr } = useAccion();
+  return (
+    <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Colores">
+        {PALETAS.map((p) => {
+          const elegida = p.valor === actual;
+          return (
+            <button
+              key={p.valor}
+              type="button"
+              role="radio"
+              aria-checked={elegida}
+              disabled={pendiente}
+              onClick={() => !elegida && correr(() => cambiarPaletaAccion(id, p.valor))}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors",
+                elegida ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/60",
+              )}
+            >
+              <span className="flex shrink-0 overflow-hidden rounded-lg border">
+                {p.muestra.map((c) => (
+                  <span key={c} className="h-10 w-5" style={{ backgroundColor: c }} />
+                ))}
+              </span>
+              <span className="min-w-0">
+                <span className="block font-medium">{p.nombre}</span>
+                <span className="block text-sm text-muted-foreground">{elegida ? "En uso" : p.descripcion}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <AvisoError mensaje={error} />
+    </div>
   );
 }
 
