@@ -21,6 +21,7 @@ import { GraficaBarras } from "@/components/reportes/grafica-barras";
 import { SelectorNegocioReporte } from "@/components/reportes/selector-negocio-reporte";
 import { Button } from "@/components/ui/button";
 import { AccesoDenegado } from "@/lib/datos/alcance";
+import { obtenerNegocio } from "@/lib/datos/negocios";
 import { contarProductos } from "@/lib/datos/productos";
 import {
   facturasPorVencer,
@@ -35,6 +36,7 @@ import { tieneModulo } from "@/lib/modulos";
 import { puedeGestionar } from "@/lib/permisos";
 import { negociosParaReporte } from "@/lib/reportes/armar";
 import { calcularPeriodo, periodoAnterior, sumarDias, variacion, type Periodo } from "@/lib/reportes/periodos";
+import { emojiDeNegocio } from "@/lib/saludo";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 
@@ -70,7 +72,7 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
   const semana = calcularPeriodo("semana");
   const mes = calcularPeriodo("mes");
   const ventas = (p: Periodo) => resumenVentas(ctx, ids, p.desde, p.hasta).then((r) => r.totalVendido);
-  const [vHoy, vAyer, vSemana, vSemanaAnterior, vMes, vMesAnterior, utilidadMes, dias, bajos, porVencer, productos, masVendidos] =
+  const [vHoy, vAyer, vSemana, vSemanaAnterior, vMes, vMesAnterior, utilidadMes, dias, bajos, porVencer, productos, masVendidos, activo] =
     await Promise.all([
       ventas(hoy),
       ventas(periodoAnterior(hoy)),
@@ -86,6 +88,7 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
         ? Promise.all(ids.map((id) => contarProductos(ctx, id))).then((n) => n.reduce((a, b) => a + b, 0))
         : 0,
       conVentas ? productosVendidos(ctx, ids, semana.desde, semana.hasta, "total", "mas", 5) : [],
+      obtenerNegocio(ctx, ctx.negocioActivoId),
     ]);
   const unSoloNegocio = ids.length === 1 && ids[0] === ctx.negocioActivoId;
 
@@ -96,7 +99,7 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="space-y-1">
             <p className="text-sm text-white/75">{fechaLarga()}</p>
-            <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">Hola, {primerNombre} 👋</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">Hola, {primerNombre} {emojiDeNegocio(activo)}</h1>
             <p className="text-white/75">{negocios.nombre}</p>
           </div>
           <div className="[&_select]:border-white/20 [&_select]:bg-white/10 [&_select]:text-white [&_option]:text-foreground [&_svg]:text-white/80">
