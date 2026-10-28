@@ -5,8 +5,10 @@ import { cifrarContrasena, verificarCredenciales } from "@/lib/datos/autenticaci
 import { prisma } from "@/lib/datos/cliente";
 import { cargarContexto } from "@/lib/datos/contexto";
 import { obtenerDemo, reiniciarDemo } from "@/lib/datos/demo";
+import { obtenerEmpresa } from "@/lib/datos/empresa";
 import {
   cambiarEstadoCliente,
+  cambiarPaleta,
   cargarSuperadmin,
   contrasenaTemporal,
   crearCliente,
@@ -116,6 +118,24 @@ describe("clientes", () => {
     if (!r.ok) throw new Error(r.error);
     expect((await verificarCredenciales("admin", r.contrasena)).ok).toBe(true);
     expect(contrasenaTemporal()).toMatch(/^[a-z]{4}-\d{4}-[a-z]{4}$/);
+  });
+});
+
+describe("colores de cada cliente", () => {
+  it("cada empresa tiene su paleta y cambiarla no toca a las demás", async () => {
+    expect((await obtenerEmpresa(e.ctx.admin))?.paleta).toBe("indigo");
+    expect(await cambiarPaleta(ce, e.otra.id, "cafe")).toMatchObject({ ok: true });
+    expect((await obtenerEmpresa(e.ctx.adminOtra))?.paleta).toBe("cafe");
+    expect((await obtenerEmpresa(e.ctx.admin))?.paleta).toBe("indigo");
+    expect(await prisma.accionEmy.count({ where: { empresaId: e.otra.id, accion: "CAMBIAR_PALETA" } })).toBe(1);
+  });
+
+  it("solo acepta paletas de la lista, y solo desde el panel", async () => {
+    expect(await cambiarPaleta(ce, e.camila.id, "rosado")).toMatchObject({ ok: false });
+    expect(await cambiarPaleta(ce, e.camila.id, "red; background:url(x)")).toMatchObject({ ok: false });
+    // Sin superadmin (cargarSuperadmin da null a cualquier otro usuario) no pasa.
+    await expect(cambiarPaleta(null as never, e.camila.id, "cafe")).rejects.toThrow();
+    expect((await obtenerEmpresa(e.ctx.admin))?.paleta).toBe("indigo");
   });
 });
 

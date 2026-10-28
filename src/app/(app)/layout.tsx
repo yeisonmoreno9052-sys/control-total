@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { CircleUser, LogOut } from "lucide-react";
+import { AplicarPaleta } from "@/components/layout/aplicar-paleta";
 import { BotonTema } from "@/components/layout/boton-tema";
 import { MenuInferior } from "@/components/layout/menu-inferior";
 import { MenuLateral } from "@/components/layout/menu-lateral";
@@ -59,6 +60,7 @@ async function Marco({ children }: { children: React.ReactNode }) {
       usuario={{ id: ctx.usuarioId, nombre: ctx.nombre }}
       ventas={ctx.modulosActivos.includes("VENTAS")}
     >
+      <AplicarPaleta paleta={empresa?.paleta ?? "indigo"} />
       <div className="flex min-h-dvh">
         {/* En tablets en vertical (md a lg) el menú queda angosto, solo con íconos, para dejarle espacio a la pantalla. */}
         <aside className="sticky top-0 hidden h-dvh w-20 shrink-0 flex-col bg-menu text-menu-foreground md:flex lg:w-60">

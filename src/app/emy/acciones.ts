@@ -5,6 +5,7 @@ import {
   agregarLocal,
   cambiarEstadoCliente,
   cambiarLimiteFotos,
+  cambiarPaleta,
   cambiarModulos,
   crearCliente,
   editarCliente,
@@ -97,6 +98,14 @@ export async function cambiarModulosAccion(id: string, modulos: string[]): Promi
 export async function cambiarLimiteFotosAccion(id: string, limite: string): Promise<EstadoEmy> {
   const ce = await obtenerSuperadmin();
   const r = await cambiarLimiteFotos(ce, String(id), String(limite));
+  if (!r.ok) return { error: r.error };
+  refrescar(id);
+  return { ok: true };
+}
+
+export async function cambiarPaletaAccion(id: string, paleta: string): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const r = await cambiarPaleta(ce, String(id), String(paleta));
   if (!r.ok) return { error: r.error };
   refrescar(id);
   return { ok: true };

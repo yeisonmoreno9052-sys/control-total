@@ -31,6 +31,10 @@
   --color-menu-borde: var(--menu-borde);
   --color-destacado-desde: var(--destacado-desde);
   --color-destacado-hasta: var(--destacado-hasta);
+  --color-menu-resalte: var(--menu-resalte);
+  --color-chip-desde: var(--chip-desde);
+  --color-chip-hasta: var(--chip-hasta);
+  --color-chip-sombra: var(--chip-sombra);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

@@ -10,6 +10,7 @@ import {
   AgregarLocal,
   BotonesEstado,
   FormularioEditarCliente,
+  ElegirPaleta,
   LimiteFotos,
   Modulos,
   RestablecerContrasena,
@@ -130,6 +131,12 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
           </div>
         </dl>
         <LimiteFotos id={c.id} limite={c.limiteFotosMes} />
+      </section>
+
+      <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
+        <h2 className="font-semibold">Colores de la app</h2>
+        <p className="text-sm text-muted-foreground">Lo que ven el cliente y sus empleados. No cambia ningún dato.</p>
+        <ElegirPaleta id={c.id} actual={c.paleta} />
       </section>
 
       <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">

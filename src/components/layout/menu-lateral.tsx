@@ -17,7 +17,7 @@ export function MenuLateral({ rol, modulos }: { rol: Rol; modulos: Modulo[] }) {
         const clases = cn(
           "group flex h-12 items-center gap-3 rounded-xl px-2.5 text-[15px] font-medium transition-colors max-lg:justify-center",
           activa
-            ? "bg-gradient-to-r from-indigo-500/30 to-indigo-500/5 text-menu-activo-foreground"
+            ? "bg-gradient-to-r from-menu-resalte/30 to-menu-resalte/5 text-menu-activo-foreground"
             : "text-menu-foreground hover:bg-white/5 hover:text-white",
           !disponible && "pointer-events-none opacity-60",
         );
@@ -52,7 +52,7 @@ function Chip({ activa, children }: { activa: boolean; children: React.ReactNode
       className={cn(
         "flex size-8 shrink-0 items-center justify-center rounded-[10px] transition-colors",
         activa
-          ? "bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/40"
+          ? "bg-gradient-to-br from-chip-desde to-chip-hasta text-white shadow-lg shadow-chip-sombra"
           : "bg-white/5 group-hover:bg-white/10",
       )}
     >

@@ -143,7 +143,7 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
               >
                 {formatearPesos(utilidadMes.utilidadNeta)}
               </p>
-              <p className="mt-1 text-sm font-semibold text-violet-600 dark:text-violet-400">
+              <p className="mt-1 text-sm font-semibold text-destacado-hasta dark:text-primary">
                 Gastos: {formatearPesos(utilidadMes.gastos.gastos)}
               </p>
             </Link>

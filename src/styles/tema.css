@@ -2,6 +2,10 @@
   Tema de Control Total: "Índigo noche".
   Control Total tiene su propia marca (no usa los colores de EMY TELECOM).
   Para cambiar los colores de todo el sistema, cambia solo los valores de --marca-*.
+
+  Cada empresa puede tener otros colores (se escogen en el panel /emy). Las demás
+  paletas están al final de este archivo y se activan con <html data-paleta="…">.
+  La lista de paletas para escoger está en src/lib/paletas.ts.
 */
 :root {
   /* Colores de marca */
@@ -42,6 +46,27 @@
   --menu-activo: rgb(129 140 248 / 0.18);
   --menu-activo-foreground: #ffffff;
   --menu-borde: rgb(255 255 255 / 0.08);
+  /* Opción del menú en la que se está: barrita de color y cuadrito del ícono */
+  --menu-resalte: #6366f1;
+  --chip-desde: #6366f1;
+  --chip-hasta: #8b5cf6;
+  --chip-sombra: rgb(99 102 241 / 0.4);
+
+  /* Colores de las categorías en los botones rápidos de la caja */
+  --categoria-1: #f59e0b;
+  --categoria-2: #0ea5e9;
+  --categoria-3: #10b981;
+  --categoria-4: #ec4899;
+  --categoria-5: #8b5cf6;
+  --categoria-6: #ef4444;
+  --categoria-7: #14b8a6;
+  --categoria-8: #f97316;
+
+  /* Barras de las gráficas de reportes */
+  --barra-claro: #818cf8;
+  --barra: #4f46e5;
+  --barra-ultima-claro: #c084fc;
+  --barra-ultima: #7c3aed;
 
   /* Tarjeta principal (ventas de hoy, botón de cobrar grande) */
   --destacado-desde: #4f46e5;
@@ -81,4 +106,86 @@
   --franja: linear-gradient(120deg, #141845, #1e1b4b 55%, #2e1065);
   --sombra-suave: 0 1px 2px rgb(0 0 0 / 0.3);
   --sombra-destacado: 0 18px 40px -16px rgb(55 48 163 / 0.6);
+}
+
+/*
+  Paleta "Café y crema": cálida, para cafeterías y restaurantes.
+  Menú café espresso, botones caramelo y fondo crema.
+*/
+html[data-paleta="cafe"] {
+  --marca-indigo: #9a5b22;
+  --marca-indigo-claro: #f6ece0;
+  --marca-indigo-oscuro: #6b3d14;
+  --marca-violeta: #c58a3d;
+  --marca-noche: #2a1a12;
+  --marca-gris: #6f6359;
+  --marca-gris-claro: #f3ece3;
+  --marca-gris-borde: #e9dfd2;
+
+  --background: #faf5ee;
+  --foreground: #2a1d14;
+  --card: #ffffff;
+  --card-foreground: #2a1d14;
+  --popover: #ffffff;
+  --popover-foreground: #2a1d14;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #2a1d14;
+  --destructive: #c62f3f;
+
+  --menu-foreground: #d9c7b5;
+  --menu-activo: rgb(214 160 92 / 0.2);
+  --menu-resalte: #d6a05c;
+  --chip-desde: #b8732e;
+  --chip-hasta: #d6a05c;
+  --chip-sombra: rgb(184 115 46 / 0.45);
+
+  --categoria-1: #b8732e;
+  --categoria-2: #7a8b4f;
+  --categoria-3: #a0522d;
+  --categoria-4: #c9973f;
+  --categoria-5: #8c6a5d;
+  --categoria-6: #b0583c;
+  --categoria-7: #5f7a6b;
+  --categoria-8: #d08a4c;
+
+  --barra-claro: #e2b27a;
+  --barra: #9a5b22;
+  --barra-ultima-claro: #f0c98a;
+  --barra-ultima: #c58a3d;
+
+  --destacado-desde: #7a4419;
+  --destacado-hasta: #c08035;
+  --franja:
+    radial-gradient(1200px 300px at 20% -40%, #c58a3d 0%, transparent 60%), linear-gradient(120deg, #2a1a12, #4a2c1a 55%, #7a4a22);
+  --sombra-suave: 0 1px 2px rgb(42 29 20 / 0.05), 0 12px 32px -14px rgb(42 29 20 / 0.18);
+  --sombra-destacado: 0 18px 40px -12px rgb(154 91 34 / 0.5);
+}
+
+html.dark[data-paleta="cafe"] {
+  --marca-indigo: #e0a96a;
+  --marca-indigo-claro: #3a2a1e;
+  --marca-indigo-oscuro: #f3dcc0;
+  --marca-noche: #140d09;
+  --marca-gris: #b8a796;
+  --marca-gris-claro: #2a1f17;
+  --marca-gris-borde: #3d2e23;
+
+  --background: #17110c;
+  --foreground: #f3ebe2;
+  --card: #1f1712;
+  --card-foreground: #f3ebe2;
+  --popover: #1f1712;
+  --popover-foreground: #f3ebe2;
+  --primary-foreground: #1a120c;
+  --secondary-foreground: #f3ebe2;
+  --destructive: #ff6b81;
+
+  --menu-foreground: #cdb9a5;
+  --menu-activo: rgb(224 169 106 / 0.18);
+
+  --destacado-desde: #6b3d14;
+  --destacado-hasta: #9a5b22;
+  --franja: linear-gradient(120deg, #1c120c, #2e1d12 55%, #4a2c1a);
+  --sombra-suave: 0 1px 2px rgb(0 0 0 / 0.3);
+  --sombra-destacado: 0 18px 40px -16px rgb(107 61 20 / 0.6);
 }
