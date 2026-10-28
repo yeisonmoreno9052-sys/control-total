@@ -14,6 +14,8 @@ export type Contexto = {
   versionSesion: number;
   /** Entró con una contraseña temporal y todavía no la ha cambiado. */
   debeCambiarContrasena: boolean;
+  /** Cajero con permiso para crear y editar productos. Para administrador y socio no importa. */
+  puedeCrearProductos: boolean;
 };
 
 /**
@@ -54,5 +56,6 @@ export async function cargarContexto(usuarioId: string): Promise<Contexto | null
     modulosActivos: usuario.empresa.modulosActivos,
     versionSesion: usuario.versionSesion,
     debeCambiarContrasena: usuario.debeCambiarContrasena,
+    puedeCrearProductos: usuario.rol === "CAJERO" && usuario.puedeCrearProductos,
   };
 }

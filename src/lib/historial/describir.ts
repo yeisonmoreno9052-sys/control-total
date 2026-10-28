@@ -7,7 +7,7 @@ export type GrupoHistorial = "ventas" | "inventario" | "compras" | "caja" | "usu
 
 export const GRUPOS_HISTORIAL: Record<GrupoHistorial, { nombre: string; acciones: string[] }> = {
   ventas: { nombre: "Ventas", acciones: ["ANULACION_VENTA", "DEVOLUCION_VENTA", "VENTA_SIN_CONEXION"] },
-  inventario: { nombre: "Inventario y precios", acciones: ["AJUSTE_STOCK", "CAMBIO_PRECIO", "IMPORTACION"] },
+  inventario: { nombre: "Inventario y precios", acciones: ["CREACION_PRODUCTO", "AJUSTE_STOCK", "CAMBIO_PRECIO", "IMPORTACION"] },
   compras: { nombre: "Compras", acciones: ["REGISTRO_COMPRA", "ANULACION_COMPRA", "ANULACION_ABONO"] },
   caja: { nombre: "Caja", acciones: ["REABRIR_CAJA", "ANULACION_MOVIMIENTO_CAJA"] },
   usuarios: {
@@ -98,6 +98,8 @@ export function describirAuditoria(
         frase: "reabrió la caja después de cerrarla",
         detalle: typeof d.contadoAntes === "number" ? `Al cerrar se habían contado ${pesos(d.contadoAntes)}.` : undefined,
       };
+    case "CREACION_PRODUCTO":
+      return { frase: `creó el producto ${producto}`, detalle: `Precio de venta: ${pesos(d.precioVenta)}` };
     case "AJUSTE_STOCK":
       return {
         frase: `ajustó el stock de ${producto} de ${cantidad(d.antes)} a ${cantidad(d.despues)}`,
@@ -159,6 +161,11 @@ export function describirAuditoria(
         antes.rol !== despues.rol ? `rol: ${rol(antes.rol)} → ${rol(despues.rol)}` : "",
         lista(antes.negocios) !== lista(despues.negocios)
           ? `negocios: ${lista(antes.negocios) || "ninguno"} → ${lista(despues.negocios) || "ninguno"}`
+          : "",
+        !!antes.puedeCrearProductos !== !!despues.puedeCrearProductos
+          ? despues.puedeCrearProductos
+            ? "ahora puede crear productos"
+            : "ya no puede crear productos"
           : "",
       ].filter(Boolean);
       return {

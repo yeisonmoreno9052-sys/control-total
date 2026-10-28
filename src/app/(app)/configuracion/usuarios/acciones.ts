@@ -28,6 +28,7 @@ export async function guardarUsuarioAccion(_: EstadoUsuario, f: FormData): Promi
     nombre: texto(f, "nombre"),
     rol: texto(f, "rol"),
     negocios: f.getAll("negocios").map(String),
+    puedeCrearProductos: f.get("puedeCrearProductos") === "on",
   };
   const r = id
     ? await editarUsuario(ctx, id, datos)

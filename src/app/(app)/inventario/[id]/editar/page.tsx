@@ -6,7 +6,7 @@ import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
 import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { obtenerProducto } from "@/lib/datos/productos";
 import { exigirModulo } from "@/lib/modulos";
-import { puedeGestionar } from "@/lib/permisos";
+import { puedeEditarProductos, puedeVerCostos } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { FormularioProducto } from "../../formulario-producto";
 import { FotoProducto } from "./foto-producto";
@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Editar producto · Control Total" };
 export default async function EditarProducto({ params }: PageProps<"/inventario/[id]/editar">) {
   const ctx = await obtenerContexto();
   exigirModulo(ctx, "INVENTARIO");
-  if (!puedeGestionar(ctx)) return <SinPermiso />;
+  if (!puedeEditarProductos(ctx)) return <SinPermiso />;
   const { id } = await params;
   const producto = await obtenerProducto(ctx, id);
   if (!producto) return <NoEncontrado />;
@@ -35,6 +35,7 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
         margenNegocio={margen}
         ivaPorDefecto={preferencias.ivaPorDefecto}
         usaBotonesRapidos={preferencias.botonesRapidos}
+        verCostos={puedeVerCostos(ctx)}
         valores={{
           id: producto.id,
           codigo: producto.codigo,

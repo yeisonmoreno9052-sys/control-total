@@ -52,6 +52,7 @@ export function FormularioProducto({
   margenNegocio,
   ivaPorDefecto,
   usaBotonesRapidos,
+  verCostos = true,
 }: {
   valores?: ValoresProducto;
   categorias: { id: string; nombre: string; margenSugerido: number | null }[];
@@ -60,6 +61,8 @@ export function FormularioProducto({
   ivaPorDefecto: number;
   /** Si el negocio tiene encendidos los botones rápidos en la caja. */
   usaBotonesRapidos: boolean;
+  /** El cajero que crea productos no ve costos ni ganancias: solo pone el precio de venta. */
+  verCostos?: boolean;
 }) {
   const [estado, accion, guardando] = useActionState<EstadoFormulario, FormData>(guardarProducto, {});
   const nuevo = !valores?.id;
@@ -143,30 +146,34 @@ export function FormularioProducto({
       <section className="space-y-5 rounded-xl border p-4 md:p-6 bg-card shadow-suave">
         <h2 className="font-semibold">Precio</h2>
         <div className="grid gap-5 md:grid-cols-3">
-          <Campo id="costo" etiqueta="Costo" error={e.costo}>
-            <Input
-              id="costo"
-              name="costo"
-              inputMode="numeric"
-              value={costo}
-              onChange={(ev) => {
-                setCosto(ev.target.value);
-                if (!precioManual) {
-                  const nuevo = precioSugerido(leerPesos(ev.target.value) ?? 0, margen);
-                  setPrecio(pesosATexto(nuevo));
-                }
-              }}
-              onBlur={() => setCosto(pesosATexto(leerPesos(costo) ?? 0))}
-              placeholder="0"
-              aria-invalid={!!e.costo}
-            />
-          </Campo>
+          {verCostos ? (
+            <Campo id="costo" etiqueta="Costo" error={e.costo}>
+              <Input
+                id="costo"
+                name="costo"
+                inputMode="numeric"
+                value={costo}
+                onChange={(ev) => {
+                  setCosto(ev.target.value);
+                  if (!precioManual) {
+                    const nuevo = precioSugerido(leerPesos(ev.target.value) ?? 0, margen);
+                    setPrecio(pesosATexto(nuevo));
+                  }
+                }}
+                onBlur={() => setCosto(pesosATexto(leerPesos(costo) ?? 0))}
+                placeholder="0"
+                aria-invalid={!!e.costo}
+              />
+            </Campo>
+          ) : (
+            <input type="hidden" name="costo" value="0" />
+          )}
           <Campo
             id="precioVenta"
             etiqueta="Precio de venta"
             error={e.precioVenta}
             ayuda={
-              sugerido > 0 && sugerido !== precioNum ? (
+              verCostos && sugerido > 0 && sugerido !== precioNum ? (
                 <button
                   type="button"
                   className="text-primary underline-offset-4 hover:underline"
@@ -191,18 +198,20 @@ export function FormularioProducto({
               aria-invalid={!!e.precioVenta}
             />
           </Campo>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Ganancia</p>
-            <div className="flex h-11 items-center rounded-md bg-muted px-3 tabular-nums" aria-live="polite">
-              {actual ? (
-                <span className={actual.ganancia < 0 ? "text-destructive" : ""}>
-                  {formatearPesos(actual.ganancia)} · {actual.porcentaje.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %
-                </span>
-              ) : (
-                <span className="text-muted-foreground">Escribe el costo</span>
-              )}
+          {verCostos && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Ganancia</p>
+              <div className="flex h-11 items-center rounded-md bg-muted px-3 tabular-nums" aria-live="polite">
+                {actual ? (
+                  <span className={actual.ganancia < 0 ? "text-destructive" : ""}>
+                    {formatearPesos(actual.ganancia)} · {actual.porcentaje.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Escribe el costo</span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           <Campo id="porcentajeIva" etiqueta="IVA" error={e.porcentajeIva}>
             <NativeSelect id="porcentajeIva" name="porcentajeIva" defaultValue={String(valores?.porcentajeIva ?? ivaPorDefecto)}>
               {IVAS.map((v) => (

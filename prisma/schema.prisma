@@ -150,6 +150,8 @@ model Usuario {
   hashContrasena        String
   rol                   Rol
   activo                Boolean   @default(true)
+  /// Solo para cajeros: puede crear y editar productos (sin ver costos).
+  puedeCrearProductos   Boolean   @default(false)
   /// Contraseña temporal puesta por el administrador: debe cambiarla al entrar.
   debeCambiarContrasena Boolean   @default(false)
   /// Intentos fallidos seguidos; al llegar a 5 se bloquea 15 minutos.

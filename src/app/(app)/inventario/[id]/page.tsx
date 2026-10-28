@@ -12,7 +12,7 @@ import { formatearCantidad } from "@/lib/inventario/cantidades";
 import { calcularMargen } from "@/lib/inventario/precios";
 import { CONDICIONES, MOTIVOS_AJUSTE, TIPOS_MOVIMIENTO, UNIDADES } from "@/lib/inventario/unidades";
 import { exigirModulo, tieneModulo } from "@/lib/modulos";
-import { puedeGestionar } from "@/lib/permisos";
+import { puedeEditarProductos, puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 import { BotonActivo } from "./boton-activo";
@@ -47,19 +47,21 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
         }
         volver={{ href: "/inventario", texto: "Inventario" }}
         acciones={
-          gestiona && (
+          puedeEditarProductos(ctx) && (
             <>
-              <Button asChild variant="outline">
-                <Link href={`/etiqueta/${id}`}>
-                  <Tag /> Etiqueta
-                </Link>
-              </Button>
+              {gestiona && (
+                <Button asChild variant="outline">
+                  <Link href={`/etiqueta/${id}`}>
+                    <Tag /> Etiqueta
+                  </Link>
+                </Button>
+              )}
               <Button asChild variant="outline">
                 <Link href={`/inventario/${id}/editar`}>
                   <Pencil /> Editar
                 </Link>
               </Button>
-              {producto.controlaStock && (
+              {gestiona && producto.controlaStock && (
                 <Button asChild>
                   <Link href={`/inventario/${id}/ajustar`}>
                     <SlidersHorizontal /> Ajustar stock
