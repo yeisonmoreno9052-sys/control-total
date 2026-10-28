@@ -221,6 +221,7 @@ async function prepararEmpresa() {
       modulosActivos: empresaRow.modulosActivos,
       versionSesion: 0,
       debeCambiarContrasena: false,
+      puedeCrearProductos: false,
     });
     const [ua, uc] = USUARIOS_DEMO;
     await tx.usuarioNegocio.deleteMany({ where: { empresaId: empresa.id } });

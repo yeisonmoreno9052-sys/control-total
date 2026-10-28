@@ -16,6 +16,7 @@ export type UsuarioFormulario = {
   usuario: string;
   rol: string;
   negocios: string[];
+  puedeCrearProductos: boolean;
 };
 
 /** Contraseña temporal fácil de dictar: palabra + 4 números. */
@@ -166,6 +167,23 @@ export function FormularioUsuario({
           {e.negocios && <p className="text-sm text-destructive">{e.negocios}</p>}
           <p className="text-sm text-muted-foreground">No verá nada de los negocios que no marques, ni siquiera el nombre.</p>
         </fieldset>
+      )}
+
+      {rol === "CAJERO" && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4 shadow-suave hover:bg-muted/40">
+          <input
+            type="checkbox"
+            name="puedeCrearProductos"
+            defaultChecked={usuario?.puedeCrearProductos ?? false}
+            className="mt-0.5 size-5 shrink-0 accent-primary"
+          />
+          <span>
+            <span className="block font-medium">Puede crear y editar productos</span>
+            <span className="block text-sm text-muted-foreground">
+              Nombre, precio, foto y botón de la caja. Sigue sin ver costos ni ganancias, y no ajusta el stock.
+            </span>
+          </span>
+        </label>
       )}
 
       <AvisoError mensaje={estado.error} />

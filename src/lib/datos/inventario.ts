@@ -7,7 +7,7 @@ import type { MotivoAjuste, TipoMovimiento } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
 import { Decimal, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
 import type { ProductoEntrada } from "@/lib/inventario/esquemas";
-import { exigirGestion } from "@/lib/permisos";
+import { exigirEdicionProductos, exigirGestion, puedeVerCostos } from "@/lib/permisos";
 import { AccesoDenegado, datosDe } from "./alcance";
 import { prisma } from "./cliente";
 import type { Contexto } from "./contexto";
@@ -153,8 +153,10 @@ export async function crearProducto(
   entrada: ProductoEntrada,
   stockInicialTexto: string,
 ): Promise<Resultado> {
-  exigirGestion(ctx);
+  exigirEdicionProductos(ctx);
   exigirNegocioPermitido(ctx, negocioId);
+  // El cajero con permiso no ve costos: su producto nace con costo 0 y el administrador lo completa.
+  if (!puedeVerCostos(ctx)) entrada = { ...entrada, costo: 0 };
 
   const stockInicial = stockInicialTexto.trim() ? leerCantidad(stockInicialTexto) : new Decimal(0);
   const errorStock = validarCantidad(stockInicial, { fraccionado: entrada.fraccionado });
@@ -172,6 +174,13 @@ export async function crearProducto(
       if (stockInicial && !stockInicial.isZero()) {
         await registrarMovimiento(tx, ctx, { productoId: producto.id, tipo: "CREACION", cantidad: stockInicial });
       }
+      await registrarAuditoria(tx, ctx, {
+        negocioId,
+        accion: "CREACION_PRODUCTO",
+        entidad: "Producto",
+        entidadId: producto.id,
+        detalle: { codigo: entrada.codigo, nombre: entrada.nombre, precioVenta: entrada.precioVenta },
+      });
       return producto.id;
     });
     return { ok: true, id };
@@ -184,12 +193,14 @@ export async function crearProducto(
 
 /** Edita los datos de un producto. El stock NO se cambia aquí: se usa ajustarStock(). */
 export async function actualizarProducto(ctx: Contexto, id: string, entrada: ProductoEntrada): Promise<Resultado> {
-  exigirGestion(ctx);
+  exigirEdicionProductos(ctx);
   const actual = await datosDe(ctx).producto.findFirst({
     where: { id },
     select: { id: true, negocioId: true, costo: true, precioVenta: true, stock: true },
   });
   if (!actual) return { ok: false, error: "No encontramos ese producto." };
+  // Quien no ve costos tampoco los cambia: se deja el que tenía.
+  if (!puedeVerCostos(ctx)) entrada = { ...entrada, costo: actual.costo };
 
   if (!entrada.fraccionado && !new Decimal(actual.stock.toString()).isInteger()) {
     return {

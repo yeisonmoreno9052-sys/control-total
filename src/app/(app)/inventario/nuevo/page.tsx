@@ -4,7 +4,7 @@ import { SinPermiso } from "@/components/layout/sin-permiso";
 import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
 import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { exigirModulo } from "@/lib/modulos";
-import { puedeGestionar } from "@/lib/permisos";
+import { puedeEditarProductos, puedeVerCostos } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { FormularioProducto } from "../formulario-producto";
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Nuevo producto · Control Total" };
 export default async function NuevoProducto({ searchParams }: PageProps<"/inventario/nuevo">) {
   const ctx = await obtenerContexto();
   exigirModulo(ctx, "INVENTARIO");
-  if (!puedeGestionar(ctx) || !ctx.negocioActivoId) return <SinPermiso />;
+  if (!puedeEditarProductos(ctx) || !ctx.negocioActivoId) return <SinPermiso />;
   const { creado } = await searchParams;
   const [categorias, margen, preferencias] = await Promise.all([
     listarCategorias(ctx, ctx.negocioActivoId),
@@ -35,6 +35,7 @@ export default async function NuevoProducto({ searchParams }: PageProps<"/invent
         margenNegocio={margen}
         ivaPorDefecto={preferencias.ivaPorDefecto}
         usaBotonesRapidos={preferencias.botonesRapidos}
+        verCostos={puedeVerCostos(ctx)}
       />
     </div>
   );

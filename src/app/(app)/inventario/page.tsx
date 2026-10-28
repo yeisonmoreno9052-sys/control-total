@@ -12,7 +12,7 @@ import { formatearPesos } from "@/lib/formato";
 import { formatearCantidad } from "@/lib/inventario/cantidades";
 import { UNIDADES } from "@/lib/inventario/unidades";
 import { exigirModulo } from "@/lib/modulos";
-import { puedeGestionar } from "@/lib/permisos";
+import { puedeEditarProductos, puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 import { Buscador } from "./buscador";
@@ -46,6 +46,8 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
   }
   const negocioId = ctx.negocioActivoId;
   const gestiona = puedeGestionar(ctx);
+  // El cajero con permiso crea productos, pero no importa ni toca categorías.
+  const crea = puedeEditarProductos(ctx);
 
   const [resultado, categorias] = await Promise.all([
     buscarProductos(ctx, negocioId, {
@@ -64,23 +66,27 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
         titulo="Inventario"
         subtitulo={`${resultado.total.toLocaleString("es-CO")} ${resultado.total === 1 ? "producto" : "productos"}${hayFiltros ? " encontrados" : ""}`}
         acciones={
-          gestiona && (
+          crea && (
             <>
-              <Button asChild variant="outline">
-                <Link href="/inventario/categorias">
-                  <FolderTree /> Categorías
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/inventario/importar">
-                  <FileSpreadsheet /> Importar
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/inventario/segunda">
-                  <Recycle /> Pieza de segunda
-                </Link>
-              </Button>
+              {gestiona && (
+                <>
+                  <Button asChild variant="outline">
+                    <Link href="/inventario/categorias">
+                      <FolderTree /> Categorías
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/inventario/importar">
+                      <FileSpreadsheet /> Importar
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/inventario/segunda">
+                      <Recycle /> Pieza de segunda
+                    </Link>
+                  </Button>
+                </>
+              )}
               <Button asChild>
                 <Link href="/inventario/nuevo">
                   <Plus /> Nuevo producto
@@ -120,23 +126,25 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
             icono={Package}
             titulo="Todavía no hay productos"
             descripcion={
-              gestiona
+              crea
                 ? "Agrega uno por uno o importa tu inventario desde Excel."
                 : "Cuando el administrador cargue productos, aparecerán aquí."
             }
             accion={
-              gestiona && (
+              crea && (
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button asChild>
                     <Link href="/inventario/nuevo">
                       <Plus /> Nuevo producto
                     </Link>
                   </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/inventario/importar">
-                      <FileSpreadsheet /> Importar desde Excel
-                    </Link>
-                  </Button>
+                  {gestiona && (
+                    <Button asChild variant="outline">
+                      <Link href="/inventario/importar">
+                        <FileSpreadsheet /> Importar desde Excel
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               )
             }
