@@ -21,6 +21,7 @@ import { GraficaBarras } from "@/components/reportes/grafica-barras";
 import { SelectorNegocioReporte } from "@/components/reportes/selector-negocio-reporte";
 import { Button } from "@/components/ui/button";
 import { AccesoDenegado } from "@/lib/datos/alcance";
+import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { obtenerNegocio } from "@/lib/datos/negocios";
 import { contarProductos } from "@/lib/datos/productos";
 import {
@@ -72,7 +73,7 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
   const semana = calcularPeriodo("semana");
   const mes = calcularPeriodo("mes");
   const ventas = (p: Periodo) => resumenVentas(ctx, ids, p.desde, p.hasta).then((r) => r.totalVendido);
-  const [vHoy, vAyer, vSemana, vSemanaAnterior, vMes, vMesAnterior, utilidadMes, dias, bajos, porVencer, productos, masVendidos, activo] =
+  const [vHoy, vAyer, vSemana, vSemanaAnterior, vMes, vMesAnterior, utilidadMes, dias, bajos, porVencer, productos, masVendidos, activo, empresa] =
     await Promise.all([
       ventas(hoy),
       ventas(periodoAnterior(hoy)),
@@ -89,13 +90,24 @@ export default async function Panel({ searchParams }: PageProps<"/panel">) {
         : 0,
       conVentas ? productosVendidos(ctx, ids, semana.desde, semana.hasta, "total", "mas", 5) : [],
       obtenerNegocio(ctx, ctx.negocioActivoId),
+      obtenerEmpresa(ctx),
     ]);
   const unSoloNegocio = ids.length === 1 && ids[0] === ctx.negocioActivoId;
 
   return (
     <div className="space-y-4">
       {/* Franja de color con el saludo; las cifras se montan encima. */}
-      <div className="-mx-4 -mt-6 bg-franja px-4 pt-6 pb-20 text-white md:mx-0 md:mt-0 md:rounded-3xl md:px-8 md:pt-8 md:pb-24">
+      <div className="relative isolate -mx-4 -mt-6 overflow-hidden bg-franja px-4 pt-6 pb-20 text-white md:mx-0 md:mt-0 md:rounded-3xl md:px-8 md:pt-8 md:pb-24">
+        {empresa?.fondoUrl && (
+          // Silueta de la empresa (ej. el caballo de Club Cabbali): suave, detrás del saludo.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={empresa.fondoUrl}
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute top-[8%] right-[4%] -z-10 h-[88%] w-auto opacity-[0.13] select-none"
+          />
+        )}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="space-y-1">
             <p className="text-sm text-white/75">{fechaLarga()}</p>

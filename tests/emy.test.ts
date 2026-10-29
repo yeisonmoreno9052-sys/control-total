@@ -8,6 +8,7 @@ import { obtenerDemo, reiniciarDemo } from "@/lib/datos/demo";
 import { obtenerEmpresa } from "@/lib/datos/empresa";
 import {
   cambiarEstadoCliente,
+  cambiarFondo,
   cambiarPaleta,
   cargarSuperadmin,
   contrasenaTemporal,
@@ -176,5 +177,24 @@ describe("demo", () => {
     });
     const r = await reiniciarDemo(ce, { dias: 1 });
     expect(r).toMatchObject({ ok: false, error: expect.stringMatching(/otra empresa/) });
+  });
+});
+
+describe("imagen del inicio de cada cliente", () => {
+  it("se pone, se cambia y se quita sin tocar a las demás empresas", async () => {
+    expect((await obtenerEmpresa(e.ctx.admin))?.fondoUrl).toBeNull();
+    expect(await cambiarFondo(ce, e.otra.id, "caballo-cabeza")).toMatchObject({ ok: true });
+    expect((await obtenerEmpresa(e.ctx.adminOtra))?.fondoUrl).toBe("/fondos/caballo-cabeza.png");
+    expect((await obtenerEmpresa(e.ctx.admin))?.fondoUrl).toBeNull();
+    expect(await cambiarFondo(ce, e.otra.id, null)).toMatchObject({ ok: true });
+    expect((await obtenerEmpresa(e.ctx.adminOtra))?.fondoUrl).toBeNull();
+    expect(await prisma.accionEmy.count({ where: { empresaId: e.otra.id, accion: "CAMBIAR_FONDO" } })).toBe(2);
+  });
+
+  it("solo acepta imágenes de la lista, y solo desde el panel", async () => {
+    expect(await cambiarFondo(ce, e.camila.id, "../../etc/passwd")).toMatchObject({ ok: false });
+    expect(await cambiarFondo(ce, e.camila.id, "https://otro.sitio/x.png")).toMatchObject({ ok: false });
+    await expect(cambiarFondo(null as never, e.camila.id, "caballo-cabeza")).rejects.toThrow();
+    expect((await obtenerEmpresa(e.ctx.admin))?.fondoUrl).toBeNull();
   });
 });

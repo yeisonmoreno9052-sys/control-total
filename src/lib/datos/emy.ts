@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { Modulo } from "@/generated/prisma/enums";
 import { fechaDeHoy } from "@/lib/formato";
 import { erroresPorCampo } from "@/lib/inventario/esquemas";
+import { esFondo } from "@/lib/fondos";
 import { esPaleta } from "@/lib/paletas";
 import { AccesoDenegado } from "./alcance";
 import { cifrarContrasena } from "./autenticacion";
@@ -187,6 +188,7 @@ export async function obtenerCliente(ce: ContextoEmy, id: string) {
       esDemo: true,
       limiteFotosMes: true,
       paleta: true,
+      fondo: true,
       creadoEn: true,
     },
   });
@@ -491,6 +493,20 @@ export async function cambiarPaleta(ce: ContextoEmy, id: string, paleta: unknown
   );
 }
 
+/** Imagen suave en la franja del Inicio del cliente; null la quita. Solo apariencia. */
+export async function cambiarFondo(ce: ContextoEmy, id: string, fondo: unknown): Promise<Resultado> {
+  exigir(ce);
+  if (fondo !== null && !esFondo(fondo)) return { ok: false, error: "Escoge una de las imágenes de la lista." };
+  return comoResultado(() =>
+    prisma.$transaction(async (tx) => {
+      const e = await clienteReal(tx, id);
+      await tx.empresa.update({ where: { id }, data: { fondo } });
+      await registrarAccion(tx, ce, id, "CAMBIAR_FONDO", { nombre: e.nombre, fondo });
+      return { ok: true as const, id };
+    }),
+  );
+}
+
 export async function agregarLocal(ce: ContextoEmy, empresaId: string, entrada: unknown): Promise<Resultado> {
   exigir(ce);
   const datos = esquemaLocal.safeParse(entrada);
@@ -558,6 +574,7 @@ export const NOMBRE_ACCION: Record<string, string> = {
   CAMBIAR_MODULOS: "Cambió los módulos",
   CAMBIAR_LIMITE_FOTOS: "Cambió el límite de facturas con foto",
   CAMBIAR_PALETA: "Cambió los colores",
+  CAMBIAR_FONDO: "Cambió la imagen del inicio",
   AGREGAR_LOCAL: "Agregó un local",
   RESTABLECER_CONTRASENA: "Restableció una contraseña",
   REINICIAR_DEMO: "Reinició la demo",

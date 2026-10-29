@@ -59,6 +59,8 @@ model Empresa {
   limiteFotosMes    Int               @default(50)
   /// Colores de la app para esta empresa (ver src/lib/paletas.ts y src/styles/tema.css).
   paleta            String            @default("indigo")
+  /// Imagen suave en la franja del Inicio (ver src/lib/fondos.ts). Vacío: sin imagen.
+  fondo             String?
   activo            Boolean           @default(true)
   creadoEn          DateTime          @default(now())
   actualizadoEn     DateTime          @updatedAt

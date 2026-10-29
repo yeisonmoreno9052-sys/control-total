@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { FONDOS } from "@/lib/fondos";
 import { PALETAS } from "@/lib/paletas";
 import { cn } from "@/lib/utils";
 import {
   agregarLocalAccion,
   cambiarEstadoClienteAccion,
   cambiarLimiteFotosAccion,
+  cambiarFondoAccion,
   cambiarPaletaAccion,
   cambiarModulosAccion,
   crearClienteAccion,
@@ -433,6 +435,44 @@ export function ElegirPaleta({ id, actual }: { id: string; actual: string }) {
                 <span className="block font-medium">{p.nombre}</span>
                 <span className="block text-sm text-muted-foreground">{elegida ? "En uso" : p.descripcion}</span>
               </span>
+            </button>
+          );
+        })}
+      </div>
+      <AvisoError mensaje={error} />
+    </div>
+  );
+}
+
+export function ElegirFondo({ id, actual }: { id: string; actual: string | null }) {
+  const { pendiente, error, correr } = useAccion();
+  const opciones = [{ valor: null, nombre: "Sin imagen", imagen: null }, ...FONDOS];
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Imagen del inicio">
+        {opciones.map((f) => {
+          const elegida = f.valor === actual;
+          return (
+            <button
+              key={f.valor ?? "ninguna"}
+              type="button"
+              role="radio"
+              aria-checked={elegida}
+              disabled={pendiente}
+              onClick={() => !elegida && correr(() => cambiarFondoAccion(id, f.valor))}
+              className={cn(
+                "space-y-2 rounded-xl border p-2 text-left transition-colors",
+                elegida ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/60",
+              )}
+            >
+              {/* Muestra sobre la franja de la paleta del panel, como se verá en el inicio. */}
+              <span className="relative block h-16 overflow-hidden rounded-lg bg-franja">
+                {f.imagen && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={f.imagen} alt="" className="absolute right-2 top-1/2 h-[85%] -translate-y-1/2 opacity-40" />
+                )}
+              </span>
+              <span className="block px-1 text-sm font-medium">{f.nombre}</span>
             </button>
           );
         })}
