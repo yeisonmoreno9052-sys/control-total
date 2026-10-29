@@ -5,6 +5,7 @@ import {
   agregarLocal,
   cambiarEstadoCliente,
   cambiarLimiteFotos,
+  cambiarFondo,
   cambiarPaleta,
   cambiarModulos,
   crearCliente,
@@ -106,6 +107,14 @@ export async function cambiarLimiteFotosAccion(id: string, limite: string): Prom
 export async function cambiarPaletaAccion(id: string, paleta: string): Promise<EstadoEmy> {
   const ce = await obtenerSuperadmin();
   const r = await cambiarPaleta(ce, String(id), String(paleta));
+  if (!r.ok) return { error: r.error };
+  refrescar(id);
+  return { ok: true };
+}
+
+export async function cambiarFondoAccion(id: string, fondo: string | null): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const r = await cambiarFondo(ce, String(id), fondo === null ? null : String(fondo));
   if (!r.ok) return { error: r.error };
   refrescar(id);
   return { ok: true };

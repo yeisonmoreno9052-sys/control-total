@@ -10,6 +10,7 @@ import {
   AgregarLocal,
   BotonesEstado,
   FormularioEditarCliente,
+  ElegirFondo,
   ElegirPaleta,
   LimiteFotos,
   Modulos,
@@ -137,6 +138,9 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         <h2 className="font-semibold">Colores de la app</h2>
         <p className="text-sm text-muted-foreground">Lo que ven el cliente y sus empleados. No cambia ningún dato.</p>
         <ElegirPaleta id={c.id} actual={c.paleta} />
+        <h3 className="pt-2 text-sm font-semibold">Imagen en el inicio</h3>
+        <p className="text-sm text-muted-foreground">Una silueta suave detrás del saludo, a la derecha.</p>
+        <ElegirFondo id={c.id} actual={c.fondo} />
       </section>
 
       <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
