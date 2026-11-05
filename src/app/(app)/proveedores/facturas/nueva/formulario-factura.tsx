@@ -7,6 +7,7 @@ import {
   Camera,
   CircleAlert,
   Landmark,
+  ImageIcon,
   Link2,
   PackagePlus,
   Plus,
@@ -211,6 +212,7 @@ export function FormularioFactura({
   /** Pendiente de la foto que se está uniendo a un producto (al crear o buscar). */
   const [paraPendiente, setParaPendiente] = useState<string | null>(null);
   const archivoFoto = useRef<HTMLInputElement>(null);
+  const camaraFoto = useRef<HTMLInputElement>(null);
   // Cambiarla reinicia el buscador (lo deja vacío después de crear un producto).
   const [claveBuscador, setClaveBuscador] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -535,15 +537,35 @@ export function FormularioFactura({
               onChange={leerFoto}
               aria-label="Foto de la factura"
             />
-            <Button
-              type="button"
-              size="lg"
-              className="h-14 px-6 text-lg"
-              disabled={leyendo || usadas >= fotos.limite}
-              onClick={() => archivoFoto.current?.click()}
-            >
-              <Camera /> {leyendo ? "Leyendo la factura…" : "Leer factura con foto"}
-            </Button>
+            {/* "capture" abre la cámara directo en la tablet y el celular; el otro botón deja escoger de la galería. */}
+            <input
+              ref={camaraFoto}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={leerFoto}
+              aria-label="Tomar foto de la factura"
+            />
+            <div className="flex flex-col gap-2 sm:items-end">
+              <Button
+                type="button"
+                size="lg"
+                className="h-14 px-6 text-lg"
+                disabled={leyendo || usadas >= fotos.limite}
+                onClick={() => camaraFoto.current?.click()}
+              >
+                <Camera /> {leyendo ? "Leyendo la factura…" : "Tomar foto de la factura"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={leyendo || usadas >= fotos.limite}
+                onClick={() => archivoFoto.current?.click()}
+              >
+                <ImageIcon /> Elegir de la galería o PDF
+              </Button>
+            </div>
           </section>
         )}
         {leyendo && (
