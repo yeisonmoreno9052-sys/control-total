@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { detalleDeCierre } from "@/lib/datos/caja";
+import { turnosDeCaja } from "@/lib/datos/turnos";
 import { formatearDia, formatearFecha, formatearHora, formatearPesos } from "@/lib/formato";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
@@ -29,6 +30,7 @@ async function Cierre({ params, searchParams }: PageProps<"/cierre/[id]">) {
   const c = await detalleDeCierre(ctx, id);
   if (!c) notFound();
   const r = c.resumen;
+  const { turnos, diferenciaUltimo } = await turnosDeCaja(ctx, id);
   const cerrada = c.estado === "CERRADA";
   const esperado = cerrada && c.esperado !== null ? c.esperado : r.esperado;
 
@@ -74,6 +76,28 @@ async function Cierre({ params, searchParams }: PageProps<"/cierre/[id]">) {
               <span>{!c.diferencia ? "Cuadra" : c.diferencia < 0 ? "Faltó" : "Sobró"}</span>
               <span>{formatearPesos(Math.abs(c.diferencia ?? 0))}</span>
             </div>
+          </>
+        )}
+
+        {turnos.length > 0 && (
+          <>
+            <Separador />
+            <p className="font-bold">Cambios de turno</p>
+            {turnos.map((t) => (
+              <div key={t.id}>
+                <p>
+                  {t.cajera} · {formatearHora(t.creadoEn)}
+                </p>
+                <Fila nombre={`Esperado ${formatearPesos(t.esperado)} · contó`} valor={t.contado} />
+                <Fila nombre={t.diferencia === 0 ? "Cuadró" : t.diferencia < 0 ? "Faltó" : "Sobró"} valor={Math.abs(t.diferencia)} />
+              </div>
+            ))}
+            {diferenciaUltimo !== null && (
+              <Fila
+                nombre={`Último turno: ${diferenciaUltimo === 0 ? "cuadró" : diferenciaUltimo < 0 ? "faltó" : "sobró"}`}
+                valor={Math.abs(diferenciaUltimo)}
+              />
+            )}
           </>
         )}
 

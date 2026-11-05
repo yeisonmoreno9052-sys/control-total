@@ -84,6 +84,7 @@ model Empresa {
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
   abonosCredito      AbonoCredito[]
+  turnosCaja         TurnoCaja[]
   adjuntosFactura    AdjuntoFactura[]
   fotosProducto      FotoProducto[]
   movimientosCaja    MovimientoCaja[]
@@ -138,6 +139,7 @@ model Negocio {
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
   abonosCredito      AbonoCredito[]
+  turnosCaja         TurnoCaja[]
   adjuntosFactura    AdjuntoFactura[]
   fotosProducto      FotoProducto[]
   movimientosCaja    MovimientoCaja[]
@@ -158,6 +160,8 @@ model Usuario {
   activo                Boolean   @default(true)
   /// Solo para cajeros: puede crear y editar productos (sin ver costos).
   puedeCrearProductos   Boolean   @default(false)
+  /// Cajero que puede anotar gastos pagados con plata de la caja (sin ver reportes ni utilidades).
+  puedeRegistrarGastos  Boolean   @default(false)
   /// Contraseña temporal puesta por el administrador: debe cambiarla al entrar.
   debeCambiarContrasena Boolean   @default(false)
   /// Intentos fallidos seguidos; al llegar a 5 se bloquea 15 minutos.
@@ -183,6 +187,7 @@ model Usuario {
   abonosAnulados          AbonoFactura[]         @relation("AbonoAnulador")
   abonosCredito           AbonoCredito[]         @relation("AbonoCreditoRegistro")
   abonosCreditoAnulados   AbonoCredito[]         @relation("AbonoCreditoAnulador")
+  turnosCaja              TurnoCaja[]
   movimientosCaja         MovimientoCaja[]       @relation("MovimientoCajaRegistro")
   movimientosCajaAnulados MovimientoCaja[]       @relation("MovimientoCajaAnulador")
   adjuntosFactura         AdjuntoFactura[]
@@ -462,6 +467,7 @@ model Caja {
   abonosFactura AbonoFactura[]
   abonosCredito AbonoCredito[]
   movimientos   MovimientoCaja[]
+  turnos        TurnoCaja[]
 
   @@unique([negocioId, fecha])
   @@index([empresaId])
@@ -899,5 +905,29 @@ model AbonoCredito {
 
   @@index([empresaId])
   @@index([negocioId, clienteId])
+  @@index([cajaId])
+}
+
+/// Cambio de turno: la cajera que se va cuenta el efectivo sin cerrar la caja del día.
+/// diferencia es solo la de su turno (ya descuenta lo que faltó o sobró en turnos anteriores).
+model TurnoCaja {
+  id         String   @id @default(cuid())
+  empresaId  String
+  negocioId  String
+  cajaId     String
+  usuarioId  String
+  /// Efectivo que debía haber en la caja al momento del cambio (acumulado del día).
+  esperado   Int
+  contado    Int
+  diferencia Int
+  nota       String?
+  creadoEn   DateTime @default(now())
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+  caja    Caja    @relation(fields: [cajaId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId])
   @@index([cajaId])
 }

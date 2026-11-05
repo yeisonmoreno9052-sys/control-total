@@ -6,7 +6,7 @@
 // - El retiro del dueño se ve en la caja pero no es un gasto del negocio (no baja la utilidad).
 import type { CategoriaMovimientoCaja, MedioPago, TipoMovimientoCaja } from "@/generated/prisma/enums";
 import { diaEnBogota } from "@/lib/formato";
-import { exigirGestion } from "@/lib/permisos";
+import { exigirGestion, puedeAnotarGastos, puedeGestionar } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import { cajaAbiertaDeHoy } from "./caja";
 import { prisma } from "./cliente";
@@ -52,10 +52,17 @@ export async function registrarMovimientoCaja(
   negocioId: string,
   entrada: EntradaMovimientoCaja,
 ): Promise<Resultado<{ id: string }>> {
-  exigirGestion(ctx);
+  if (!puedeAnotarGastos(ctx)) exigirGestion(ctx);
   exigirNegocioPermitido(ctx, negocioId);
   const categoria = CATEGORIAS_CAJA[entrada.categoria];
   if (!categoria) return { ok: false, error: "Elige una categoría.", campos: { categoria: "Elige una." } };
+  // El cajero con permiso solo anota gastos en efectivo que salen hoy de la caja.
+  if (!puedeGestionar(ctx)) {
+    if (!categoria.gasto || categoria.tipo !== "EGRESO") return { ok: false, error: "Elige una categoría de gasto." };
+    if (entrada.medio !== "EFECTIVO" || !entrada.desdeCaja || entrada.fecha !== diaEnBogota()) {
+      return { ok: false, error: "Solo puedes anotar gastos de hoy pagados con plata de la caja." };
+    }
+  }
   if (!Number.isInteger(entrada.valor) || entrada.valor <= 0) {
     return { ok: false, error: "Escribe el valor.", campos: { valor: "Debe ser mayor que cero." } };
   }

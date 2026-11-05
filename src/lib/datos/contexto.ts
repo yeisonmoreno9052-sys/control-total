@@ -16,6 +16,8 @@ export type Contexto = {
   debeCambiarContrasena: boolean;
   /** Cajero con permiso para crear y editar productos. Para administrador y socio no importa. */
   puedeCrearProductos: boolean;
+  /** Cajero con permiso para anotar gastos pagados con plata de la caja. */
+  puedeRegistrarGastos: boolean;
 };
 
 /**
@@ -57,5 +59,6 @@ export async function cargarContexto(usuarioId: string): Promise<Contexto | null
     versionSesion: usuario.versionSesion,
     debeCambiarContrasena: usuario.debeCambiarContrasena,
     puedeCrearProductos: usuario.rol === "CAJERO" && usuario.puedeCrearProductos,
+    puedeRegistrarGastos: usuario.rol === "CAJERO" && usuario.puedeRegistrarGastos,
   };
 }

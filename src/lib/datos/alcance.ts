@@ -53,7 +53,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja", "accionesEmy",
-      "lecturasFactura", "fotosProducto", "abonosCredito",
+      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja",
     ],
   },
   Negocio: {
@@ -63,7 +63,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
-      "lecturasFactura", "fotosProducto", "abonosCredito",
+      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja",
     ],
   },
   Usuario: {
@@ -73,7 +73,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "negocios", "movimientos", "auditorias",
       "ventas", "ventasAnuladas", "devoluciones", "cajasAbiertas", "cajasCerradas",
       "facturasCompra", "facturasAnuladas", "abonosFactura", "abonosAnulados", "adjuntosFactura", "movimientosCaja", "movimientosCajaAnulados",
-      "accionesEmy", "lecturasFactura", "abonosCredito", "abonosCreditoAnulados",
+      "accionesEmy", "lecturasFactura", "abonosCredito", "abonosCreditoAnulados", "turnosCaja",
     ],
   },
   UsuarioNegocio: {
@@ -115,7 +115,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Caja: {
     filtro: deNegocios,
     alCrear: null,
-    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura", "abonosCredito", "movimientos"],
+    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura", "abonosCredito", "movimientos", "turnos"],
     porNegocio: true,
     soloLectura: true,
   },
@@ -197,6 +197,14 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "cliente", "usuario", "anuladoPor", "caja"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  // Cambios de turno: solo se escriben desde turnos.ts.
+  TurnoCaja: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "caja", "usuario"],
     porNegocio: true,
     soloLectura: true,
   },

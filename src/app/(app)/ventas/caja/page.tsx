@@ -13,6 +13,7 @@ import { describirPeriodo, periodoDeParametros } from "@/lib/reportes/periodos";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 import { BotonReabrir } from "../abrir-caja";
+import { turnosDeCaja, type TurnoVista } from "@/lib/datos/turnos";
 import { CerrarCaja } from "./cerrar";
 
 export const metadata: Metadata = { title: "Cierre de caja · Control Total" };
@@ -25,28 +26,73 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
   const negocioId = ctx.negocioActivoId;
   const gestiona = puedeGestionar(ctx);
   const { hoy, pendiente } = await estadoDeCaja(ctx, negocioId);
-  const periodo = periodoDeParametros(await searchParams, "mes");
+  const sp = await searchParams;
+  const periodo = periodoDeParametros(sp, "mes");
   // Primero la que quedó abierta de otro día; si no, la de hoy.
   const porCerrar = pendiente ?? (hoy?.estado === "ABIERTA" ? hoy : null);
-  const [resumen, cierres] = await Promise.all([
+  // El cambio de turno es solo en la caja de hoy (la de otro día se cierra).
+  const modoTurno = sp.turno === "1" && !pendiente && !!porCerrar;
+  const [resumen, cierres, deTurnos] = await Promise.all([
     porCerrar && gestiona ? verResumenDeCaja(ctx, porCerrar.id) : null,
     gestiona ? listarCierres(ctx, negocioId, periodo) : [],
+    porCerrar ? turnosDeCaja(ctx, porCerrar.id) : { turnos: [], diferenciaUltimo: null },
   ]);
+  const yaDiferencias = deTurnos.turnos.reduce((a, t) => a + t.diferencia, 0);
   const hoyFecha = fechaDeHoy().getTime();
 
   return (
     <div className="space-y-8">
       <EncabezadoPagina
-        titulo="Cierre de caja"
+        titulo={modoTurno ? "Cambio de turno" : "Cierre de caja"}
         volver={{ href: "/ventas", texto: "Volver a la caja" }}
         subtitulo={
           porCerrar ? `Caja del ${formatearDia(porCerrar.fecha)}, abierta a las ${formatearHora(porCerrar.abiertaEn)}` : undefined
         }
       />
 
+      {porCerrar && !pendiente && (
+        <div className="grid max-w-md grid-cols-2 gap-1 rounded-xl border bg-card p-1 shadow-suave" role="tablist">
+          <Link
+            href="/ventas/caja?turno=1"
+            role="tab"
+            aria-selected={modoTurno}
+            className={cn(
+              "rounded-lg px-3 py-2.5 text-center font-medium",
+              modoTurno ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+            )}
+          >
+            Cambio de turno
+          </Link>
+          <Link
+            href="/ventas/caja"
+            role="tab"
+            aria-selected={!modoTurno}
+            className={cn(
+              "rounded-lg px-3 py-2.5 text-center font-medium",
+              !modoTurno ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+            )}
+          >
+            Cerrar caja del día
+          </Link>
+        </div>
+      )}
+
       {porCerrar ? (
         <div className="grid gap-6 md:grid-cols-2">
-          <CerrarCaja cajaId={porCerrar.id} esperado={resumen?.esperado ?? null} />
+          <div className="space-y-3">
+            <p className="text-muted-foreground">
+              {modoTurno
+                ? "Cuenta la plata del cajón cuando entregas la caja a otra cajera. La caja sigue abierta."
+                : "Al final del día: cuenta la plata del cajón y cierra la caja."}
+            </p>
+            <CerrarCaja
+              key={modoTurno ? "turno" : "cierre"}
+              cajaId={porCerrar.id}
+              esperado={resumen?.esperado ?? null}
+              turno={modoTurno}
+              diferenciasAnteriores={yaDiferencias}
+            />
+          </div>
           {resumen && (
             <dl className="space-y-2 self-start rounded-2xl border p-6 text-sm bg-card shadow-suave">
               <Fila nombre="Base" valor={resumen.base} />
@@ -68,6 +114,7 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
                 {formatearPesos(resumen.ventasTransferencia + resumen.abonosTransferencia)} (no están en la caja)
                 {!!resumen.ventasCredito && <> · Fiado {formatearPesos(resumen.ventasCredito)}</>}
               </p>
+              {deTurnos.turnos.length > 0 && <TurnosDelDia turnos={deTurnos.turnos} />}
             </dl>
           )}
         </div>
@@ -159,6 +206,31 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+function TurnosDelDia({ turnos }: { turnos: TurnoVista[] }) {
+  return (
+    <div className="space-y-2 border-t pt-3">
+      <p className="font-medium">Cambios de turno de hoy</p>
+      {turnos.map((t) => (
+        <div key={t.id} className="flex justify-between gap-3">
+          <span className="text-muted-foreground">
+            {t.cajera} · {formatearHora(t.creadoEn)} · contó {formatearPesos(t.contado)}
+          </span>
+          <span
+            className={cn(
+              "font-medium tabular-nums",
+              t.diferencia < 0 && "text-destructive",
+              t.diferencia > 0 && "text-amber-700 dark:text-amber-400",
+            )}
+          >
+            {t.diferencia === 0 ? "Cuadró" : t.diferencia < 0 ? `Faltó ${formatearPesos(-t.diferencia)}` : `Sobró ${formatearPesos(t.diferencia)}`}
+          </span>
+        </div>
+      ))}
+      <p className="text-xs text-muted-foreground">Al cerrar, la diferencia que quede es del último turno.</p>
     </div>
   );
 }

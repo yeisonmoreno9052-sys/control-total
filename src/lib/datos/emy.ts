@@ -607,6 +607,7 @@ export async function empezarDeCero(
         await tx.detalleFacturaCompra.deleteMany({ where: w });
         await tx.facturaCompra.deleteMany({ where: w });
         await tx.movimientoCaja.deleteMany({ where: w });
+        await tx.turnoCaja.deleteMany({ where: w });
         await tx.caja.deleteMany({ where: w });
         await tx.movimientoInventario.deleteMany({ where: w });
         // El historial de usuarios y permisos se queda; el de productos y ventas de prueba no.
