@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HandCoins, History, Lock, Store, TriangleAlert, Wallet } from "lucide-react";
+import { HandCoins, History, Lock, Receipt, Users, Store, TriangleAlert, Wallet } from "lucide-react";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Button } from "@/components/ui/button";
 import { estadoDeCaja } from "@/lib/datos/caja";
@@ -8,7 +8,7 @@ import { negocioPermiteCredito } from "@/lib/datos/creditos";
 import { botonesRapidos } from "@/lib/datos/productos";
 import { formatearDia, formatearPesos } from "@/lib/formato";
 import { exigirModulo } from "@/lib/modulos";
-import { puedeGestionar } from "@/lib/permisos";
+import { puedeAnotarGastos, puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { AbrirCaja, BotonReabrir } from "./abrir-caja";
 import { CajaCliente } from "./caja-cliente";
@@ -38,6 +38,20 @@ export default async function Ventas() {
           <History /> Historial
         </Link>
       </Button>
+      {hoy?.estado === "ABIERTA" && !pendiente && puedeAnotarGastos(ctx) && (
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/ventas/gasto">
+            <Receipt /> Anotar gasto
+          </Link>
+        </Button>
+      )}
+      {hoy?.estado === "ABIERTA" && !pendiente && (
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/ventas/caja?turno=1">
+            <Users /> Cambio de turno
+          </Link>
+        </Button>
+      )}
       {(hoy?.estado === "ABIERTA" || pendiente) && (
         <Button asChild variant="ghost" size="sm">
           <Link href="/ventas/caja">

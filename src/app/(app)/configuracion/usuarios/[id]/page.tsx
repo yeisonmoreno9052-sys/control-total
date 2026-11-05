@@ -30,6 +30,7 @@ export default async function EditarUsuario({ params }: PageProps<"/configuracio
           rol: usuario.rol,
           negocios: usuario.rol === "ADMINISTRADOR" ? [] : usuario.negocios.map((n) => n.id),
           puedeCrearProductos: usuario.puedeCrearProductos,
+          puedeRegistrarGastos: usuario.puedeRegistrarGastos,
         }}
         roles={OPCIONES_ROL}
         negocios={negocios.map((n) => ({ id: n.id, nombre: n.nombre }))}

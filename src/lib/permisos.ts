@@ -28,6 +28,14 @@ export function exigirEdicionProductos(ctx: Pick<Contexto, "rol" | "puedeCrearPr
   if (!puedeEditarProductos(ctx)) throw new AccesoDenegado("no tienes permiso para crear o editar productos");
 }
 
+/**
+ * Anotar gastos que salen de la caja: quien gestiona, o un cajero con el permiso
+ * "Puede registrar gastos". El cajero solo anota gastos en efectivo de hoy y no ve reportes.
+ */
+export function puedeAnotarGastos(ctx: Pick<Contexto, "rol" | "puedeRegistrarGastos">) {
+  return puedeGestionar(ctx) || (ctx.rol === "CAJERO" && ctx.puedeRegistrarGastos);
+}
+
 export function exigirGestion(ctx: Pick<Contexto, "rol">) {
   exigirRol(ctx, ["ADMINISTRADOR", "SOCIO"]);
 }

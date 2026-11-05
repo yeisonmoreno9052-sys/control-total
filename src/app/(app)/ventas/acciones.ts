@@ -9,6 +9,10 @@ import { obtenerDatosNegocio } from "@/lib/datos/negocios";
 import { buscarParaVenta, productosParaVenta } from "@/lib/datos/productos";
 import { anularVenta, obtenerVenta, registrarDevolucion, registrarVenta } from "@/lib/datos/ventas";
 import { subirVentaSinConexion } from "@/lib/datos/ventas-sin-conexion";
+import { entregarTurno } from "@/lib/datos/turnos";
+import { CATEGORIAS_CAJA, CATEGORIAS_GASTO, registrarMovimientoCaja } from "@/lib/datos/movimientos-caja";
+import type { CategoriaMovimientoCaja } from "@/generated/prisma/enums";
+import { diaEnBogota, formatearPesos } from "@/lib/formato";
 import { leerPesos } from "@/lib/inventario/esquemas";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
@@ -167,6 +171,37 @@ export async function cerrarCajaAccion(_: EstadoAccion, formulario: FormData): P
   // Sin revalidar aquí: la página se volvería a dibujar sin caja abierta y se perdería
   // el mensaje de "Caja cerrada". Al tocar "Listo" se carga la pantalla de ventas al día.
   return { ok: true, mensaje: r.diferencia === null ? undefined : String(r.diferencia) };
+}
+
+export async function entregarTurnoAccion(_: EstadoAccion, formulario: FormData): Promise<EstadoAccion> {
+  const ctx = await contextoVentas();
+  const contado = leerPesos(String(formulario.get("contado") ?? ""));
+  if (contado === null || contado < 0)
+    return { error: "Escribe cuánto efectivo contaste.", campos: { contado: "Revisa el valor." } };
+  const r = await entregarTurno(ctx, String(formulario.get("cajaId") ?? ""), contado, String(formulario.get("nota") ?? ""));
+  if (!r.ok) return { error: r.error, campos: r.campos };
+  return { ok: true, mensaje: r.diferencia === null ? undefined : String(r.diferencia) };
+}
+
+/** Gasto pagado hoy con plata de la caja (administrador, socio o cajero con permiso). */
+export async function anotarGastoAccion(_: EstadoAccion, formulario: FormData): Promise<EstadoAccion> {
+  const { ctx, negocioId } = await negocioActivo();
+  const categoria = z.enum(CATEGORIAS_GASTO as [CategoriaMovimientoCaja, ...CategoriaMovimientoCaja[]]).safeParse(formulario.get("categoria"));
+  if (!categoria.success) return { error: "Elige qué se pagó." };
+  const valor = leerPesos(String(formulario.get("valor") ?? ""));
+  if (!valor || valor <= 0) return { error: "Escribe cuánto se pagó.", campos: { valor: "Revisa el valor." } };
+  const r = await registrarMovimientoCaja(ctx, negocioId, {
+    categoria: categoria.data,
+    valor,
+    medio: "EFECTIVO",
+    fecha: diaEnBogota(),
+    pagadoA: String(formulario.get("pagadoA") ?? "").slice(0, 80),
+    nota: String(formulario.get("nota") ?? "").slice(0, 300),
+    desdeCaja: true,
+  });
+  if (!r.ok) return { error: r.error, campos: r.campos };
+  revalidatePath("/caja");
+  return { ok: true, mensaje: `${CATEGORIAS_CAJA[categoria.data].nombre}: ${formatearPesos(valor)}, salió de la caja de hoy.` };
 }
 
 export async function reabrirCajaAccion(cajaId: string): Promise<EstadoAccion> {

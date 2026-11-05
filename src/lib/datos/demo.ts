@@ -222,6 +222,7 @@ async function prepararEmpresa() {
       versionSesion: 0,
       debeCambiarContrasena: false,
       puedeCrearProductos: false,
+      puedeRegistrarGastos: false,
     });
     const [ua, uc] = USUARIOS_DEMO;
     await tx.usuarioNegocio.deleteMany({ where: { empresaId: empresa.id } });
@@ -259,6 +260,7 @@ async function borrarDatos(empresaId: string) {
       await tx.detalleFacturaCompra.deleteMany({ where: w });
       await tx.facturaCompra.deleteMany({ where: w });
       await tx.movimientoCaja.deleteMany({ where: w });
+      await tx.turnoCaja.deleteMany({ where: w });
       await tx.caja.deleteMany({ where: w });
       await tx.movimientoInventario.deleteMany({ where: w });
       await tx.auditoria.deleteMany({ where: w });

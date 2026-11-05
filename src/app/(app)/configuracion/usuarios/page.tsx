@@ -69,6 +69,7 @@ export default async function Usuarios({ searchParams }: PageProps<"/configuraci
                   {u.activo && u.bloqueado && <Badge variant="destructive">Bloqueado</Badge>}
                   {u.activo && u.debeCambiarContrasena && <Badge variant="aviso">Contraseña temporal</Badge>}
                   {u.puedeCrearProductos && <Badge variant="secondary">Crea productos</Badge>}
+                  {u.puedeRegistrarGastos && <Badge variant="secondary">Anota gastos</Badge>}
                 </p>
                 <p className="truncate text-sm text-muted-foreground">
                   {u.usuario} · {ROLES[u.rol as RolEmpresa]?.nombre ?? u.rol} ·{" "}

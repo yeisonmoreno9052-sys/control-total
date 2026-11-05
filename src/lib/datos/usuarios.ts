@@ -34,6 +34,8 @@ export type UsuarioVista = {
   negocios: { id: string; nombre: string }[];
   /** Cajero que puede crear y editar productos. */
   puedeCrearProductos: boolean;
+  /** Cajero que puede anotar gastos de la caja. */
+  puedeRegistrarGastos: boolean;
   debeCambiarContrasena: boolean;
   bloqueado: boolean;
 };
@@ -51,6 +53,7 @@ export async function listarUsuarios(ctx: Contexto, ahora = new Date()): Promise
         rol: true,
         activo: true,
         puedeCrearProductos: true,
+        puedeRegistrarGastos: true,
         debeCambiarContrasena: true,
         bloqueadoHasta: true,
       },
@@ -66,6 +69,7 @@ export async function listarUsuarios(ctx: Contexto, ahora = new Date()): Promise
     rol: u.rol,
     activo: u.activo,
     puedeCrearProductos: u.rol === "CAJERO" && u.puedeCrearProductos,
+    puedeRegistrarGastos: u.rol === "CAJERO" && u.puedeRegistrarGastos,
     debeCambiarContrasena: u.debeCambiarContrasena,
     bloqueado: !!u.bloqueadoHasta && u.bloqueadoHasta > ahora,
     negocios:
@@ -91,6 +95,7 @@ const datosBase = {
   negocios: z.array(z.string().min(1)).max(50),
   /** Solo cuenta para cajeros. */
   puedeCrearProductos: z.boolean().default(false),
+  puedeRegistrarGastos: z.boolean().default(false),
 };
 
 export const esquemaNuevoUsuario = z.object({
@@ -163,6 +168,7 @@ export async function crearUsuario(ctx: Contexto, entrada: unknown): Promise<Res
           nombre: d.nombre,
           rol: d.rol,
           puedeCrearProductos: d.rol === "CAJERO" && d.puedeCrearProductos,
+          puedeRegistrarGastos: d.rol === "CAJERO" && d.puedeRegistrarGastos,
           hashContrasena: hash,
           debeCambiarContrasena: true,
         },
@@ -183,6 +189,7 @@ export async function crearUsuario(ctx: Contexto, entrada: unknown): Promise<Res
           rol: d.rol,
           negocios: await nombresNegocios(tx, ctx, negocios),
           puedeCrearProductos: d.rol === "CAJERO" && d.puedeCrearProductos,
+          puedeRegistrarGastos: d.rol === "CAJERO" && d.puedeRegistrarGastos,
         },
       });
       return u.id;
@@ -214,7 +221,11 @@ export async function editarUsuario(ctx: Contexto, id: string, entrada: unknown)
       }
       const antes = await tx.usuarioNegocio.findMany({ where: { usuarioId: id }, select: { negocioId: true } });
       const creaProductos = d.rol === "CAJERO" && d.puedeCrearProductos;
-      await tx.usuario.update({ where: { id }, data: { nombre: d.nombre, rol: d.rol, puedeCrearProductos: creaProductos } });
+      const anotaGastos = d.rol === "CAJERO" && d.puedeRegistrarGastos;
+      await tx.usuario.update({
+        where: { id },
+        data: { nombre: d.nombre, rol: d.rol, puedeCrearProductos: creaProductos, puedeRegistrarGastos: anotaGastos },
+      });
       await tx.usuarioNegocio.deleteMany({ where: { usuarioId: id } });
       if (negocios.length) {
         await tx.usuarioNegocio.createMany({
@@ -234,12 +245,14 @@ export async function editarUsuario(ctx: Contexto, id: string, entrada: unknown)
             rol: u.rol,
             negocios: await nombresNegocios(tx, ctx, negociosAntes),
             puedeCrearProductos: u.rol === "CAJERO" && u.puedeCrearProductos,
+            puedeRegistrarGastos: u.rol === "CAJERO" && u.puedeRegistrarGastos,
           },
           despues: {
             nombre: d.nombre,
             rol: d.rol,
             negocios: await nombresNegocios(tx, ctx, negocios),
             puedeCrearProductos: creaProductos,
+            puedeRegistrarGastos: anotaGastos,
           },
         },
       });

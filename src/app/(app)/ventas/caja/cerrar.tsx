@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, CloudOff, RefreshCw } from "lucide-react";
+import { CheckCircle2, CloudOff, LogOut, RefreshCw } from "lucide-react";
 import { useConexion } from "@/components/sin-conexion/conexion";
 import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,26 @@ import { CampoPesos } from "@/components/ventas/campo-pesos";
 import { TecladoNumerico } from "@/components/ventas/teclado-numerico";
 import { formatearPesos } from "@/lib/formato";
 import { cn } from "@/lib/utils";
-import { cerrarCajaAccion, type EstadoAccion } from "../acciones";
+import { cerrarCajaAccion, entregarTurnoAccion, type EstadoAccion } from "../acciones";
 
 /**
  * Cierre: se cuenta el efectivo y se escribe. El cajero cierra a ciegas (no ve
  * cuánto debería haber); quien gestiona ve lo esperado y la diferencia.
  */
-export function CerrarCaja({ cajaId, esperado }: { cajaId: string; esperado: number | null }) {
-  const [estado, accion, cerrando] = useActionState<EstadoAccion, FormData>(cerrarCajaAccion, {});
+export function CerrarCaja({
+  cajaId,
+  esperado,
+  turno = false,
+  diferenciasAnteriores = 0,
+}: {
+  cajaId: string;
+  esperado: number | null;
+  /** Cambio de turno: se cuenta sin cerrar la caja del día. */
+  turno?: boolean;
+  /** Lo que ya faltó o sobró en turnos anteriores de hoy (solo para quien gestiona). */
+  diferenciasAnteriores?: number;
+}) {
+  const [estado, accion, cerrando] = useActionState<EstadoAccion, FormData>(turno ? entregarTurnoAccion : cerrarCajaAccion, {});
   const [contado, setContado] = useState<number | null>(null);
   const { pendientes, negocioId, enLinea, subiendo, subirPendientes } = useConexion();
   const sinSubir = pendientes.filter((v) => v.negocioId === negocioId).length;
@@ -34,15 +46,28 @@ export function CerrarCaja({ cajaId, esperado }: { cajaId: string; esperado: num
     return (
       <div className="space-y-4 rounded-2xl border bg-card p-6 text-center">
         <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
-        <p className="text-xl font-semibold">Caja cerrada</p>
+        <p className="text-xl font-semibold">{turno ? "Turno entregado" : "Caja cerrada"}</p>
         {diferencia !== null ? (
           <Diferencia valor={diferencia} />
         ) : (
           <p className="text-muted-foreground">Quedó registrado lo que contaste. El administrador revisa el cuadre.</p>
         )}
-        <Button asChild size="lg">
-          <Link href="/ventas">Listo</Link>
-        </Button>
+        {turno && (
+          <p className="text-muted-foreground">La caja sigue abierta. Sal de tu usuario para que entre la siguiente cajera.</p>
+        )}
+        <div className="flex flex-wrap justify-center gap-2">
+          {turno && (
+            <Button asChild size="lg">
+              {/* Enlace normal, no <Link>: así nunca se precarga (precargar /salir cerraría la sesión). */}
+              <a href="/salir">
+                <LogOut /> Salir de mi usuario
+              </a>
+            </Button>
+          )}
+          <Button asChild size="lg" variant={turno ? "outline" : "default"}>
+            <Link href="/ventas">{turno ? "Seguir en la caja" : "Listo"}</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -57,8 +82,8 @@ export function CerrarCaja({ cajaId, esperado }: { cajaId: string; esperado: num
         </p>
         <p className="text-muted-foreground">
           {enLinea
-            ? "Hay que subirlas antes de cerrar la caja, para que el efectivo cuadre. Si alguna tiene un problema, aparece en la franja roja de arriba."
-            : "Cuando vuelva el internet se suben solas y podrás cerrar la caja."}
+            ? "Hay que subirlas antes de contar la plata, para que el efectivo cuadre. Si alguna tiene un problema, aparece en la franja roja de arriba."
+            : "Cuando vuelva el internet se suben solas y podrás contar la plata."}
         </p>
         <Button size="lg" disabled={!enLinea || subiendo} onClick={() => subirPendientes()}>
           <RefreshCw className={subiendo ? "animate-spin" : undefined} /> {subiendo ? "Subiendo…" : "Subirlas ahora"}
@@ -80,13 +105,13 @@ export function CerrarCaja({ cajaId, esperado }: { cajaId: string; esperado: num
         <CampoPesos id="contado" autoFocus valor={contado} onValor={setContado} className="h-14 text-2xl font-semibold" />
       </Campo>
       <TecladoNumerico />
-      {esperado !== null && contado !== null && <Diferencia valor={contado - esperado} />}
+      {esperado !== null && contado !== null && <Diferencia valor={contado - esperado - diferenciasAnteriores} />}
       <Campo id="nota" etiqueta="Nota (opcional)">
         <Textarea id="nota" name="nota" maxLength={300} placeholder="Ej.: faltan $ 2.000 de un cambio mal dado" />
       </Campo>
       <AvisoError mensaje={estado.error} />
       <Button type="submit" size="lg" className="h-14 w-full text-lg" disabled={cerrando || contado === null}>
-        {cerrando ? "Cerrando…" : "Cerrar caja"}
+        {cerrando ? "Guardando…" : turno ? "Entregar turno" : "Cerrar caja"}
       </Button>
     </form>
   );

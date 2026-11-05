@@ -17,6 +17,7 @@ export type UsuarioFormulario = {
   rol: string;
   negocios: string[];
   puedeCrearProductos: boolean;
+  puedeRegistrarGastos: boolean;
 };
 
 /** Contraseña temporal fácil de dictar: palabra + 4 números. */
@@ -181,6 +182,24 @@ export function FormularioUsuario({
             <span className="block font-medium">Puede crear y editar productos</span>
             <span className="block text-sm text-muted-foreground">
               Nombre, precio, foto y botón de la caja. Sigue sin ver costos ni ganancias, y no ajusta el stock.
+            </span>
+          </span>
+        </label>
+      )}
+
+      {rol === "CAJERO" && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4 shadow-suave hover:bg-muted/40">
+          <input
+            type="checkbox"
+            name="puedeRegistrarGastos"
+            defaultChecked={usuario?.puedeRegistrarGastos ?? false}
+            className="mt-0.5 size-5 shrink-0 accent-primary"
+          />
+          <span>
+            <span className="block font-medium">Puede registrar gastos</span>
+            <span className="block text-sm text-muted-foreground">
+              Anota lo que paga con plata de la caja (energía, compras para el local…) para que el cierre cuadre. No ve
+              reportes ni utilidades.
             </span>
           </span>
         </label>

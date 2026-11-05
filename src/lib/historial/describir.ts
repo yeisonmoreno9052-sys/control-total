@@ -9,7 +9,7 @@ export const GRUPOS_HISTORIAL: Record<GrupoHistorial, { nombre: string; acciones
   ventas: { nombre: "Ventas", acciones: ["ANULACION_VENTA", "DEVOLUCION_VENTA", "VENTA_SIN_CONEXION", "ABONO_CREDITO", "ANULACION_ABONO_CREDITO"] },
   inventario: { nombre: "Inventario y precios", acciones: ["CREACION_PRODUCTO", "AJUSTE_STOCK", "CAMBIO_PRECIO", "IMPORTACION"] },
   compras: { nombre: "Compras", acciones: ["REGISTRO_COMPRA", "ANULACION_COMPRA", "ANULACION_ABONO"] },
-  caja: { nombre: "Caja", acciones: ["REABRIR_CAJA", "ANULACION_MOVIMIENTO_CAJA"] },
+  caja: { nombre: "Caja", acciones: ["REABRIR_CAJA", "ANULACION_MOVIMIENTO_CAJA", "CAMBIO_TURNO"] },
   usuarios: {
     nombre: "Usuarios y contraseñas",
     acciones: [
@@ -98,6 +98,13 @@ export function describirAuditoria(
         detalle: avisos.length ? `Ojo: ${avisos.join(" y ")}.` : undefined,
       };
     }
+    case "CAMBIO_TURNO": {
+      const dif = typeof d.diferencia === "number" ? d.diferencia : 0;
+      return {
+        frase: `entregó su turno contando ${pesos(d.contado)}`,
+        detalle: dif === 0 ? "Cuadró exacto." : dif < 0 ? `Faltaron ${pesos(-dif)}.` : `Sobraron ${pesos(dif)}.`,
+      };
+    }
     case "REABRIR_CAJA":
       return {
         frase: "reabrió la caja después de cerrarla",
@@ -171,6 +178,11 @@ export function describirAuditoria(
           ? despues.puedeCrearProductos
             ? "ahora puede crear productos"
             : "ya no puede crear productos"
+          : "",
+        !!antes.puedeRegistrarGastos !== !!despues.puedeRegistrarGastos
+          ? despues.puedeRegistrarGastos
+            ? "ahora puede anotar gastos"
+            : "ya no puede anotar gastos"
           : "",
       ].filter(Boolean);
       return {
