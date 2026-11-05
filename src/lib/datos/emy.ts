@@ -600,6 +600,7 @@ export async function empezarDeCero(
         await tx.pagoVenta.deleteMany({ where: w });
         await tx.detalleVenta.deleteMany({ where: w });
         await tx.venta.deleteMany({ where: w });
+        await tx.abonoCredito.deleteMany({ where: w });
         await tx.abonoFactura.deleteMany({ where: w });
         await tx.adjuntoFactura.deleteMany({ where: w });
         await tx.lecturaFactura.deleteMany({ where: w });

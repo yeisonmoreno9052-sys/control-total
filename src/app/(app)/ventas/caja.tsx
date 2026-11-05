@@ -64,8 +64,8 @@ export function faltaStock(producto: ProductoCaja, cantidad: Decimal) {
 type Dialogo =
   | { tipo: "cantidad"; producto: ProductoCaja; nueva: boolean }
   | { tipo: "descuento"; productoId: string | null }
-  | { tipo: "cliente" }
-  | { tipo: "cobrar" }
+  | { tipo: "cliente"; paraFiar?: boolean }
+  | { tipo: "cobrar"; fiado?: boolean }
   | { tipo: "cancelar" }
   | { tipo: "dejarEnEspera" }
   | { tipo: "enEspera" }
@@ -90,7 +90,15 @@ function leerGuardado(clave: string): Guardado {
 }
 
 /** La caja solo se dibuja en el navegador (ver caja-cliente.tsx), así puede leer el carrito guardado desde el inicio. */
-export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?: BotonRapido[] }) {
+export function Caja({
+  negocioId,
+  botones = [],
+  permiteCredito = false,
+}: {
+  negocioId: string;
+  botones?: BotonRapido[];
+  permiteCredito?: boolean;
+}) {
   // Con botones rápidos (cafeterías) la caja muestra cuadros para tocar y el pedido va a un lado.
   const modoBotones = botones.length > 0;
   const clave = `carrito:${negocioId}`;
@@ -607,7 +615,9 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
         abierto={dialogo?.tipo === "cliente"}
         onElegir={(c) => {
           setCliente(c);
-          cerrarDialogo();
+          // Si lo estaba eligiendo para fiar, vuelve a cobrar con "Fiado" marcado.
+          if (dialogo?.tipo === "cliente" && dialogo.paraFiar) setDialogo({ tipo: "cobrar", fiado: true });
+          else cerrarDialogo();
         }}
         onCerrar={cerrarDialogo}
       />
@@ -660,6 +670,9 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
         descuentoGeneral={descuentoGeneral}
         cliente={cliente}
         total={t?.total ?? 0}
+        permiteCredito={permiteCredito}
+        formaInicial={dialogo?.tipo === "cobrar" && dialogo.fiado ? "credito" : undefined}
+        onElegirCliente={() => setDialogo({ tipo: "cliente", paraFiar: true })}
         onVendida={limpiar}
         onPreciosCambiaron={() => actualizarPrecios(lineas)}
         onCerrar={cerrarDialogo}

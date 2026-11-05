@@ -20,7 +20,7 @@ export function telefonoWhatsApp(telefono: string | null | undefined) {
   return null;
 }
 
-export const NOMBRE_MEDIO = { EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia" } as const;
+export const NOMBRE_MEDIO = { EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", CREDITO: "Crédito (fiado)" } as const;
 
 export type VentaParaRecibo = {
   consecutivo: number;
@@ -34,7 +34,13 @@ export type VentaParaRecibo = {
 };
 
 /** Recibo en texto plano para mandar por WhatsApp. */
-export function textoWhatsApp(venta: VentaParaRecibo, nombreNegocio: string, mensaje?: string | null) {
+export function textoWhatsApp(
+  venta: VentaParaRecibo,
+  nombreNegocio: string,
+  mensaje?: string | null,
+  /** Lo que debe el cliente hoy, si la venta fue fiada. */
+  saldoPendiente?: number | null,
+) {
   const lineas = [
     `*${nombreNegocio}*`,
     `Recibo Nº ${formatearConsecutivo(venta.consecutivo)} · ${formatearFecha(venta.creadoEn)} ${formatearHora(venta.creadoEn)}`,
@@ -49,6 +55,7 @@ export function textoWhatsApp(venta: VentaParaRecibo, nombreNegocio: string, men
     `*Total: ${formatearPesos(venta.total)}*`,
     ...venta.pagos.map((p) => `${NOMBRE_MEDIO[p.medio]}: ${formatearPesos(p.valor)}`),
     venta.cambio ? `Cambio: ${formatearPesos(venta.cambio)}` : null,
+    saldoPendiente && saldoPendiente > 0 ? `*Saldo pendiente: ${formatearPesos(saldoPendiente)}*` : null,
     mensaje ? `\n${mensaje}` : null,
   ];
   return lineas.filter((l) => l !== null).join("\n");

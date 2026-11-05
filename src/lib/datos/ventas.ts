@@ -124,6 +124,11 @@ export async function registrarVenta(
     });
     if (!cliente) return { ok: false, error: "No encontramos ese cliente en este negocio." };
   }
+  if (entrada.pago.forma === "credito") {
+    if (!entrada.clienteId) return { ok: false, error: "Para fiar, elige a quién le fías." };
+    const negocio = await datosDe(ctx).negocio.findFirst({ where: { id: negocioId }, select: { permiteCredito: true } });
+    if (!negocio?.permiteCredito) return { ok: false, error: "Este negocio no tiene activadas las ventas a crédito." };
+  }
 
   try {
     return await prisma.$transaction(
@@ -352,6 +357,9 @@ export async function registrarDevolucion(
   });
   if (!venta) return { ok: false, error: "No encontramos esa venta." };
   if (venta.estado === "ANULADA") return { ok: false, error: "Esta venta está anulada." };
+  // Una venta fiada no devuelve plata: lo devuelto se descuenta de la deuda del cliente.
+  const fiada = await datosDe(ctx).pagoVenta.count({ where: { ventaId: venta.id, medio: "CREDITO" } });
+  const medio: MedioPago = fiada ? "CREDITO" : entrada.medio === "CREDITO" ? "EFECTIVO" : entrada.medio;
 
   try {
     await exigirPermisoSobreVenta(ctx, venta);
@@ -401,7 +409,7 @@ export async function registrarDevolucion(
           usuarioId: ctx.usuarioId,
           consecutivo,
           motivo: motivo.slice(0, 300),
-          medio: entrada.medio,
+          medio,
           base: lineas.reduce((a, l) => a + l.base, 0),
           iva: lineas.reduce((a, l) => a + l.iva, 0),
           total,
@@ -442,7 +450,7 @@ export async function registrarDevolucion(
         accion: "DEVOLUCION_VENTA",
         entidad: "Venta",
         entidadId: venta.id,
-        detalle: { venta: venta.consecutivo, devolucion: consecutivo, total, medio: entrada.medio, motivo },
+        detalle: { venta: venta.consecutivo, devolucion: consecutivo, total, medio, motivo },
       });
       return { ok: true as const, id: devolucion.id, consecutivo, total };
     });

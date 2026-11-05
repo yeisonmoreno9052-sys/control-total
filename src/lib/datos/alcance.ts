@@ -53,7 +53,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja", "accionesEmy",
-      "lecturasFactura", "fotosProducto",
+      "lecturasFactura", "fotosProducto", "abonosCredito",
     ],
   },
   Negocio: {
@@ -63,7 +63,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
-      "lecturasFactura", "fotosProducto",
+      "lecturasFactura", "fotosProducto", "abonosCredito",
     ],
   },
   Usuario: {
@@ -73,7 +73,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "negocios", "movimientos", "auditorias",
       "ventas", "ventasAnuladas", "devoluciones", "cajasAbiertas", "cajasCerradas",
       "facturasCompra", "facturasAnuladas", "abonosFactura", "abonosAnulados", "adjuntosFactura", "movimientosCaja", "movimientosCajaAnulados",
-      "accionesEmy", "lecturasFactura",
+      "accionesEmy", "lecturasFactura", "abonosCredito", "abonosCreditoAnulados",
     ],
   },
   UsuarioNegocio: {
@@ -107,7 +107,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Cliente: {
     filtro: deNegocios,
     alCrear: deEmpresa,
-    relaciones: ["empresa", "negocio", "ventas"],
+    relaciones: ["empresa", "negocio", "ventas", "abonos"],
     porNegocio: true,
   },
   // Cajas, ventas y devoluciones solo se escriben desde ventas.ts y caja.ts,
@@ -115,7 +115,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Caja: {
     filtro: deNegocios,
     alCrear: null,
-    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura", "movimientos"],
+    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura", "abonosCredito", "movimientos"],
     porNegocio: true,
     soloLectura: true,
   },
@@ -189,6 +189,14 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "factura", "usuario", "anuladoPor", "caja"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  // Abonos de clientes a sus créditos: solo se escriben desde creditos.ts.
+  AbonoCredito: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "cliente", "usuario", "anuladoPor", "caja"],
     porNegocio: true,
     soloLectura: true,
   },

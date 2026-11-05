@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { saldoDeCliente } from "@/lib/datos/creditos";
 import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { obtenerDatosNegocio } from "@/lib/datos/negocios";
 import { obtenerVenta } from "@/lib/datos/ventas";
@@ -43,6 +44,8 @@ async function Recibo({ params, searchParams }: PageProps<"/recibo/[id]">) {
     porTarifa.set(d.porcentajeIva, { base: t.base + d.base, iva: t.iva + d.iva });
   }
   const anulada = venta.estado === "ANULADA";
+  const fiada = venta.pagos.some((p) => p.medio === "CREDITO");
+  const debe = fiada && venta.clienteId ? await saldoDeCliente(ctx, venta.negocioId, venta.clienteId) : null;
 
   return (
     <>
@@ -141,6 +144,12 @@ async function Recibo({ params, searchParams }: PageProps<"/recibo/[id]">) {
           <Fila nombre="Recibido en efectivo" valor={venta.recibido} />
         )}
         {!!venta.cambio && <Fila nombre="Cambio" valor={venta.cambio} />}
+        {debe !== null && debe > 0 && (
+          <div className="mt-1 flex justify-between font-bold tabular-nums">
+            <span>Saldo pendiente hoy</span>
+            <span>{formatearPesos(debe)}</span>
+          </div>
+        )}
 
         {venta.devoluciones.length > 0 && (
           <>

@@ -140,10 +140,12 @@ export function calcularTotales(lineas: LineaEntrada[], descuentoGeneral?: Descu
 export type FormaPago =
   | { forma: "efectivo"; recibido: number }
   | { forma: "transferencia"; referencia?: string | null }
-  | { forma: "mixto"; transferencia: number; recibido: number; referencia?: string | null };
+  | { forma: "mixto"; transferencia: number; recibido: number; referencia?: string | null }
+  /** Fiado: el total queda como deuda del cliente. */
+  | { forma: "credito" };
 
 export type PagoCalculado = {
-  pagos: { medio: "EFECTIVO" | "TRANSFERENCIA"; valor: number; referencia: string | null }[];
+  pagos: { medio: "EFECTIVO" | "TRANSFERENCIA" | "CREDITO"; valor: number; referencia: string | null }[];
   recibido: number | null;
   cambio: number | null;
 };
@@ -153,6 +155,9 @@ export function calcularPago(total: number, forma: FormaPago): PagoCalculado {
   const referencia = (r?: string | null) => r?.trim() || null;
   if (forma.forma === "transferencia") {
     return { pagos: [{ medio: "TRANSFERENCIA", valor: total, referencia: referencia(forma.referencia) }], recibido: null, cambio: null };
+  }
+  if (forma.forma === "credito") {
+    return { pagos: [{ medio: "CREDITO", valor: total, referencia: null }], recibido: null, cambio: null };
   }
   if (forma.forma === "efectivo") {
     const recibido = Math.round(forma.recibido);

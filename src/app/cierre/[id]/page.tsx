@@ -57,6 +57,7 @@ async function Cierre({ params, searchParams }: PageProps<"/cierre/[id]">) {
         <Separador />
         <Fila nombre="Base" valor={r.base} />
         <Fila nombre="Ventas en efectivo" valor={r.ventasEfectivo} />
+        {!!r.abonosEfectivo && <Fila nombre="Abonos de créditos" valor={r.abonosEfectivo} />}
         {!!r.anulacionesEfectivo && <Fila nombre="Anulaciones" valor={-r.anulacionesEfectivo} />}
         {!!r.devolucionesEfectivo && <Fila nombre="Devoluciones" valor={-r.devolucionesEfectivo} />}
         {!!r.pagosProveedores && <Fila nombre="Pagos a proveedores" valor={-r.pagosProveedores} />}
@@ -77,9 +78,11 @@ async function Cierre({ params, searchParams }: PageProps<"/cierre/[id]">) {
         )}
 
         <Separador />
-        <Fila nombre={`Ventas (${r.ventas})`} valor={r.ventasEfectivo + r.ventasTransferencia} />
+        <Fila nombre={`Ventas (${r.ventas})`} valor={r.ventasEfectivo + r.ventasTransferencia + r.ventasCredito} />
         <Fila nombre="En transferencia" valor={r.ventasTransferencia} />
-        <p className="text-[11px]">Las transferencias no están en la caja.</p>
+        {!!r.ventasCredito && <Fila nombre="Fiado (a crédito)" valor={r.ventasCredito} />}
+        {!!r.abonosTransferencia && <Fila nombre="Abonos por transferencia" valor={r.abonosTransferencia} />}
+        <p className="text-[11px]">Las transferencias y lo fiado no están en la caja.</p>
 
         {cerrada && esperado !== r.esperado && (
           <>

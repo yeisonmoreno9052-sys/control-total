@@ -58,7 +58,7 @@ export type Parametros = Record<string, string | string[] | undefined>;
 
 const texto = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
 
-const NOMBRE_MEDIO: Record<string, string> = { EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia" };
+const NOMBRE_MEDIO: Record<string, string> = { EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", CREDITO: "Crédito (fiado)" };
 
 export function leerVista(p: Parametros): Vista {
   const v = texto(p.vista);

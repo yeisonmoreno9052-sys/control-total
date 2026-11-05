@@ -102,6 +102,21 @@ export function FormularioPreferenciasVenta({ preferencias }: { preferencias: Pr
           </span>
         </span>
       </label>
+      <label className="flex items-start gap-3 rounded-lg border p-3">
+        <input
+          type="checkbox"
+          name="permiteCredito"
+          defaultChecked={preferencias.permiteCredito}
+          className="mt-0.5 size-5 accent-[var(--primary)]"
+        />
+        <span>
+          <span className="font-medium">Permitir ventas a crédito (fiar)</span>
+          <span className="block text-sm text-muted-foreground">
+            Al cobrar aparece &quot;Fiado&quot;: se anota a quién se le fía y cuánto debe. En Ventas → Créditos se ve quién debe
+            y se registran los abonos.
+          </span>
+        </span>
+      </label>
       <AvisoError mensaje={estado.error} />
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={guardando}>

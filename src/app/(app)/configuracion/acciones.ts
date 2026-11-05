@@ -34,6 +34,7 @@ export async function guardarPreferenciasVentaAccion(_: EstadoConfig, formulario
   const r = await guardarPreferenciasVenta(ctx, ctx.negocioActivoId, {
     ivaPorDefecto: String(formulario.get("ivaPorDefecto") ?? ""),
     botonesRapidos: formulario.get("botonesRapidos") === "on",
+    permiteCredito: formulario.get("permiteCredito") === "on",
   });
   if (!r.ok) return { error: r.error, campos: r.campos };
   revalidatePath("/", "layout");
