@@ -83,6 +83,7 @@ model Empresa {
   facturasCompra     FacturaCompra[]
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
+  abonosCredito      AbonoCredito[]
   adjuntosFactura    AdjuntoFactura[]
   fotosProducto      FotoProducto[]
   movimientosCaja    MovimientoCaja[]
@@ -113,6 +114,8 @@ model Negocio {
   ivaPorDefecto         Int      @default(19)
   /// Si la caja muestra cuadros para tocar los productos marcados como botón rápido (cafeterías).
   botonesRapidos        Boolean  @default(false)
+  /// Si se puede fiar (vender a crédito) y recibir abonos de los clientes.
+  permiteCredito        Boolean  @default(false)
   activo                Boolean  @default(true)
   creadoEn              DateTime @default(now())
   actualizadoEn         DateTime @updatedAt
@@ -134,6 +137,7 @@ model Negocio {
   facturasCompra     FacturaCompra[]
   detallesCompra     DetalleFacturaCompra[]
   abonosFactura      AbonoFactura[]
+  abonosCredito      AbonoCredito[]
   adjuntosFactura    AdjuntoFactura[]
   fotosProducto      FotoProducto[]
   movimientosCaja    MovimientoCaja[]
@@ -177,6 +181,8 @@ model Usuario {
   facturasAnuladas        FacturaCompra[]        @relation("FacturaAnulador")
   abonosFactura           AbonoFactura[]         @relation("AbonoRegistro")
   abonosAnulados          AbonoFactura[]         @relation("AbonoAnulador")
+  abonosCredito           AbonoCredito[]         @relation("AbonoCreditoRegistro")
+  abonosCreditoAnulados   AbonoCredito[]         @relation("AbonoCreditoAnulador")
   movimientosCaja         MovimientoCaja[]       @relation("MovimientoCajaRegistro")
   movimientosCajaAnulados MovimientoCaja[]       @relation("MovimientoCajaAnulador")
   adjuntosFactura         AdjuntoFactura[]
@@ -384,6 +390,8 @@ enum EstadoVenta {
 enum MedioPago {
   EFECTIVO
   TRANSFERENCIA
+  /// Venta fiada: el cliente queda debiendo. No entra plata a la caja hasta que abona.
+  CREDITO
 }
 
 enum TipoDocumento {
@@ -416,8 +424,9 @@ model Cliente {
   actualizadoEn   DateTime       @updatedAt
 
   empresa Empresa @relation(fields: [empresaId], references: [id])
-  negocio Negocio @relation(fields: [negocioId], references: [id])
+  negocio Negocio        @relation(fields: [negocioId], references: [id])
   ventas  Venta[]
+  abonos  AbonoCredito[]
 
   @@unique([negocioId, tipoDocumento, numeroDocumento])
   @@index([empresaId])
@@ -451,6 +460,7 @@ model Caja {
   anulaciones   Venta[]          @relation("VentaCajaAnulacion")
   devoluciones  Devolucion[]
   abonosFactura AbonoFactura[]
+  abonosCredito AbonoCredito[]
   movimientos   MovimientoCaja[]
 
   @@unique([negocioId, fecha])
@@ -860,4 +870,34 @@ model MovimientoCaja {
   @@index([negocioId, fecha])
   @@index([cajaId])
   @@index([empresaId])
+}
+
+/// Abono de un cliente a lo que debe por ventas a crédito. Si es en efectivo entra a la caja del día.
+model AbonoCredito {
+  id           String    @id @default(cuid())
+  empresaId    String
+  negocioId    String
+  clienteId    String
+  usuarioId    String
+  valor        Int
+  /// EFECTIVO o TRANSFERENCIA (nunca CREDITO).
+  medio        MedioPago
+  referencia   String?
+  nota         String?
+  cajaId       String?
+  anulado      Boolean   @default(false)
+  anuladoEn    DateTime?
+  anuladoPorId String?
+  creadoEn     DateTime  @default(now())
+
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  negocio    Negocio  @relation(fields: [negocioId], references: [id])
+  cliente    Cliente  @relation(fields: [clienteId], references: [id])
+  usuario    Usuario  @relation("AbonoCreditoRegistro", fields: [usuarioId], references: [id])
+  anuladoPor Usuario? @relation("AbonoCreditoAnulador", fields: [anuladoPorId], references: [id])
+  caja       Caja?    @relation(fields: [cajaId], references: [id])
+
+  @@index([empresaId])
+  @@index([negocioId, clienteId])
+  @@index([cajaId])
 }

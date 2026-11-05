@@ -51,6 +51,7 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
             <dl className="space-y-2 self-start rounded-2xl border p-6 text-sm bg-card shadow-suave">
               <Fila nombre="Base" valor={resumen.base} />
               <Fila nombre="Ventas en efectivo" valor={resumen.ventasEfectivo} />
+              {!!resumen.abonosEfectivo && <Fila nombre="Abonos de créditos en efectivo" valor={resumen.abonosEfectivo} />}
               {!!resumen.anulacionesEfectivo && <Fila nombre="Anulaciones en efectivo" valor={-resumen.anulacionesEfectivo} />}
               {!!resumen.devolucionesEfectivo && <Fila nombre="Devoluciones en efectivo" valor={-resumen.devolucionesEfectivo} />}
               {!!resumen.pagosProveedores && <Fila nombre="Pagos a proveedores en efectivo" valor={-resumen.pagosProveedores} />}
@@ -64,7 +65,8 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
               </div>
               <p className="pt-2 text-muted-foreground">
                 {resumen.ventas} {resumen.ventas === 1 ? "venta" : "ventas"} · Transferencias{" "}
-                {formatearPesos(resumen.ventasTransferencia)} (no están en la caja)
+                {formatearPesos(resumen.ventasTransferencia + resumen.abonosTransferencia)} (no están en la caja)
+                {!!resumen.ventasCredito && <> · Fiado {formatearPesos(resumen.ventasCredito)}</>}
               </p>
             </dl>
           )}

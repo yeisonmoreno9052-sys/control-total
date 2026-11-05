@@ -87,6 +87,10 @@ export type ResumenCaja = {
   ventas: number;
   ventasEfectivo: number;
   ventasTransferencia: number;
+  /** Lo fiado en esta caja: no entra plata. */
+  ventasCredito: number;
+  abonosEfectivo: number;
+  abonosTransferencia: number;
   anulacionesEfectivo: number;
   devolucionesEfectivo: number;
   pagosProveedores: number;
@@ -103,7 +107,7 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
   });
   if (!caja) return null;
 
-  const [pagos, anulados, devoluciones, ventas, proveedores, movimientos] = await Promise.all([
+  const [pagos, anulados, devoluciones, ventas, proveedores, movimientos, abonos] = await Promise.all([
     db.pagoVenta.groupBy({
       by: ["medio"],
       where: { empresaId: ctx.empresaId, venta: { cajaId } },
@@ -128,6 +132,12 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
       where: { empresaId: ctx.empresaId, cajaId, medio: "EFECTIVO", anulado: false },
       _sum: { valor: true },
     }),
+    // Abonos de clientes a lo que deben por ventas fiadas.
+    db.abonoCredito.groupBy({
+      by: ["medio"],
+      where: { empresaId: ctx.empresaId, cajaId, anulado: false },
+      _sum: { valor: true },
+    }),
   ]);
   const porMedio = (medio: string) => pagos.find((p) => p.medio === medio)?._sum.valor ?? 0;
   const ventasEfectivo = porMedio("EFECTIVO");
@@ -137,11 +147,16 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
   const porTipo = (tipo: string) => movimientos.find((m) => m.tipo === tipo)?._sum.valor ?? 0;
   const ingresosEfectivo = porTipo("INGRESO");
   const egresosEfectivo = porTipo("EGRESO");
+  const abonoPor = (medio: string) => abonos.find((a) => a.medio === medio)?._sum.valor ?? 0;
+  const abonosEfectivo = abonoPor("EFECTIVO");
   return {
     base: caja.base,
     ventas,
     ventasEfectivo,
     ventasTransferencia: porMedio("TRANSFERENCIA"),
+    ventasCredito: porMedio("CREDITO"),
+    abonosEfectivo,
+    abonosTransferencia: abonoPor("TRANSFERENCIA"),
     anulacionesEfectivo,
     devolucionesEfectivo,
     pagosProveedores,
@@ -149,7 +164,8 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
     egresosEfectivo,
     esperado:
       caja.base +
-      ventasEfectivo -
+      ventasEfectivo +
+      abonosEfectivo -
       anulacionesEfectivo -
       devolucionesEfectivo -
       pagosProveedores +

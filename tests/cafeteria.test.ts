@@ -129,11 +129,11 @@ describe("botones rápidos", () => {
 
 describe("cómo vende el negocio", () => {
   it("cada negocio guarda su IVA por defecto y sus botones; el cajero no puede cambiarlos", async () => {
-    expect(await obtenerPreferenciasVenta(e.ctx.admin, e.motos.id)).toEqual({ ivaPorDefecto: 19, botonesRapidos: false });
-    await guardarPreferenciasVenta(e.ctx.admin, e.ferreteria.id, { ivaPorDefecto: "0", botonesRapidos: true });
-    expect(await obtenerPreferenciasVenta(e.ctx.admin, e.ferreteria.id)).toEqual({ ivaPorDefecto: 0, botonesRapidos: true });
+    expect(await obtenerPreferenciasVenta(e.ctx.admin, e.motos.id)).toEqual({ ivaPorDefecto: 19, botonesRapidos: false, permiteCredito: false });
+    await guardarPreferenciasVenta(e.ctx.admin, e.ferreteria.id, { ivaPorDefecto: "0", botonesRapidos: true, permiteCredito: false });
+    expect(await obtenerPreferenciasVenta(e.ctx.admin, e.ferreteria.id)).toEqual({ ivaPorDefecto: 0, botonesRapidos: true, permiteCredito: false });
     // El otro local no cambia.
-    expect(await obtenerPreferenciasVenta(e.ctx.admin, e.motos.id)).toEqual({ ivaPorDefecto: 19, botonesRapidos: false });
+    expect(await obtenerPreferenciasVenta(e.ctx.admin, e.motos.id)).toEqual({ ivaPorDefecto: 19, botonesRapidos: false, permiteCredito: false });
 
     expect(await guardarPreferenciasVenta(e.ctx.admin, e.motos.id, { ivaPorDefecto: "8", botonesRapidos: false })).toMatchObject({
       ok: false,

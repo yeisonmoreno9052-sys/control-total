@@ -156,6 +156,11 @@ export async function subirVentaSinConexion(
     else notas.push("El cliente ya no existe; quedó sin cliente.");
   }
 
+  // Sin internet no se ofrece fiar; si llega una venta fiada, debe tener cliente.
+  if (entrada.pago.forma === "credito" && !clienteId) {
+    return { ok: false, error: "Una venta fiada necesita el cliente. Pídele al administrador que la registre a mano.", reintentar: false };
+  }
+
   try {
     return await prisma.$transaction(
       async (tx) => {

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { History, Lock, Store, TriangleAlert, Wallet } from "lucide-react";
+import { HandCoins, History, Lock, Store, TriangleAlert, Wallet } from "lucide-react";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Button } from "@/components/ui/button";
 import { estadoDeCaja } from "@/lib/datos/caja";
+import { negocioPermiteCredito } from "@/lib/datos/creditos";
 import { botonesRapidos } from "@/lib/datos/productos";
 import { formatearDia, formatearPesos } from "@/lib/formato";
 import { exigirModulo } from "@/lib/modulos";
@@ -21,10 +22,17 @@ export default async function Ventas() {
     return <EstadoVacio icono={Store} titulo="Sin negocio" descripcion="No tienes un negocio asignado." />;
   }
   const negocioId = ctx.negocioActivoId;
-  const { hoy, pendiente } = await estadoDeCaja(ctx, negocioId);
+  const [{ hoy, pendiente }, fiar] = await Promise.all([estadoDeCaja(ctx, negocioId), negocioPermiteCredito(ctx, negocioId)]);
 
   const enlaces = (
-    <div className="flex gap-1">
+    <div className="flex flex-wrap gap-1">
+      {fiar && (
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/ventas/creditos">
+            <HandCoins /> Créditos
+          </Link>
+        </Button>
+      )}
       <Button asChild variant="ghost" size="sm">
         <Link href="/ventas/historial">
           <History /> Historial
@@ -97,7 +105,7 @@ export default async function Ventas() {
         {enlaces}
       </div>
       {/* key: al cambiar de negocio arriba, la caja arranca con el carrito de ese negocio */}
-      <CajaCliente key={negocioId} negocioId={negocioId} botones={botones} />
+      <CajaCliente key={negocioId} negocioId={negocioId} botones={botones} permiteCredito={fiar} />
     </div>
   );
 }

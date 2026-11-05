@@ -39,7 +39,7 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
     desde: esDia(sp.desde) ? sp.desde : hoy,
     hasta: esDia(sp.hasta) ? sp.hasta : esDia(sp.desde) ? sp.desde : hoy,
     cajero: typeof sp.cajero === "string" ? sp.cajero : undefined,
-    medio: sp.medio === "EFECTIVO" || sp.medio === "TRANSFERENCIA" ? sp.medio : undefined,
+    medio: sp.medio === "EFECTIVO" || sp.medio === "TRANSFERENCIA" || sp.medio === "CREDITO" ? sp.medio : undefined,
     pagina: typeof sp.pagina === "string" ? sp.pagina : undefined,
   };
   const [desde, hasta] = p.desde! <= p.hasta! ? [p.desde!, p.hasta!] : [p.hasta!, p.desde!];
@@ -49,7 +49,7 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
       desde: rangoDelDia(desde).inicio,
       hasta: rangoDelDia(hasta).fin,
       usuarioId: p.cajero,
-      medio: p.medio as "EFECTIVO" | "TRANSFERENCIA" | undefined,
+      medio: p.medio as "EFECTIVO" | "TRANSFERENCIA" | "CREDITO" | undefined,
       pagina: Number(p.pagina) || 1,
     }),
     listarCajerosConVentas(ctx, negocioId),
@@ -96,6 +96,7 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
             <option value="">Todos</option>
             <option value="EFECTIVO">Efectivo</option>
             <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="CREDITO">Fiado (a crédito)</option>
           </NativeSelect>
         </div>
         <Button type="submit" className="col-span-2 h-11 md:col-span-1">

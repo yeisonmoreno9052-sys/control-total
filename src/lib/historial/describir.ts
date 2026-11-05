@@ -6,7 +6,7 @@ import { MOTIVOS_AJUSTE } from "@/lib/inventario/unidades";
 export type GrupoHistorial = "ventas" | "inventario" | "compras" | "caja" | "usuarios" | "configuracion";
 
 export const GRUPOS_HISTORIAL: Record<GrupoHistorial, { nombre: string; acciones: string[] }> = {
-  ventas: { nombre: "Ventas", acciones: ["ANULACION_VENTA", "DEVOLUCION_VENTA", "VENTA_SIN_CONEXION"] },
+  ventas: { nombre: "Ventas", acciones: ["ANULACION_VENTA", "DEVOLUCION_VENTA", "VENTA_SIN_CONEXION", "ABONO_CREDITO", "ANULACION_ABONO_CREDITO"] },
   inventario: { nombre: "Inventario y precios", acciones: ["CREACION_PRODUCTO", "AJUSTE_STOCK", "CAMBIO_PRECIO", "IMPORTACION"] },
   compras: { nombre: "Compras", acciones: ["REGISTRO_COMPRA", "ANULACION_COMPRA", "ANULACION_ABONO"] },
   caja: { nombre: "Caja", acciones: ["REABRIR_CAJA", "ANULACION_MOVIMIENTO_CAJA"] },
@@ -37,6 +37,7 @@ const NOMBRES_CAMPO: Record<string, string> = {
   mensajeRecibo: "mensaje del recibo",
   ivaPorDefecto: "IVA por defecto",
   botonesRapidos: "botones rápidos en la caja",
+  permiteCredito: "ventas a crédito",
 };
 
 const CATEGORIAS: Record<string, string> = {
@@ -83,6 +84,10 @@ export function describirAuditoria(
         frase: `registró una devolución de ${pesos(d.total)} en la venta #${texto(d.venta)}`,
         detalle: motivo(d.motivo),
       };
+    case "ABONO_CREDITO":
+      return { frase: `recibió un abono de ${pesos(d.valor)} de ${texto(d.cliente)}` };
+    case "ANULACION_ABONO_CREDITO":
+      return { frase: `anuló un abono de ${pesos(d.valor)} de ${texto(d.cliente)}`, detalle: motivo(d.motivo) };
     case "VENTA_SIN_CONEXION": {
       const avisos = [
         d.preciosDistintos ? "se vendió con precios que ya habían cambiado" : "",

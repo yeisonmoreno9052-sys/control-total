@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { abrirCaja, cerrarCaja, reabrirCaja } from "@/lib/datos/caja";
 import { buscarClientes, crearCliente } from "@/lib/datos/clientes";
+import { saldoDeCliente } from "@/lib/datos/creditos";
 import { obtenerDatosNegocio } from "@/lib/datos/negocios";
 import { buscarParaVenta, productosParaVenta } from "@/lib/datos/productos";
 import { anularVenta, obtenerVenta, registrarDevolucion, registrarVenta } from "@/lib/datos/ventas";
@@ -53,6 +54,7 @@ const esquemaVenta = z.object({
   pago: z.discriminatedUnion("forma", [
     z.object({ forma: z.literal("efectivo"), recibido: z.number().int().min(0) }),
     z.object({ forma: z.literal("transferencia"), referencia: z.string().max(100).nullable().optional() }),
+    z.object({ forma: z.literal("credito") }),
     z.object({
       forma: z.literal("mixto"),
       transferencia: z.number().int().min(0),
@@ -119,6 +121,12 @@ export async function buscarClientesCaja(texto: string) {
   return buscarClientes(ctx, negocioId, z.string().max(100).parse(texto));
 }
 
+/** Lo que debe hoy un cliente (para mostrarlo al fiarle). */
+export async function saldoClienteCaja(clienteId: string) {
+  const { ctx, negocioId } = await negocioActivo();
+  return saldoDeCliente(ctx, negocioId, z.string().max(40).parse(clienteId));
+}
+
 export async function crearClienteCaja(entrada: Record<string, string | null>) {
   const { ctx, negocioId } = await negocioActivo();
   return crearCliente(ctx, negocioId, entrada);
@@ -130,7 +138,9 @@ export async function enlaceReciboWhatsApp(ventaId: string) {
   const venta = await obtenerVenta(ctx, z.string().max(40).parse(ventaId));
   if (!venta) return null;
   const negocio = await obtenerDatosNegocio(ctx, venta.negocioId);
-  const texto = textoWhatsApp(venta, negocio?.nombre ?? "", negocio?.mensajeRecibo);
+  const fiada = venta.pagos.some((p) => p.medio === "CREDITO");
+  const debe = fiada && venta.clienteId ? await saldoDeCliente(ctx, venta.negocioId, venta.clienteId) : null;
+  const texto = textoWhatsApp(venta, negocio?.nombre ?? "", negocio?.mensajeRecibo, debe);
   return enlaceWhatsApp(texto, venta.cliente?.telefono);
 }
 
