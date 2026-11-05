@@ -63,7 +63,8 @@ export function DialogoDejarEnEspera({
 }
 
 function FormularioEspera({ sugerido, onConfirmar }: { sugerido: string; onConfirmar: (nombre: string) => void }) {
-  const [nombre, setNombre] = useState("");
+  // Si la venta ya tenía nombre (o cliente), sale escrito: basta tocar "Dejar en espera".
+  const [nombre, setNombre] = useState(sugerido.startsWith("Venta ") ? "" : sugerido);
   return (
     <form
       className="space-y-4"

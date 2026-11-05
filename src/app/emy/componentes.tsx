@@ -16,6 +16,7 @@ import {
   cambiarEstadoClienteAccion,
   cambiarLimiteFotosAccion,
   cambiarFondoAccion,
+  empezarDeCeroAccion,
   cambiarPaletaAccion,
   cambiarModulosAccion,
   crearClienteAccion,
@@ -478,6 +479,57 @@ export function ElegirFondo({ id, actual }: { id: string; actual: string | null 
         })}
       </div>
       <AvisoError mensaje={error} />
+    </div>
+  );
+}
+
+export function EmpezarDeCero({ id, nombre }: { id: string; nombre: string }) {
+  const { pendiente, error, correr } = useAccion();
+  const [abierto, setAbierto] = useState(false);
+  const [escrito, setEscrito] = useState("");
+  const [listo, setListo] = useState(false);
+  const cerrar = () => {
+    setAbierto(false);
+    setEscrito("");
+  };
+  return (
+    <div className="space-y-2">
+      <Button variant="outline" className="text-destructive" onClick={() => setAbierto(true)}>
+        <Trash2 /> Borrar datos de prueba
+      </Button>
+      {listo && <p className="text-sm text-muted-foreground">Listo: el cliente quedó sin productos ni ventas.</p>}
+      <Dialogo abierto={abierto} onCerrar={cerrar} titulo="¿Empezar de cero?">
+        <div className="space-y-4">
+          <p className="text-muted-foreground">
+            Se borran <strong>todos</strong> los productos, fotos, categorías, ventas, cajas, clientes y proveedores de{" "}
+            <strong>{nombre}</strong>. Quedan los locales, los usuarios y la configuración. No se puede deshacer desde la app.
+          </p>
+          <Campo id="confirmar-cero" etiqueta={`Para confirmar, escribe: ${nombre}`}>
+            <Input id="confirmar-cero" value={escrito} onChange={(ev) => setEscrito(ev.target.value)} autoComplete="off" />
+          </Campo>
+          <AvisoError mensaje={error} />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={cerrar}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={pendiente || escrito.trim() !== nombre.trim()}
+              onClick={() =>
+                correr(
+                  () => empezarDeCeroAccion(id, escrito),
+                  () => {
+                    cerrar();
+                    setListo(true);
+                  },
+                )
+              }
+            >
+              {pendiente ? "Borrando…" : "Sí, borrar todo"}
+            </Button>
+          </div>
+        </div>
+      </Dialogo>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   BotonesEstado,
   FormularioEditarCliente,
   ElegirFondo,
+  EmpezarDeCero,
   ElegirPaleta,
   LimiteFotos,
   Modulos,
@@ -159,6 +160,16 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
           }}
         />
       </section>
+
+      {!c.esDemo && (
+        <section className="space-y-3 rounded-2xl border border-destructive/30 p-5 bg-card shadow-suave">
+          <h2 className="font-semibold">Empezar de cero</h2>
+          <p className="text-sm text-muted-foreground">
+            Para cuando el cliente terminó de probar: borra productos y ventas de prueba. Los usuarios y locales se quedan.
+          </p>
+          <EmpezarDeCero id={c.id} nombre={c.nombre} />
+        </section>
+      )}
 
       <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
         <h2 className="font-semibold">Historial</h2>

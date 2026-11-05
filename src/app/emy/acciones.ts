@@ -6,6 +6,7 @@ import {
   cambiarEstadoCliente,
   cambiarLimiteFotos,
   cambiarFondo,
+  empezarDeCero,
   cambiarPaleta,
   cambiarModulos,
   crearCliente,
@@ -115,6 +116,14 @@ export async function cambiarPaletaAccion(id: string, paleta: string): Promise<E
 export async function cambiarFondoAccion(id: string, fondo: string | null): Promise<EstadoEmy> {
   const ce = await obtenerSuperadmin();
   const r = await cambiarFondo(ce, String(id), fondo === null ? null : String(fondo));
+  if (!r.ok) return { error: r.error };
+  refrescar(id);
+  return { ok: true };
+}
+
+export async function empezarDeCeroAccion(id: string, confirmacion: string): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const r = await empezarDeCero(ce, String(id), String(confirmacion));
   if (!r.ok) return { error: r.error };
   refrescar(id);
   return { ok: true };

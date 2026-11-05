@@ -565,6 +565,65 @@ export async function restablecerContrasenaCliente(
   );
 }
 
+// ─── Empezar de cero ────────────────────────────────────────────────────────
+
+/** Más ventas que esto ya no es una prueba: se pide soporte en lugar de borrar desde el panel. */
+export const MAXIMO_VENTAS_PRUEBA = 300;
+
+/**
+ * Para un cliente recién montado: borra los productos, ventas, cajas y demás datos de prueba
+ * y deja la empresa, sus locales y sus usuarios como estaban. Las ventas reales no se borran
+ * nunca: por eso hay que escribir el nombre exacto, y si ya hay muchas ventas no se deja.
+ * La copia de seguridad diaria guarda lo de antes.
+ */
+export async function empezarDeCero(
+  ce: ContextoEmy,
+  id: string,
+  confirmacion: unknown,
+): Promise<Resultado<{ id: string; productos: number; ventas: number }>> {
+  exigir(ce);
+  return comoResultado(() =>
+    prisma.$transaction(
+      async (tx) => {
+        const e = await clienteReal(tx, id);
+        if (e.esDemo) throw new ErrorEmy("La demo se reinicia con su propio botón.");
+        if (typeof confirmacion !== "string" || confirmacion.trim() !== e.nombre.trim()) {
+          throw new ErrorEmy(`Escribe el nombre exacto del cliente: ${e.nombre}`);
+        }
+        const w = { empresaId: id };
+        const ventas = await tx.venta.count({ where: w });
+        if (ventas > MAXIMO_VENTAS_PRUEBA) {
+          throw new ErrorEmy(`Este cliente ya tiene ${ventas} ventas: eso no parece prueba. Pide ayuda a soporte.`);
+        }
+        await tx.detalleDevolucion.deleteMany({ where: w });
+        await tx.devolucion.deleteMany({ where: w });
+        await tx.pagoVenta.deleteMany({ where: w });
+        await tx.detalleVenta.deleteMany({ where: w });
+        await tx.venta.deleteMany({ where: w });
+        await tx.abonoFactura.deleteMany({ where: w });
+        await tx.adjuntoFactura.deleteMany({ where: w });
+        await tx.lecturaFactura.deleteMany({ where: w });
+        await tx.detalleFacturaCompra.deleteMany({ where: w });
+        await tx.facturaCompra.deleteMany({ where: w });
+        await tx.movimientoCaja.deleteMany({ where: w });
+        await tx.caja.deleteMany({ where: w });
+        await tx.movimientoInventario.deleteMany({ where: w });
+        // El historial de usuarios y permisos se queda; el de productos y ventas de prueba no.
+        await tx.auditoria.deleteMany({ where: { ...w, entidad: { notIn: ["Usuario", "Negocio", "Empresa"] } } });
+        await tx.fotoProducto.deleteMany({ where: w });
+        const productos = await tx.producto.deleteMany({ where: w });
+        await tx.categoria.deleteMany({ where: w });
+        await tx.proveedor.deleteMany({ where: w });
+        await tx.cliente.deleteMany({ where: w });
+        await tx.negocio.updateMany({ where: w, data: { consecutivoVenta: 0, consecutivoDevolucion: 0 } });
+        await registrarAccion(tx, ce, id, "EMPEZAR_DE_CERO", { nombre: e.nombre, productos: productos.count, ventas });
+        return { ok: true as const, id, productos: productos.count, ventas };
+      },
+      { timeout: 120_000 },
+    ),
+  );
+}
+
 export const NOMBRE_ACCION: Record<string, string> = {
   CREAR_CLIENTE: "Creó el cliente",
   EDITAR_CLIENTE: "Editó los datos",
@@ -575,6 +634,7 @@ export const NOMBRE_ACCION: Record<string, string> = {
   CAMBIAR_LIMITE_FOTOS: "Cambió el límite de facturas con foto",
   CAMBIAR_PALETA: "Cambió los colores",
   CAMBIAR_FONDO: "Cambió la imagen del inicio",
+  EMPEZAR_DE_CERO: "Borró los datos de prueba",
   AGREGAR_LOCAL: "Agregó un local",
   RESTABLECER_CONTRASENA: "Restableció una contraseña",
   REINICIAR_DEMO: "Reinició la demo",
