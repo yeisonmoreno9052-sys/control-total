@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, ImageIcon, Trash2 } from "lucide-react";
+import { Camera, ImageIcon, Images, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { achicarFoto } from "@/lib/achicar-foto";
 import { guardarFotoAccion } from "../../acciones";
@@ -10,6 +10,7 @@ import { guardarFotoAccion } from "../../acciones";
 export function FotoProducto({ productoId, fotoUrl }: { productoId: string; fotoUrl: string | null }) {
   const router = useRouter();
   const entrada = useRef<HTMLInputElement>(null);
+  const camara = useRef<HTMLInputElement>(null);
   const [vista, setVista] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guardando, iniciar] = useTransition();
@@ -41,6 +42,7 @@ export function FotoProducto({ productoId, fotoUrl }: { productoId: string; foto
       setError("No pudimos abrir esa imagen. Prueba con otra foto.");
     } finally {
       if (entrada.current) entrada.current.value = "";
+      if (camara.current) camara.current.value = "";
     }
   }
 
@@ -65,9 +67,22 @@ export function FotoProducto({ productoId, fotoUrl }: { productoId: string; foto
           aria-label="Elegir foto"
           onChange={(ev) => elegir(ev.target.files?.[0])}
         />
+        {/* "capture" abre la cámara directo en la tablet y el celular. */}
+        <input
+          ref={camara}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          aria-label="Tomar foto"
+          onChange={(ev) => elegir(ev.target.files?.[0])}
+        />
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => entrada.current?.click()} disabled={guardando}>
-            <Camera /> {guardando ? "Guardando…" : actual ? "Cambiar foto" : "Poner foto"}
+          <Button type="button" onClick={() => camara.current?.click()} disabled={guardando}>
+            <Camera /> {guardando ? "Guardando…" : "Tomar foto"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => entrada.current?.click()} disabled={guardando}>
+            <Images /> Galería
           </Button>
           {actual && (
             <Button type="button" variant="ghost" onClick={() => guardar(null)} disabled={guardando}>
