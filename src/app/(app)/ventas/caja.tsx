@@ -22,7 +22,8 @@ import { DialogoDejarEnEspera, DialogoEnEspera, guardarEnEspera, leerEnEspera, t
 import { DialogoCancelar, DialogoCantidad, DialogoDescuento } from "./dialogos-linea";
 
 export type Linea = { producto: ProductoCaja; cantidad: string; descuento: Descuento | null };
-type Guardado = { lineas: Linea[]; descuentoGeneral: Descuento | null; cliente: ClienteVista | null };
+/** nombreEspera: si la venta salió de "en espera", con qué nombre estaba, para volver a dejarla igual. */
+type Guardado = { lineas: Linea[]; descuentoGeneral: Descuento | null; cliente: ClienteVista | null; nombreEspera?: string | null };
 
 const unidadCorta = (u: string) => UNIDADES[u as UnidadMedida]?.corto ?? "";
 
@@ -75,12 +76,17 @@ function leerGuardado(clave: string): Guardado {
     const texto = localStorage.getItem(clave);
     if (texto) {
       const g = JSON.parse(texto) as Partial<Guardado>;
-      return { lineas: g.lineas ?? [], descuentoGeneral: g.descuentoGeneral ?? null, cliente: g.cliente ?? null };
+      return {
+        lineas: g.lineas ?? [],
+        descuentoGeneral: g.descuentoGeneral ?? null,
+        cliente: g.cliente ?? null,
+        nombreEspera: g.nombreEspera ?? null,
+      };
     }
   } catch {
     // Carrito dañado o navegador sin almacenamiento: se empieza vacío.
   }
-  return { lineas: [], descuentoGeneral: null, cliente: null };
+  return { lineas: [], descuentoGeneral: null, cliente: null, nombreEspera: null };
 }
 
 /** La caja solo se dibuja en el navegador (ver caja-cliente.tsx), así puede leer el carrito guardado desde el inicio. */
@@ -92,6 +98,7 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
   const [lineas, setLineas] = useState<Linea[]>(inicial.lineas);
   const [descuentoGeneral, setDescuentoGeneral] = useState<Descuento | null>(inicial.descuentoGeneral);
   const [cliente, setCliente] = useState<ClienteVista | null>(inicial.cliente);
+  const [nombreEspera, setNombreEspera] = useState<string | null>(inicial.nombreEspera ?? null);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
   const claveEspera = `espera:${negocioId}`;
   const [enEspera, setEnEspera] = useState<VentaEnEspera[]>(() => leerEnEspera(claveEspera));
@@ -143,21 +150,26 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
   useEffect(() => {
     try {
       if (lineas.length || cliente) {
-        localStorage.setItem(clave, JSON.stringify({ lineas, descuentoGeneral, cliente } satisfies Guardado));
+        localStorage.setItem(clave, JSON.stringify({ lineas, descuentoGeneral, cliente, nombreEspera } satisfies Guardado));
       } else {
         localStorage.removeItem(clave);
       }
     } catch {
       // Sin almacenamiento: el carrito vive solo en la pantalla.
     }
-  }, [clave, lineas, descuentoGeneral, cliente]);
+  }, [clave, lineas, descuentoGeneral, cliente, nombreEspera]);
 
   useEffect(() => {
     guardarEnEspera(claveEspera, enEspera);
   }, [claveEspera, enEspera]);
 
-  /** Nombre por defecto: "Venta 1", "Venta 2"… sin repetir los que ya están en espera. */
+  /**
+   * Nombre por defecto: el que ya tenía si se retomó de "en espera", si no el del cliente,
+   * y si no "Venta 1", "Venta 2"… sin repetir los que ya están en espera.
+   */
   const nombreSugerido = (lista: VentaEnEspera[]) => {
+    if (nombreEspera) return nombreEspera;
+    if (cliente) return cliente.nombre;
     let n = 1;
     while (lista.some((v) => v.nombre === `Venta ${n}`)) n++;
     return `Venta ${n}`;
@@ -185,6 +197,7 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
     setLineas([]);
     setDescuentoGeneral(null);
     setCliente(null);
+    setNombreEspera(null);
     setAviso(null);
   }, []);
 
@@ -458,6 +471,7 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
         >
           {modoBotones && (
             <PedidoCompacto
+              nombre={nombreEspera}
               lineas={lineas}
               totales={t}
               resaltado={resaltado}
@@ -629,6 +643,7 @@ export function Caja({ negocioId, botones = [] }: { negocioId: string; botones?:
           setLineas(v.lineas);
           setDescuentoGeneral(v.descuentoGeneral);
           setCliente(v.cliente);
+          setNombreEspera(v.nombre);
           setAviso(null);
           // Los precios y el stock pudieron cambiar mientras esperaba.
           if (enLinea) actualizarPrecios(v.lineas);
@@ -768,6 +783,7 @@ function FotoCuadro({ src }: { src: string }) {
 
 /** El pedido al lado de los cuadros: renglones cortos, botones grandes para el dedo. */
 function PedidoCompacto({
+  nombre,
   lineas,
   totales,
   resaltado,
@@ -776,6 +792,8 @@ function PedidoCompacto({
   alCantidad,
   alDescuento,
 }: {
+  /** Si la venta se retomó de "en espera", su nombre (ej. "Juan mesa 2"). */
+  nombre: string | null;
   lineas: Linea[];
   totales: TotalesVenta | null;
   resaltado: string | null;
@@ -794,7 +812,9 @@ function PedidoCompacto({
   }
   return (
     <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-      <h2 className="mb-1 font-semibold">Pedido</h2>
+      <h2 className="mb-1 truncate font-semibold">
+        Pedido{nombre && <span className="text-primary"> · {nombre}</span>}
+      </h2>
       <ul className="divide-y">
         {lineas.map((l, i) => {
           const calc = totales?.lineas[i];
