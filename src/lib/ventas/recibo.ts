@@ -20,6 +20,27 @@ export function telefonoWhatsApp(telefono: string | null | undefined) {
   return null;
 }
 
+/** Cantidad de una línea vendida por paquete (presentacion) o por la unidad del producto. */
+export type CantidadLinea = {
+  cantidad: string;
+  unidad: string;
+  /** Nombre del paquete ("Tubo completo"), si se vendió así. */
+  presentacion?: string | null;
+  /** Cuánto trae cada paquete, en la unidad del producto. */
+  porPresentacion?: string | null;
+  /** Cuántos paquetes. */
+  paquetes?: string | null;
+};
+
+/** "3 m" · "2 Tubo completo (6 m)" */
+export function textoCantidad(d: CantidadLinea) {
+  const unidad = UNIDADES[d.unidad as UnidadMedida]?.corto ?? "";
+  if (d.presentacion && d.paquetes && d.porPresentacion) {
+    return `${formatearCantidad(d.paquetes)} ${d.presentacion} (${formatearCantidad(d.porPresentacion)} ${unidad})`;
+  }
+  return `${formatearCantidad(d.cantidad)} ${unidad}`;
+}
+
 export const NOMBRE_MEDIO = { EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", CREDITO: "Crédito (fiado)" } as const;
 
 export type VentaParaRecibo = {
@@ -29,7 +50,7 @@ export type VentaParaRecibo = {
   descuento: number;
   cambio: number | null;
   estado: string;
-  detalles: { nombre: string; cantidad: string; unidad: string; total: number }[];
+  detalles: (CantidadLinea & { nombre: string; total: number })[];
   pagos: { medio: keyof typeof NOMBRE_MEDIO; valor: number }[];
 };
 
@@ -46,10 +67,7 @@ export function textoWhatsApp(
     `Recibo Nº ${formatearConsecutivo(venta.consecutivo)} · ${formatearFecha(venta.creadoEn)} ${formatearHora(venta.creadoEn)}`,
     venta.estado === "ANULADA" ? "*VENTA ANULADA*" : null,
     "",
-    ...venta.detalles.map((d) => {
-      const unidad = UNIDADES[d.unidad as UnidadMedida]?.corto ?? "";
-      return `${formatearCantidad(d.cantidad)} ${unidad} ${d.nombre}: ${formatearPesos(d.total)}`;
-    }),
+    ...venta.detalles.map((d) => `${textoCantidad(d)} ${d.nombre}: ${formatearPesos(d.total)}`),
     "",
     venta.descuento ? `Descuento: -${formatearPesos(venta.descuento)}` : null,
     `*Total: ${formatearPesos(venta.total)}*`,

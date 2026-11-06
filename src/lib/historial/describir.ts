@@ -133,13 +133,17 @@ export function describirAuditoria(
       const costo = (d.costo ?? {}) as D;
       const cambiaPrecio = precio.antes !== precio.despues;
       const cambiaCosto = costo.antes !== costo.despues && opciones.verCostos !== false;
+      const paquetes = d.paquetes as D | undefined;
       const frase = cambiaPrecio
         ? `cambió el precio de ${producto} de ${pesos(precio.antes)} a ${pesos(precio.despues)}`
-        : `cambió el costo de ${producto}`;
-      return {
-        frase,
-        detalle: cambiaCosto ? `Costo: de ${pesos(costo.antes)} a ${pesos(costo.despues)}` : undefined,
-      };
+        : paquetes && costo.antes === costo.despues
+          ? `cambió los paquetes de ${producto}`
+          : `cambió el costo de ${producto}`;
+      const detalles = [
+        cambiaCosto ? `Costo: de ${pesos(costo.antes)} a ${pesos(costo.despues)}` : null,
+        paquetes ? `Paquetes: antes ${texto(paquetes.antes)}; ahora ${texto(paquetes.despues)}` : null,
+      ].filter(Boolean);
+      return { frase, detalle: detalles.join(" · ") || undefined };
     }
     case "IMPORTACION":
       return {

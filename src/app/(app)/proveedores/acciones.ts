@@ -140,9 +140,14 @@ const esquemaLeidos = z
   .max(300);
 
 /** Crea de una vez, con stock 0, los productos de la foto que no estaban en el inventario. */
-export async function crearProductosLeidosAccion(items: z.infer<typeof esquemaLeidos>) {
+export async function crearProductosLeidosAccion(categoriaId: string | null, items: z.infer<typeof esquemaLeidos>) {
   const { ctx, negocioId } = await negocioActivo();
-  const r = await crearProductosLeidos(ctx, negocioId, esquemaLeidos.parse(items));
+  const r = await crearProductosLeidos(
+    ctx,
+    negocioId,
+    esquemaLeidos.parse(items),
+    z.string().max(40).nullable().parse(categoriaId),
+  );
   if (r.creados.length) revalidatePath("/inventario");
   return r;
 }

@@ -48,7 +48,14 @@ const descuento = z
 const esquemaVenta = z.object({
   negocioId: z.string().min(1).max(40),
   lineas: z
-    .array(z.object({ productoId: z.string().min(1).max(40), cantidad: z.string().max(20), descuento }))
+    .array(
+      z.object({
+        productoId: z.string().min(1).max(40),
+        presentacionId: z.string().max(40).nullable().optional(),
+        cantidad: z.string().max(20),
+        descuento,
+      }),
+    )
     .min(1)
     .max(300),
   descuentoGeneral: descuento,
@@ -82,6 +89,10 @@ const esquemaPendiente = z.object({
     .array(
       z.object({
         productoId: z.string().min(1).max(40),
+        presentacion: z
+          .object({ id: z.string().max(40), nombre: z.string().max(40), cantidad: z.string().max(20) })
+          .nullable()
+          .optional(),
         cantidad: z.string().max(20),
         precioUnitario: z.number().int().min(0),
         porcentajeIva: z.number().int(),

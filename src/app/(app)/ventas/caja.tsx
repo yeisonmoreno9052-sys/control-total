@@ -9,6 +9,7 @@ import type { ClienteVista } from "@/lib/datos/clientes";
 import type { BotonRapido, ProductoCaja } from "@/lib/datos/productos";
 import { formatearPesos } from "@/lib/formato";
 import { Decimal, formatearCantidad } from "@/lib/inventario/cantidades";
+import { unidadesDe, type Presentacion } from "@/lib/inventario/presentaciones";
 import { UNIDADES } from "@/lib/inventario/unidades";
 import { calcularTotales, ErrorTotales, type Descuento, type TotalesVenta } from "@/lib/ventas/totales";
 import { buscarEnCopia } from "@/lib/sin-conexion/buscar";
@@ -19,13 +20,28 @@ import { buscarProductoCaja, refrescarCarrito } from "./acciones";
 import { DialogoCliente } from "./dialogo-cliente";
 import { DialogoCobrar } from "./dialogo-cobrar";
 import { DialogoDejarEnEspera, DialogoEnEspera, guardarEnEspera, leerEnEspera, type VentaEnEspera } from "./dialogos-espera";
-import { DialogoCancelar, DialogoCantidad, DialogoDescuento } from "./dialogos-linea";
+import { DialogoCancelar, DialogoCantidad, DialogoDescuento, DialogoPresentacion } from "./dialogos-linea";
 
-export type Linea = { producto: ProductoCaja; cantidad: string; descuento: Descuento | null };
+/** Con presentación (tubo completo), la cantidad es de paquetes y se cobra el precio del paquete. */
+export type Linea = { producto: ProductoCaja; cantidad: string; descuento: Descuento | null; presentacion?: Presentacion | null };
 /** nombreEspera: si la venta salió de "en espera", con qué nombre estaba, para volver a dejarla igual. */
 type Guardado = { lineas: Linea[]; descuentoGeneral: Descuento | null; cliente: ClienteVista | null; nombreEspera?: string | null };
 
 const unidadCorta = (u: string) => UNIDADES[u as UnidadMedida]?.corto ?? "";
+
+/** El tubo por metros y el tubo completo van en líneas aparte. */
+export function claveLinea(l: Pick<Linea, "producto" | "presentacion">) {
+  return l.presentacion ? `${l.producto.id}:${l.presentacion.id}` : l.producto.id;
+}
+
+export function precioLinea(l: Linea) {
+  return l.presentacion?.precio ?? l.producto.precioVenta;
+}
+
+/** "Tubo completo · 6 m" */
+function textoPresentacion(l: Linea) {
+  return l.presentacion ? `${l.presentacion.nombre} · ${formatearCantidad(l.presentacion.cantidad)} ${unidadCorta(l.producto.unidad)}` : null;
+}
 
 export function textoDescuento(d: Descuento) {
   return d.tipo === "porcentaje" ? `${formatearCantidad(d.valor)} %` : formatearPesos(d.valor);
@@ -37,7 +53,7 @@ export function totalesDe(lineas: Linea[], descuentoGeneral: Descuento | null): 
   try {
     return calcularTotales(
       lineas.map((l) => ({
-        precioUnitario: l.producto.precioVenta,
+        precioUnitario: precioLinea(l),
         cantidad: l.cantidad,
         porcentajeIva: l.producto.porcentajeIva,
         descuento: l.descuento,
@@ -62,8 +78,9 @@ export function faltaStock(producto: ProductoCaja, cantidad: Decimal) {
 }
 
 type Dialogo =
-  | { tipo: "cantidad"; producto: ProductoCaja; nueva: boolean }
-  | { tipo: "descuento"; productoId: string | null }
+  | { tipo: "cantidad"; producto: ProductoCaja; presentacion: Presentacion | null; nueva: boolean }
+  | { tipo: "presentacion"; producto: ProductoCaja }
+  | { tipo: "descuento"; clave: string | null }
   | { tipo: "cliente"; paraFiar?: boolean }
   | { tipo: "cobrar"; fiado?: boolean }
   | { tipo: "cancelar" }
@@ -139,7 +156,16 @@ export function Caja({
   /** Pone los precios y el stock de hoy; si un producto ya no está activo, sale del carrito. */
   const aplicarFrescos = useCallback((frescos: ProductoCaja[]) => {
     const porId = new Map(frescos.map((p) => [p.id, p]));
-    setLineas((ls) => ls.flatMap((l) => (porId.has(l.producto.id) ? [{ ...l, producto: porId.get(l.producto.id)! }] : [])));
+    setLineas((ls) =>
+      ls.flatMap((l) => {
+        const producto = porId.get(l.producto.id);
+        if (!producto) return [];
+        if (!l.presentacion) return [{ ...l, producto }];
+        // El paquete pudo cambiar de precio o dejar de existir.
+        const presentacion = producto.presentaciones?.find((x) => x.id === l.presentacion!.id);
+        return presentacion ? [{ ...l, producto, presentacion }] : [];
+      }),
+    );
   }, []);
 
   const actualizarPrecios = useCallback(
@@ -216,27 +242,37 @@ export function Caja({
     lineasRef.current = lineas;
   }, [lineas]);
 
-  const fijarCantidad = useCallback((producto: ProductoCaja, cantidad: Decimal, sumar: boolean) => {
-    const ls = lineasRef.current;
-    const i = ls.findIndex((l) => l.producto.id === producto.id);
-    const total = sumar && i >= 0 ? new Decimal(ls[i].cantidad).plus(cantidad) : cantidad;
-    const error = enLineaRef.current ? faltaStock(producto, total) : null;
-    setAviso(error);
-    if (error) return error;
-    const nuevas =
-      i >= 0
-        ? ls.map((l, j) => (j === i ? { ...l, producto, cantidad: total.toString() } : l))
-        : [...ls, { producto, cantidad: total.toString(), descuento: null }];
-    lineasRef.current = nuevas;
-    setLineas(nuevas);
-    setResaltado(producto.id);
-    return null;
-  }, []);
+  const fijarCantidad = useCallback(
+    (producto: ProductoCaja, cantidad: Decimal, sumar: boolean, presentacion: Presentacion | null = null) => {
+      const ls = lineasRef.current;
+      const clave = claveLinea({ producto, presentacion });
+      const i = ls.findIndex((l) => claveLinea(l) === clave);
+      const total = sumar && i >= 0 ? new Decimal(ls[i].cantidad).plus(cantidad) : cantidad;
+      // El stock alcanza para todo lo del producto: los metros sueltos más los tubos completos.
+      const otras = ls.reduce(
+        (a, l, j) => (j !== i && l.producto.id === producto.id ? a.plus(unidadesDe(l.cantidad, l.presentacion)) : a),
+        new Decimal(0),
+      );
+      const error = enLineaRef.current ? faltaStock(producto, otras.plus(unidadesDe(total, presentacion))) : null;
+      setAviso(error);
+      if (error) return error;
+      const nuevas =
+        i >= 0
+          ? ls.map((l, j) => (j === i ? { ...l, producto, presentacion, cantidad: total.toString() } : l))
+          : [...ls, { producto, presentacion, cantidad: total.toString(), descuento: null }];
+      lineasRef.current = nuevas;
+      setLineas(nuevas);
+      setResaltado(clave);
+      return null;
+    },
+    [],
+  );
 
-  const agregar = useCallback(
+  /** Por la unidad del producto: los fraccionados piden la cantidad (2,5 m), los demás suman uno. */
+  const agregarSuelto = useCallback(
     (producto: ProductoCaja) => {
       if (producto.fraccionado) {
-        setDialogo({ tipo: "cantidad", producto, nueva: true });
+        setDialogo({ tipo: "cantidad", producto, presentacion: null, nueva: true });
         return;
       }
       fijarCantidad(producto, new Decimal(1), true);
@@ -244,12 +280,24 @@ export function Caja({
     [fijarCantidad],
   );
 
-  const quitar = (id: string) => setLineas((ls) => ls.filter((l) => l.producto.id !== id));
+  const agregar = useCallback(
+    (producto: ProductoCaja) => {
+      // Si también se vende por paquete (tubo completo), primero se pregunta cómo lo lleva.
+      if (producto.presentaciones?.length) {
+        setDialogo({ tipo: "presentacion", producto });
+        return;
+      }
+      agregarSuelto(producto);
+    },
+    [agregarSuelto],
+  );
+
+  const quitar = (clave: string) => setLineas((ls) => ls.filter((l) => claveLinea(l) !== clave));
 
   const cambiarEnUno = (l: Linea, paso: 1 | -1) => {
     const nueva = new Decimal(l.cantidad).plus(paso);
     if (nueva.lte(0)) return;
-    fijarCantidad(l.producto, nueva, false);
+    fijarCantidad(l.producto, nueva, false, l.presentacion ?? null);
   };
 
   // ─── Totales ────────────────────────────────────────────────────────────
@@ -278,7 +326,7 @@ export function Caja({
         else if (hayEnEspera) setDialogo({ tipo: "enEspera" });
       } else if (e.key === "F8") {
         e.preventDefault();
-        if (lineas.length) setDialogo({ tipo: "descuento", productoId: null });
+        if (lineas.length) setDialogo({ tipo: "descuento", clave: null });
       } else if (e.key === "Escape" && document.activeElement !== buscador.current && lineas.length) {
         setDialogo({ tipo: "cancelar" });
       }
@@ -300,7 +348,7 @@ export function Caja({
   }, [enfocar]);
 
   const lineaDescuento =
-    dialogo?.tipo === "descuento" && dialogo.productoId ? lineas.find((l) => l.producto.id === dialogo.productoId) : null;
+    dialogo?.tipo === "descuento" && dialogo.clave ? lineas.find((l) => claveLinea(l) === dialogo.clave) : null;
 
   return (
     <div
@@ -384,23 +432,26 @@ export function Caja({
           <ul className="divide-y rounded-xl border bg-card shadow-suave">
             {lineas.map((l, i) => {
               const calc = t?.lineas[i];
+              const clave = claveLinea(l);
+              const paquete = textoPresentacion(l);
               return (
                 <li
-                  key={l.producto.id}
+                  key={clave}
                   className={cn(
                     "grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 p-3 transition-colors md:grid-cols-[minmax(0,1fr)_auto_100px_auto] md:px-4 xl:grid-cols-[minmax(0,1fr)_auto_90px_100px_auto]",
-                    resaltado === l.producto.id && "bg-accent/40",
+                    resaltado === clave && "bg-accent/40",
                   )}
                 >
                   <div className="min-w-0">
                     <p className="line-clamp-2 font-semibold leading-snug">{l.producto.nombre}</p>
+                    {paquete && <p className="truncate font-medium text-primary">{paquete}</p>}
                     <p className="truncate text-sm text-muted-foreground">
-                      {l.producto.codigo} · {formatearPesos(l.producto.precioVenta)}
-                      {l.producto.unidad !== "UNIDAD" && ` / ${unidadCorta(l.producto.unidad)}`}
+                      {l.producto.codigo} · {formatearPesos(precioLinea(l))}
+                      {paquete ? " cada uno" : l.producto.unidad !== "UNIDAD" && ` / ${unidadCorta(l.producto.unidad)}`}
                     </p>
                     <button
                       type="button"
-                      onClick={() => setDialogo({ tipo: "descuento", productoId: l.producto.id })}
+                      onClick={() => setDialogo({ tipo: "descuento", clave })}
                       className={cn(
                         "mt-0.5 inline-flex items-center gap-1 text-sm",
                         l.descuento ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground hover:text-foreground",
@@ -421,7 +472,7 @@ export function Caja({
 
                   <button
                     type="button"
-                    onClick={() => quitar(l.producto.id)}
+                    onClick={() => quitar(clave)}
                     aria-label={`Quitar ${l.producto.nombre}`}
                     className="row-start-1 col-start-2 self-start rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:col-start-4 md:self-center xl:col-start-5"
                   >
@@ -440,12 +491,14 @@ export function Caja({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDialogo({ tipo: "cantidad", producto: l.producto, nueva: false })}
+                      onClick={() =>
+                        setDialogo({ tipo: "cantidad", producto: l.producto, presentacion: l.presentacion ?? null, nueva: false })
+                      }
                       className="h-full min-w-16 bg-card px-2 font-semibold tabular-nums"
                       aria-label="Cambiar cantidad"
                     >
                       {formatearCantidad(l.cantidad)}
-                      {l.producto.unidad !== "UNIDAD" && ` ${unidadCorta(l.producto.unidad)}`}
+                      {!paquete && l.producto.unidad !== "UNIDAD" && ` ${unidadCorta(l.producto.unidad)}`}
                     </button>
                     <button
                       type="button"
@@ -457,9 +510,7 @@ export function Caja({
                     </button>
                   </div>
 
-                  <p className="hidden text-right tabular-nums text-muted-foreground xl:block">
-                    {formatearPesos(l.producto.precioVenta)}
-                  </p>
+                  <p className="hidden text-right tabular-nums text-muted-foreground xl:block">{formatearPesos(precioLinea(l))}</p>
                   <p className="text-right text-lg font-semibold whitespace-nowrap tabular-nums md:text-base">
                     {calc ? formatearPesos(calc.subtotal - calc.descuentoLinea) : "—"}
                   </p>
@@ -485,8 +536,10 @@ export function Caja({
               resaltado={resaltado}
               alCambiar={cambiarEnUno}
               alQuitar={quitar}
-              alCantidad={(l) => setDialogo({ tipo: "cantidad", producto: l.producto, nueva: false })}
-              alDescuento={(l) => setDialogo({ tipo: "descuento", productoId: l.producto.id })}
+              alCantidad={(l) =>
+                setDialogo({ tipo: "cantidad", producto: l.producto, presentacion: l.presentacion ?? null, nueva: false })
+              }
+              alDescuento={(l) => setDialogo({ tipo: "descuento", clave: claveLinea(l) })}
             />
           )}
           {/* Con botones, el pedido ya muestra cada producto: el resumen solo sale si hay descuentos. */}
@@ -533,7 +586,7 @@ export function Caja({
               variant="outline"
               size="lg"
               disabled={!lineas.length}
-              onClick={() => setDialogo({ tipo: "descuento", productoId: null })}
+              onClick={() => setDialogo({ tipo: "descuento", clave: null })}
             >
               Descuento <Tecla>F8</Tecla>
             </Button>
@@ -572,17 +625,30 @@ export function Caja({
         </div>
       </aside>
 
+      <DialogoPresentacion
+        abierto={dialogo?.tipo === "presentacion"}
+        producto={dialogo?.tipo === "presentacion" ? dialogo.producto : null}
+        onElegir={(presentacion) => {
+          if (dialogo?.tipo !== "presentacion") return;
+          cerrarDialogo();
+          if (presentacion) fijarCantidad(dialogo.producto, new Decimal(1), true, presentacion);
+          else agregarSuelto(dialogo.producto);
+        }}
+        onCerrar={cerrarDialogo}
+      />
+
       <DialogoCantidad
         abierto={dialogo?.tipo === "cantidad"}
         producto={dialogo?.tipo === "cantidad" ? dialogo.producto : null}
+        presentacion={dialogo?.tipo === "cantidad" ? dialogo.presentacion : null}
         actual={
           dialogo?.tipo === "cantidad" && !dialogo.nueva
-            ? (lineas.find((l) => l.producto.id === dialogo.producto.id)?.cantidad ?? null)
+            ? (lineas.find((l) => claveLinea(l) === claveLinea(dialogo))?.cantidad ?? null)
             : null
         }
         onConfirmar={(cantidad) => {
           if (dialogo?.tipo !== "cantidad") return null;
-          const error = fijarCantidad(dialogo.producto, cantidad, dialogo.nueva);
+          const error = fijarCantidad(dialogo.producto, cantidad, dialogo.nueva, dialogo.presentacion);
           if (!error) cerrarDialogo();
           return error;
         }}
@@ -595,14 +661,14 @@ export function Caja({
         actual={lineaDescuento ? lineaDescuento.descuento : descuentoGeneral}
         probar={(d) => {
           const nuevas = lineaDescuento
-            ? lineas.map((l) => (l.producto.id === lineaDescuento.producto.id ? { ...l, descuento: d } : l))
+            ? lineas.map((l) => (claveLinea(l) === claveLinea(lineaDescuento) ? { ...l, descuento: d } : l))
             : lineas;
           const r = totalesDe(nuevas, lineaDescuento ? descuentoGeneral : d);
           return typeof r === "string" ? r : null;
         }}
         onConfirmar={(d) => {
           if (lineaDescuento) {
-            setLineas((ls) => ls.map((l) => (l.producto.id === lineaDescuento.producto.id ? { ...l, descuento: d } : l)));
+            setLineas((ls) => ls.map((l) => (claveLinea(l) === claveLinea(lineaDescuento) ? { ...l, descuento: d } : l)));
           } else {
             setDescuentoGeneral(d);
           }
@@ -706,7 +772,7 @@ function CuadrosRapidos({
     return [...vistas].map(([id, nombre], i) => ({ id, nombre, color: COLORES_CATEGORIA[i % COLORES_CATEGORIA.length] }));
   }, [botones]);
   const colorDe = new Map(categorias.map((c) => [c.id, c.color]));
-  const cantidad = new Map(lineas.map((l) => [l.producto.id, l.cantidad]));
+  const cantidad = new Map(lineas.filter((l) => !l.presentacion).map((l) => [l.producto.id, l.cantidad]));
   const visibles = filtro === null ? botones : botones.filter((b) => (b.categoriaId ?? "") === filtro);
   // Si algún producto tiene foto, los que no tienen llevan un cuadro de color del mismo tamaño
   // para que la cuadrícula quede pareja.
@@ -832,13 +898,16 @@ function PedidoCompacto({
         {lineas.map((l, i) => {
           const calc = totales?.lineas[i];
           const uno = new Decimal(l.cantidad).lte(1);
+          const clave = claveLinea(l);
+          const paquete = textoPresentacion(l);
           return (
             <li
-              key={l.producto.id}
-              className={cn("flex items-center gap-2 py-2 transition-colors", resaltado === l.producto.id && "bg-accent/40")}
+              key={clave}
+              className={cn("flex items-center gap-2 py-2 transition-colors", resaltado === clave && "bg-accent/40")}
             >
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 leading-snug font-semibold">{l.producto.nombre}</p>
+                {paquete && <p className="truncate text-sm font-medium text-primary">{paquete}</p>}
                 <button
                   type="button"
                   onClick={() => alDescuento(l)}
@@ -853,7 +922,7 @@ function PedidoCompacto({
               <div className="flex h-11 shrink-0 items-center overflow-hidden rounded-lg border bg-muted/40">
                 <button
                   type="button"
-                  onClick={() => (uno ? alQuitar(l.producto.id) : alCambiar(l, -1))}
+                  onClick={() => (uno ? alQuitar(clave) : alCambiar(l, -1))}
                   aria-label={uno ? `Quitar ${l.producto.nombre}` : "Uno menos"}
                   className={cn("flex h-full w-11 items-center justify-center hover:bg-muted", uno && "text-destructive")}
                 >
@@ -1050,7 +1119,14 @@ function Buscador({
                         {seCuenta && ` · ${sinStock ? "Sin stock" : `Quedan ${formatearCantidad(p.stock)} ${unidadCorta(p.unidad)}`}`}
                       </p>
                     </div>
-                    <p className="font-semibold tabular-nums">{formatearPesos(p.precioVenta)}</p>
+                    <div className="text-right">
+                      <p className="font-semibold tabular-nums">{formatearPesos(p.precioVenta)}</p>
+                      {p.presentaciones?.map((x) => (
+                        <p key={x.id} className="text-xs text-muted-foreground tabular-nums">
+                          {x.nombre}: {formatearPesos(x.precio)}
+                        </p>
+                      ))}
+                    </div>
                   </button>
                 </li>
               );

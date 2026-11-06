@@ -6,12 +6,9 @@ import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { obtenerDatosNegocio } from "@/lib/datos/negocios";
 import { obtenerVenta } from "@/lib/datos/ventas";
 import { formatearFecha, formatearHora, formatearPesos } from "@/lib/formato";
-import { formatearCantidad } from "@/lib/inventario/cantidades";
-import { UNIDADES } from "@/lib/inventario/unidades";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
-import { formatearConsecutivo, NOMBRE_MEDIO } from "@/lib/ventas/recibo";
-import type { UnidadMedida } from "@/generated/prisma/enums";
+import { formatearConsecutivo, NOMBRE_MEDIO, textoCantidad } from "@/lib/ventas/recibo";
 import { BarraRecibo } from "./imprimir";
 
 export const metadata: Metadata = { title: "Recibo · Control Total" };
@@ -93,7 +90,7 @@ async function Recibo({ params, searchParams }: PageProps<"/recibo/[id]">) {
               <p className="font-medium">{d.nombre}</p>
               <div className="flex justify-between gap-2 tabular-nums">
                 <span>
-                  {formatearCantidad(d.cantidad)} {UNIDADES[d.unidad as UnidadMedida]?.corto} × {formatearPesos(d.precioUnitario)}
+                  {textoCantidad(d)} × {formatearPesos(d.precioUnitario)}
                   {d.porcentajeIva ? "" : " (sin IVA)"}
                 </span>
                 <span>{formatearPesos(d.subtotal)}</span>

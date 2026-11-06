@@ -24,6 +24,7 @@ export function FiltroCategoria({ categorias }: { categorias: { id: string; nomb
       }}
     >
       <option value="">Todas las categorías</option>
+      <option value="sin">Sin categoría</option>
       {categorias.map((c) => (
         <option key={c.id} value={c.id}>
           {c.nombre}

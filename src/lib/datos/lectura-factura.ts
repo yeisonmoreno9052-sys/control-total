@@ -13,7 +13,7 @@ import type { FacturaLeida } from "@/lib/ia/factura";
 import type { ArchivoFactura, LectorFacturas } from "@/lib/ia/lector";
 import { tieneModulo } from "@/lib/modulos";
 import { esquemaProducto } from "@/lib/inventario/esquemas";
-import { precioSugerido } from "@/lib/inventario/precios";
+import { margenEfectivo, precioSugerido } from "@/lib/inventario/precios";
 import { exigirGestion } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import { prisma } from "./cliente";
@@ -257,12 +257,27 @@ async function ultimoCodigoFactura(negocioId: string) {
  * factura ya lo usa otro producto, se le pone uno nuevo (FAC-0001…).
  * Devuelve los creados (para agregarlos a la factura) y los que no se pudieron.
  */
-export async function crearProductosLeidos(ctx: Contexto, negocioId: string, items: ProductoLeido[]) {
+export async function crearProductosLeidos(
+  ctx: Contexto,
+  negocioId: string,
+  items: ProductoLeido[],
+  /** Categoría para todos los que se crean; null = sin categoría. */
+  categoriaId: string | null = null,
+) {
   exigirGestion(ctx);
   exigirNegocioPermitido(ctx, negocioId);
   const lista = items.slice(0, 300);
   const datos = datosDe(ctx);
-  const [margen, preferencias, usados] = await Promise.all([
+  const categoria = categoriaId
+    ? await datos.categoria.findFirst({ where: { id: categoriaId, negocioId, activo: true }, select: { id: true, margenSugerido: true } })
+    : null;
+  if (categoriaId && !categoria) {
+    return {
+      creados: [],
+      fallidos: lista.map((i) => ({ clave: i.clave, descripcion: i.descripcion, error: "Esa categoría no existe en este negocio." })),
+    };
+  }
+  const [margenNegocio, preferencias, usados] = await Promise.all([
     obtenerMargenNegocio(ctx, negocioId),
     obtenerPreferenciasVenta(ctx, negocioId),
     datos.producto.findMany({
@@ -276,6 +291,7 @@ export async function crearProductosLeidos(ctx: Contexto, negocioId: string, ite
       select: { codigo: true, codigoBarras: true },
     }),
   ]);
+  const margen = margenEfectivo(margenNegocio, categoria?.margenSugerido == null ? null : Number(categoria.margenSugerido));
   const codigosUsados = new Set(usados.map((u) => u.codigo.toLowerCase()));
   const barrasUsadas = new Set(usados.map((u) => u.codigoBarras).filter(Boolean));
   let consecutivo = await ultimoCodigoFactura(negocioId);
@@ -293,6 +309,7 @@ export async function crearProductosLeidos(ctx: Contexto, negocioId: string, ite
       codigoBarras: barras ?? "",
       nombre: item.descripcion || "Producto de factura",
       descripcion: "",
+      categoriaId: categoria?.id ?? "",
       costo: item.costo,
       precioVenta: precioSugerido(item.costo, margen),
       stockMinimo: "0",

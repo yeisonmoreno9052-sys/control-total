@@ -5,7 +5,9 @@
 // un MovimientoInventario. El stock siempre se puede explicar por sus movimientos.
 import type { MotivoAjuste, TipoMovimiento } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
-import { Decimal, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
+import { Decimal, formatearCantidad, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
+import { leerPresentaciones, type Presentacion } from "@/lib/inventario/presentaciones";
+import { formatearPesos } from "@/lib/formato";
 import type { ProductoEntrada } from "@/lib/inventario/esquemas";
 import { exigirEdicionProductos, exigirGestion, puedeVerCostos } from "@/lib/permisos";
 import { AccesoDenegado, datosDe } from "./alcance";
@@ -126,6 +128,11 @@ async function validarCategoria(ctx: Contexto, negocioId: string, categoriaId: s
   return !!categoria;
 }
 
+/** "Tubo completo 6 a $20.000" para dejar en la auditoría cuando cambian los paquetes. */
+function textoPaquetes(lista: Presentacion[]) {
+  return lista.map((p) => `${p.nombre}: ${formatearCantidad(p.cantidad)} a ${formatearPesos(p.precio)}`).join(" · ") || "Ninguno";
+}
+
 function datosProducto(p: ProductoEntrada) {
   return {
     codigo: p.codigo,
@@ -144,6 +151,7 @@ function datosProducto(p: ProductoEntrada) {
     // undefined (importación sin esas columnas) deja el valor que ya tenía.
     controlaStock: p.controlaStock,
     botonRapido: p.botonRapido,
+    presentaciones: p.presentaciones,
   };
 }
 
@@ -196,7 +204,7 @@ export async function actualizarProducto(ctx: Contexto, id: string, entrada: Pro
   exigirEdicionProductos(ctx);
   const actual = await datosDe(ctx).producto.findFirst({
     where: { id },
-    select: { id: true, negocioId: true, costo: true, precioVenta: true, stock: true },
+    select: { id: true, negocioId: true, costo: true, precioVenta: true, stock: true, presentaciones: true },
   });
   if (!actual) return { ok: false, error: "No encontramos ese producto." };
   // Quien no ve costos tampoco los cambia: se deja el que tenía.
@@ -216,7 +224,9 @@ export async function actualizarProducto(ctx: Contexto, id: string, entrada: Pro
   try {
     await prisma.$transaction(async (tx) => {
       await tx.producto.update({ where: { id: actual.id }, data: datosProducto(entrada) });
-      if (actual.costo !== entrada.costo || actual.precioVenta !== entrada.precioVenta) {
+      const paquetesAntes = textoPaquetes(leerPresentaciones(actual.presentaciones));
+      const paquetesDespues = entrada.presentaciones ? textoPaquetes(entrada.presentaciones) : paquetesAntes;
+      if (actual.costo !== entrada.costo || actual.precioVenta !== entrada.precioVenta || paquetesAntes !== paquetesDespues) {
         await registrarAuditoria(tx, ctx, {
           negocioId: actual.negocioId,
           accion: "CAMBIO_PRECIO",
@@ -226,6 +236,7 @@ export async function actualizarProducto(ctx: Contexto, id: string, entrada: Pro
             codigo: entrada.codigo,
             costo: { antes: actual.costo, despues: entrada.costo },
             precioVenta: { antes: actual.precioVenta, despues: entrada.precioVenta },
+            ...(paquetesAntes !== paquetesDespues ? { paquetes: { antes: paquetesAntes, despues: paquetesDespues } } : {}),
           },
         });
       }

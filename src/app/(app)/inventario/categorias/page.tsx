@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { FolderTree } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
@@ -47,6 +48,11 @@ export default async function Categorias() {
           Si una categoría tiene su propio margen, se usa en lugar del margen del negocio (por ejemplo, tornillería al 60 %).
         </p>
         <NuevaCategoria />
+        <p className="text-sm">
+          <Link href="/inventario/cambiar-categoria?categoria=sin" className="font-medium text-primary underline-offset-4 hover:underline">
+            Pasar varios productos a una categoría de una vez
+          </Link>
+        </p>
         {categorias.length === 0 ? (
           <EstadoVacio
             icono={FolderTree}

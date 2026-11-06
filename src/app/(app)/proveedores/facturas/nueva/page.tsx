@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { SinPermiso } from "@/components/layout/sin-permiso";
 import { estadoDeCaja } from "@/lib/datos/caja";
-import { obtenerMargenNegocio } from "@/lib/datos/categorias";
+import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
 import { listarProveedores } from "@/lib/datos/compras";
 import { estadoFotos } from "@/lib/datos/lectura-factura";
 import { diaEnBogota } from "@/lib/formato";
@@ -22,11 +22,12 @@ export default async function NuevaFactura({ searchParams }: PageProps<"/proveed
   if (!puedeGestionar(ctx) || !ctx.negocioActivoId) return <SinPermiso />;
   const negocioId = ctx.negocioActivoId;
   const sp = await searchParams;
-  const [proveedores, margen, caja, fotos] = await Promise.all([
+  const [proveedores, margen, caja, fotos, categorias] = await Promise.all([
     listarProveedores(ctx, negocioId),
     obtenerMargenNegocio(ctx, negocioId),
     estadoDeCaja(ctx, negocioId),
     estadoFotos(ctx, hayLector()),
+    listarCategorias(ctx, negocioId),
   ]);
 
   return (
@@ -38,6 +39,7 @@ export default async function NuevaFactura({ searchParams }: PageProps<"/proveed
         proveedores={proveedores.map((p) => ({ id: p.id, nombre: p.nombre }))}
         proveedorInicial={typeof sp.proveedor === "string" ? sp.proveedor : null}
         margenNegocio={margen}
+        categorias={categorias.map((c) => ({ id: c.id, nombre: c.nombre, margenSugerido: c.margenSugerido }))}
         cajaAbierta={caja.hoy?.estado === "ABIERTA"}
         fotos={fotos}
       />

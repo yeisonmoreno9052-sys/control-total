@@ -10,8 +10,10 @@ import type { CondicionProducto, UnidadMedida } from "@/generated/prisma/enums";
 import { formatearPesos } from "@/lib/formato";
 import { leerPesos } from "@/lib/inventario/esquemas";
 import { calcularMargen, margenEfectivo, precioSugerido } from "@/lib/inventario/precios";
+import type { Presentacion } from "@/lib/inventario/presentaciones";
 import { CONDICIONES, IVAS, UNIDADES } from "@/lib/inventario/unidades";
 import { guardarProducto, type EstadoFormulario } from "./acciones";
+import { SeccionPaquetes } from "./paquetes";
 
 export type ValoresProducto = {
   id?: string;
@@ -29,6 +31,7 @@ export type ValoresProducto = {
   condicion: CondicionProducto;
   controlaStock: boolean;
   botonRapido: boolean;
+  presentaciones: Presentacion[];
 };
 
 /** En los campos de texto, Enter pasa al siguiente campo en vez de enviar el formulario. */
@@ -320,6 +323,13 @@ export function FormularioProducto({
           </label>
         )}
       </section>
+
+      <SeccionPaquetes
+        inicial={valores?.presentaciones ?? []}
+        unidad={unidad}
+        precioUnidad={precioNum}
+        error={e.presentaciones}
+      />
 
       <Campo id="descripcion" etiqueta="Descripción (opcional)" error={e.descripcion}>
         <Textarea id="descripcion" name="descripcion" defaultValue={valores?.descripcion} rows={2} />

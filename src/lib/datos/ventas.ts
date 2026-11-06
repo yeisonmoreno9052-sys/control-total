@@ -7,6 +7,7 @@ import type { MedioPago } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
 import { Decimal, MENSAJES_CANTIDAD, formatearCantidad, leerCantidad, validarCantidad } from "@/lib/inventario/cantidades";
 import { fechaDeHoy } from "@/lib/formato";
+import { leerPresentaciones, unidadesDe } from "@/lib/inventario/presentaciones";
 import { puedeGestionar, puedeVerCostos } from "@/lib/permisos";
 import {
   calcularPago,
@@ -47,7 +48,8 @@ const SIN_CAJA = "Abre la caja de hoy antes de cobrar.";
 
 // ─── Cobrar ─────────────────────────────────────────────────────────────────
 
-export type LineaVenta = { productoId: string; cantidad: string; descuento?: Descuento | null };
+/** Con presentacionId, la cantidad es de paquetes (2 tubos completos) y se cobra el precio del paquete. */
+export type LineaVenta = { productoId: string; presentacionId?: string | null; cantidad: string; descuento?: Descuento | null };
 
 export type EntradaVenta = {
   lineas: LineaVenta[];
@@ -77,13 +79,14 @@ type ProductoBloqueado = {
   activo: boolean;
   controlaStock: boolean;
   stock: { toString(): string };
+  presentaciones: unknown;
 };
 
 /** Bloquea los productos en orden de id (así dos ventas nunca se esperan en círculo). */
 export async function bloquearProductos(tx: Tx, ids: string[]) {
   const filas = await tx.$queryRaw<ProductoBloqueado[]>`
     SELECT "id", "empresaId", "negocioId", "codigo", "nombre", "unidad", "precioVenta", "costo",
-           "porcentajeIva", "fraccionado", "activo", "controlaStock", "stock"
+           "porcentajeIva", "fraccionado", "activo", "controlaStock", "stock", "presentaciones"
     FROM "Producto" WHERE "id" = ANY(${ids}) ORDER BY "id" FOR UPDATE`;
   return new Map(filas.map((f) => [f.id, f]));
 }
@@ -146,13 +149,21 @@ export async function registrarVenta(
             throw new ErrorVenta("Uno de los productos no existe en este negocio.");
           }
           if (!p.activo) throw new ErrorVenta(`"${p.nombre}" está inactivo y no se puede vender.`);
+          const presentacion = l.presentacionId
+            ? leerPresentaciones(p.presentaciones).find((x) => x.id === l.presentacionId)
+            : null;
+          if (presentacion === undefined) {
+            throw new ErrorVenta(`El paquete de "${p.nombre}" ya no existe. Quítalo de la venta y agrégalo otra vez.`);
+          }
           const cantidad = leerCantidad(l.cantidad);
-          const error = validarCantidad(cantidad, { fraccionado: p.fraccionado });
+          // Los paquetes se venden completos: 2 tubos, no 1,5.
+          const error = validarCantidad(cantidad, { fraccionado: !presentacion && p.fraccionado });
           if (error || !cantidad || cantidad.isZero()) {
             throw new ErrorVenta(`${p.nombre}: ${MENSAJES_CANTIDAD[error ?? "invalida"]}`);
           }
-          pedido.set(p.id, (pedido.get(p.id) ?? new Decimal(0)).plus(cantidad));
-          return { producto: p, cantidad, descuento: l.descuento ?? null };
+          const unidades = unidadesDe(cantidad, presentacion);
+          pedido.set(p.id, (pedido.get(p.id) ?? new Decimal(0)).plus(unidades));
+          return { producto: p, presentacion, cantidad, unidades, descuento: l.descuento ?? null };
         });
 
         for (const [id, cantidad] of pedido) {
@@ -170,7 +181,7 @@ export async function registrarVenta(
 
         const totales = calcularTotales(
           lineas.map((l) => ({
-            precioUnitario: l.producto.precioVenta,
+            precioUnitario: l.presentacion?.precio ?? l.producto.precioVenta,
             cantidad: l.cantidad,
             porcentajeIva: l.producto.porcentajeIva,
             descuento: l.descuento,
@@ -213,10 +224,13 @@ export async function registrarVenta(
               codigo: l.producto.codigo,
               nombre: l.producto.nombre,
               unidad: l.producto.unidad as never,
-              cantidad: l.cantidad.toString(),
-              precioUnitario: l.producto.precioVenta,
+              cantidad: l.unidades.toString(),
+              precioUnitario: l.presentacion?.precio ?? l.producto.precioVenta,
               costoUnitario: l.producto.costo,
               porcentajeIva: l.producto.porcentajeIva,
+              ...(l.presentacion
+                ? { presentacion: l.presentacion.nombre, porPresentacion: l.presentacion.cantidad, paquetes: l.cantidad.toString() }
+                : {}),
               subtotal: t.subtotal,
               descuento: t.descuento,
               base: t.base,
@@ -551,7 +565,7 @@ export async function obtenerVenta(ctx: Contexto, id: string) {
       select: {
         id: true, productoId: true, codigo: true, nombre: true, unidad: true, cantidad: true, cantidadDevuelta: true,
         precioUnitario: true, costoUnitario: verCostos, porcentajeIva: true, subtotal: true, descuento: true,
-        base: true, iva: true, total: true,
+        base: true, iva: true, total: true, presentacion: true, porPresentacion: true, paquetes: true,
       },
       orderBy: { id: "asc" },
     }),
@@ -584,6 +598,8 @@ export async function obtenerVenta(ctx: Contexto, id: string) {
       ...d,
       cantidad: d.cantidad.toString(),
       cantidadDevuelta: d.cantidadDevuelta.toString(),
+      porPresentacion: d.porPresentacion?.toString() ?? null,
+      paquetes: d.paquetes?.toString() ?? null,
       costoUnitario: verCostos ? (d as { costoUnitario?: number }).costoUnitario ?? null : null,
     })),
     pagos,

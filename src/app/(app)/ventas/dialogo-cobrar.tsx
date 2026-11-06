@@ -12,13 +12,14 @@ import { TecladoNumerico, useTecladoActivo } from "@/components/ventas/teclado-n
 import type { ClienteVista } from "@/lib/datos/clientes";
 import { formatearPesos } from "@/lib/formato";
 import { Decimal } from "@/lib/inventario/cantidades";
+import { unidadesDe } from "@/lib/inventario/presentaciones";
 import { descontarStock, siguienteProvisional, type VentaPendiente } from "@/lib/sin-conexion/almacen";
 import { htmlRecibo, imprimirHtml } from "@/lib/sin-conexion/recibo";
 import { formatearConsecutivo } from "@/lib/ventas/recibo";
 import { calcularPago, ErrorTotales, type Descuento, type FormaPago } from "@/lib/ventas/totales";
 import { cn } from "@/lib/utils";
 import { cobrar, enlaceReciboWhatsApp, saldoClienteCaja } from "./acciones";
-import { totalesDe, type Linea } from "./caja";
+import { precioLinea, totalesDe, type Linea } from "./caja";
 
 type Vendida =
   | { local: false; id: string; consecutivo: number; total: number; cambio: number | null }
@@ -139,7 +140,7 @@ function FormularioPago({
   // corte a mitad del cobro), el servidor la reconoce y no la registra dos veces.
   // Cambia solo si cambia el carrito.
   const firma = JSON.stringify([
-    lineas.map((l) => [l.producto.id, l.cantidad, l.descuento]),
+    lineas.map((l) => [l.producto.id, l.presentacion?.id, l.cantidad, l.descuento]),
     descuentoGeneral,
     cliente?.id,
     total,
@@ -191,7 +192,12 @@ function FormularioPago({
       const r = await cobrar({
         idLocal,
         negocioId,
-        lineas: lineas.map((l) => ({ productoId: l.producto.id, cantidad: l.cantidad, descuento: l.descuento })),
+        lineas: lineas.map((l) => ({
+          productoId: l.producto.id,
+          presentacionId: l.presentacion?.id ?? null,
+          cantidad: l.cantidad,
+          descuento: l.descuento,
+        })),
         descuentoGeneral,
         clienteId: cliente?.id ?? null,
         totalEsperado: total,
@@ -229,8 +235,11 @@ function FormularioPago({
         vendedorId: usuario.id,
         lineas: lineas.map((l) => ({
           productoId: l.producto.id,
+          presentacion: l.presentacion
+            ? { id: l.presentacion.id, nombre: l.presentacion.nombre, cantidad: l.presentacion.cantidad }
+            : null,
           cantidad: l.cantidad,
-          precioUnitario: l.producto.precioVenta,
+          precioUnitario: precioLinea(l),
           porcentajeIva: l.producto.porcentajeIva,
           descuento: l.descuento,
         })),
@@ -245,7 +254,10 @@ function FormularioPago({
             nombre: l.producto.nombre,
             unidad: l.producto.unidad,
             cantidad: l.cantidad,
-            precioUnitario: l.producto.precioVenta,
+            presentacion: l.presentacion
+              ? { nombre: l.presentacion.nombre, cantidad: l.presentacion.cantidad }
+              : null,
+            precioUnitario: precioLinea(l),
             porcentajeIva: l.producto.porcentajeIva,
             subtotal: t.lineas[i].subtotal,
             descuento: t.lineas[i].descuento,
@@ -264,7 +276,10 @@ function FormularioPago({
       };
       const cantidades = new Map<string, string>();
       for (const l of lineas)
-        cantidades.set(l.producto.id, new Decimal(cantidades.get(l.producto.id) ?? 0).plus(l.cantidad).toString());
+        cantidades.set(
+          l.producto.id,
+          new Decimal(cantidades.get(l.producto.id) ?? 0).plus(unidadesDe(l.cantidad, l.presentacion)).toString(),
+        );
       await descontarStock(negocioId, cantidades, (stock, cantidad) => new Decimal(stock).minus(cantidad).toString());
       await guardarVentaLocal(venta);
       onVendida({ local: true, venta });
