@@ -122,6 +122,13 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
             {formatearCantidad(producto.stockMinimo)} {unidad.corto}
           </Fila>
         )}
+        {producto.presentaciones.length > 0 && (
+          <Fila titulo="También se vende por paquete">
+            {producto.presentaciones
+              .map((p) => `${p.nombre} (${formatearCantidad(p.cantidad)} ${unidad.corto}): ${formatearPesos(p.precio)}`)
+              .join(" · ")}
+          </Fila>
+        )}
         {producto.botonRapido && <Fila titulo="Caja">Botón rápido</Fila>}
         <Fila titulo="IVA">{producto.porcentajeIva} %</Fila>
         {producto.descripcion && <Fila titulo="Descripción">{producto.descripcion}</Fila>}

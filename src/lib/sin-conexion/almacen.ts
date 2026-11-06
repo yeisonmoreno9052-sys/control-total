@@ -23,7 +23,10 @@ export type ReciboLocal = {
   lineas: {
     nombre: string;
     unidad: string;
+    /** De paquetes si se vendió por paquete (presentacion); si no, en la unidad del producto. */
     cantidad: string;
+    /** Puede faltar en ventas guardadas antes de existir. */
+    presentacion?: { nombre: string; cantidad: string } | null;
     precioUnitario: number;
     porcentajeIva: number;
     subtotal: number;

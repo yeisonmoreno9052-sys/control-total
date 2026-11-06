@@ -87,3 +87,26 @@ export async function guardarCategoria(
     throw error;
   }
 }
+
+/**
+ * Pasa varios productos a una categoría de una vez (o los deja sin categoría con null).
+ * Sirve para ordenar lo que entró "sin categoría" desde una factura o una importación.
+ */
+export async function asignarCategoria(
+  ctx: Contexto,
+  negocioId: string,
+  productoIds: string[],
+  categoriaId: string | null,
+): Promise<Resultado<{ cambiados: number }>> {
+  exigirGestion(ctx);
+  exigirNegocioPermitido(ctx, negocioId);
+  const ids = [...new Set(productoIds)].slice(0, 500);
+  if (!ids.length) return { ok: false, error: "Marca al menos un producto." };
+  const datos = datosDe(ctx);
+  if (categoriaId) {
+    const categoria = await datos.categoria.findFirst({ where: { id: categoriaId, negocioId, activo: true }, select: { id: true } });
+    if (!categoria) return { ok: false, error: "Esa categoría no existe en este negocio." };
+  }
+  const { count } = await datos.producto.updateMany({ where: { id: { in: ids }, negocioId }, data: { categoriaId } });
+  return { ok: true, cambiados: count };
+}

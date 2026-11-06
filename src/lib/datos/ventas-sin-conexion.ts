@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@/generated/prisma/client";
 import { diaEnBogota, formatearDia, formatearPesos } from "@/lib/formato";
 import { Decimal, formatearCantidad, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
+import { leerPresentaciones } from "@/lib/inventario/presentaciones";
 import { puedeGestionar } from "@/lib/permisos";
 import { calcularPago, calcularTotales, ErrorTotales, type Descuento, type FormaPago } from "@/lib/ventas/totales";
 import { datosDe } from "./alcance";
@@ -21,8 +22,10 @@ import { bloquearProductos, siguienteConsecutivo } from "./ventas";
 
 export type LineaSinConexion = {
   productoId: string;
+  /** Si se vendió por paquete, cuál y cuánto traía al cobrarlo. La cantidad es entonces de paquetes. */
+  presentacion?: { id: string; nombre: string; cantidad: string } | null;
   cantidad: string;
-  /** Precio con el que se cobró (el de la copia de productos del computador). */
+  /** Precio con el que se cobró (el de la copia de productos del computador; el del paquete si es por paquete). */
   precioUnitario: number;
   porcentajeIva: number;
   descuento?: Descuento | null;
@@ -177,18 +180,41 @@ export async function subirVentaSinConexion(
             throw new ErrorSubida("Uno de los productos no existe en este negocio.");
           }
           const cantidad = leerCantidad(l.cantidad);
-          const problema = validarCantidad(cantidad, { fraccionado: p.fraccionado });
+          const problema = validarCantidad(cantidad, { fraccionado: !l.presentacion && p.fraccionado });
           if (problema || !cantidad || cantidad.isZero()) {
             throw new ErrorSubida(`${p.nombre}: ${MENSAJES_CANTIDAD[problema ?? "invalida"]}`);
+          }
+          // Se respeta el paquete como se cobró (lo que el cliente se llevó), aunque luego lo hayan cambiado.
+          const presentacion = l.presentacion
+            ? { ...l.presentacion, cantidad: leerCantidad(l.presentacion.cantidad) }
+            : null;
+          if (presentacion && (!presentacion.cantidad || presentacion.cantidad.lte(0) || presentacion.cantidad.decimalPlaces() > 3)) {
+            throw new ErrorSubida(`${p.nombre}: el paquete guardado no es válido.`);
           }
           if (!Number.isInteger(l.precioUnitario) || l.precioUnitario < 0 || ![0, 5, 19].includes(l.porcentajeIva)) {
             throw new ErrorSubida(`${p.nombre}: el precio guardado no es válido.`);
           }
-          if (l.precioUnitario !== p.precioVenta) {
-            preciosDistintos.push({ producto: p.nombre, cobrado: l.precioUnitario, actual: p.precioVenta });
+          const actual = presentacion
+            ? leerPresentaciones(p.presentaciones).find((x) => x.id === presentacion.id)?.precio
+            : p.precioVenta;
+          if (actual !== undefined && l.precioUnitario !== actual) {
+            preciosDistintos.push({
+              producto: presentacion ? `${p.nombre} (${presentacion.nombre})` : p.nombre,
+              cobrado: l.precioUnitario,
+              actual,
+            });
           }
-          pedido.set(p.id, (pedido.get(p.id) ?? new Decimal(0)).plus(cantidad));
-          return { producto: p, cantidad, precio: l.precioUnitario, iva: l.porcentajeIva, descuento: l.descuento ?? null };
+          const unidades = presentacion ? cantidad.times(presentacion.cantidad!) : cantidad;
+          pedido.set(p.id, (pedido.get(p.id) ?? new Decimal(0)).plus(unidades));
+          return {
+            producto: p,
+            cantidad,
+            unidades,
+            presentacion: presentacion && { nombre: presentacion.nombre.slice(0, 40), cantidad: presentacion.cantidad!.toString() },
+            precio: l.precioUnitario,
+            iva: l.porcentajeIva,
+            descuento: l.descuento ?? null,
+          };
         });
 
         const totales = calcularTotales(
@@ -233,10 +259,13 @@ export async function subirVentaSinConexion(
               codigo: l.producto.codigo,
               nombre: l.producto.nombre,
               unidad: l.producto.unidad as never,
-              cantidad: l.cantidad.toString(),
+              cantidad: l.unidades.toString(),
               precioUnitario: l.precio,
               costoUnitario: l.producto.costo,
               porcentajeIva: l.iva,
+              ...(l.presentacion
+                ? { presentacion: l.presentacion.nombre, porPresentacion: l.presentacion.cantidad, paquetes: l.cantidad.toString() }
+                : {}),
               subtotal: t.subtotal,
               descuento: t.descuento,
               base: t.base,

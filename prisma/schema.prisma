@@ -311,6 +311,9 @@ model Producto {
   controlaStock Boolean           @default(true)
   /// Aparece como cuadro para tocar en la caja (si el negocio usa botones rápidos).
   botonRapido   Boolean           @default(false)
+  /// Otras formas de vender el mismo producto, con precio propio:
+  /// [{ id, nombre: "Tubo completo", cantidad: "6", precio: 20000 }]. El stock sigue en la unidad del producto.
+  presentaciones Json             @default("[]")
   /// Cuándo se puso la foto (null = sin foto). Va en la dirección de la imagen para que el navegador pida la nueva.
   fotoEn        DateTime?
   activo        Boolean           @default(true)
@@ -539,12 +542,18 @@ model DetalleVenta {
   codigo           String
   nombre           String
   unidad           UnidadMedida
+  /// En la unidad del producto (2 tubos de 6 m = 12), así cuadran el stock y las devoluciones.
   cantidad         Decimal      @db.Decimal(14, 3)
   cantidadDevuelta Decimal      @default(0) @db.Decimal(14, 3)
+  /// Precio de lo que se vendió: el de la unidad o, si se vendió por paquete, el del paquete.
   precioUnitario   Int
   costoUnitario    Int
   porcentajeIva    Int
-  /// cantidad × precio, antes de descuentos.
+  /// Si se vendió por paquete: su nombre ("Tubo completo"), cuánto trae (6) y cuántos se vendieron (2).
+  presentacion     String?
+  porPresentacion  Decimal?     @db.Decimal(14, 3)
+  paquetes         Decimal?     @db.Decimal(14, 3)
+  /// cantidad × precio (o paquetes × precio del paquete), antes de descuentos.
   subtotal         Int
   /// Descuento de la línea más su parte del descuento general.
   descuento        Int

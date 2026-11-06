@@ -31,7 +31,7 @@ import type { ProductoCompra } from "@/lib/datos/compras";
 import type { EstadoFotos, FacturaRevisada } from "@/lib/datos/lectura-factura";
 import { formatearPesos } from "@/lib/formato";
 import { formatearCantidad, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
-import { precioSugerido } from "@/lib/inventario/precios";
+import { margenEfectivo, precioSugerido } from "@/lib/inventario/precios";
 import { IVAS, UNIDADES } from "@/lib/inventario/unidades";
 import { cn } from "@/lib/utils";
 import type { UnidadMedida } from "@/generated/prisma/enums";
@@ -164,12 +164,41 @@ function sumarLinea(ls: Linea[], p: ProductoCompra, cantidad: string, costo: num
   ];
 }
 
+type CategoriaFactura = { id: string; nombre: string; margenSugerido: number | null };
+
+/** Lista de categorías del negocio; vacía si el negocio no usa categorías. */
+function SelectorCategoria({
+  id,
+  categorias,
+  valor,
+  onValor,
+  className,
+}: {
+  id: string;
+  categorias: CategoriaFactura[];
+  valor: string;
+  onValor: (id: string) => void;
+  className?: string;
+}) {
+  return (
+    <NativeSelect id={id} value={valor} onChange={(e) => onValor(e.target.value)} className={className}>
+      <option value="">Sin categoría</option>
+      {categorias.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.nombre}
+        </option>
+      ))}
+    </NativeSelect>
+  );
+}
+
 export function FormularioFactura({
   negocioId,
   hoy,
   proveedores: proveedoresIniciales,
   proveedorInicial,
   margenNegocio,
+  categorias,
   cajaAbierta,
   fotos,
 }: {
@@ -178,6 +207,8 @@ export function FormularioFactura({
   proveedores: Proveedor[];
   proveedorInicial: string | null;
   margenNegocio: number;
+  /** Para elegir la categoría de los productos que se crean desde la factura. */
+  categorias: CategoriaFactura[];
   cajaAbierta: boolean;
   fotos: EstadoFotos;
 }) {
@@ -314,6 +345,7 @@ export function FormularioFactura({
   }
 
   const [creandoTodos, setCreandoTodos] = useState(false);
+  const [categoriaNuevos, setCategoriaNuevos] = useState("");
   const nuevos = pendientes.filter((x) => x.estado === "nuevo");
   const conSugerencia = pendientes.filter((x) => x.estado === "revisar" && x.candidatos.length > 0);
 
@@ -323,6 +355,7 @@ export function FormularioFactura({
     setError(null);
     try {
       const r = await crearProductosLeidosAccion(
+        categoriaNuevos || null,
         nuevos.map((x) => ({
           clave: x.clave,
           descripcion: x.descripcion,
@@ -656,6 +689,20 @@ export function FormularioFactura({
                   : `${pendientes.length} productos de la foto necesitan tu revisión.`}{" "}
                 Puedes resolverlos todos de una vez:
               </p>
+              {nuevos.length > 0 && categorias.length > 0 && (
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                  <label htmlFor="categoria-nuevos" className="text-sm font-medium">
+                    Categoría para los nuevos
+                  </label>
+                  <SelectorCategoria
+                    id="categoria-nuevos"
+                    categorias={categorias}
+                    valor={categoriaNuevos}
+                    onValor={setCategoriaNuevos}
+                    className="h-12 sm:w-64"
+                  />
+                </div>
+              )}
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {nuevos.length > 0 && (
                   <Button type="button" size="lg" className="h-12" onClick={crearTodos} disabled={creandoTodos}>
@@ -888,6 +935,7 @@ export function FormularioFactura({
           texto={textoNuevo}
           inicial={paraPendiente ? inicialProducto : null}
           margen={margenNegocio}
+          categorias={categorias}
           onCreado={(p) => {
             setDialogo(null);
             setInicialProducto(null);
@@ -1336,13 +1384,15 @@ function FormularioProveedorRapido({
 function FormularioProductoNuevo({
   texto,
   inicial,
-  margen,
+  margen: margenNegocio,
+  categorias,
   onCreado,
 }: {
   texto: string;
   /** Datos leídos de la foto de la factura. */
   inicial?: InicialProducto | null;
   margen: number;
+  categorias: CategoriaFactura[];
   onCreado: (p: ProductoCompra) => void;
 }) {
   // Lo que se había escrito en el buscador: si son solo números parece un código de barras; si no, un nombre.
@@ -1351,6 +1401,9 @@ function FormularioProductoNuevo({
   const [codigo, setCodigo] = useState(inicial?.codigo ?? "");
   const [codigoBarras, setCodigoBarras] = useState(inicial?.codigoBarras ?? (pareceCodigo ? texto.trim() : ""));
   const [unidad, setUnidad] = useState<UnidadMedida>("UNIDAD");
+  const [categoriaId, setCategoriaId] = useState("");
+  // El margen de la categoría manda sobre el del negocio, igual que en el inventario.
+  const margen = margenEfectivo(margenNegocio, categorias.find((c) => c.id === categoriaId)?.margenSugerido);
   const [fraccionado, setFraccionado] = useState(false);
   const [iva, setIva] = useState("19");
   const [condicion, setCondicion] = useState<"NUEVO" | "DE_SEGUNDA">("NUEVO");
@@ -1371,6 +1424,7 @@ function FormularioProductoNuevo({
         nombre,
         codigo: codigo.trim() || codigoBarras.trim(),
         codigoBarras,
+        categoriaId,
         unidad,
         fraccionado: unidad !== "UNIDAD" && fraccionado,
         porcentajeIva: iva,
@@ -1396,6 +1450,11 @@ function FormularioProductoNuevo({
       <Campo id="pn-nombre" etiqueta="Nombre" error={campos.nombre}>
         <Input id="pn-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={150} />
       </Campo>
+      {categorias.length > 0 && (
+        <Campo id="pn-categoria" etiqueta="Categoría" error={campos.categoriaId}>
+          <SelectorCategoria id="pn-categoria" categorias={categorias} valor={categoriaId} onValor={setCategoriaId} />
+        </Campo>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Campo
           id="pn-codigo"

@@ -364,6 +364,22 @@ describe("crear de una vez los productos que no estaban", () => {
     expect(brocha.porcentajeIva).toBe(19);
   });
 
+  it("crea los nuevos en la categoría elegida, con el margen de esa categoría", async () => {
+    const tornilleria = await prisma.categoria.create({
+      data: { empresaId: e.camila.id, negocioId: e.ferreteria.id, nombre: "Tornillería", margenSugerido: 60 },
+    });
+    const r = await crearProductosLeidos(e.ctx.admin, e.ferreteria.id, [leido({ clave: "a", costo: 1000 })], tornilleria.id);
+    expect(r.fallidos).toEqual([]);
+    const creado = await prisma.producto.findUniqueOrThrow({ where: { id: r.creados[0].producto.id } });
+    expect(creado).toMatchObject({ categoriaId: tornilleria.id, precioVenta: 1600 });
+
+    // Una categoría de otro negocio no sirve: no se crea nada.
+    const deMotos = await prisma.categoria.create({ data: { empresaId: e.camila.id, negocioId: e.motos.id, nombre: "Llantas" } });
+    const otra = await crearProductosLeidos(e.ctx.admin, e.ferreteria.id, [leido({ clave: "b" })], deMotos.id);
+    expect(otra.creados).toEqual([]);
+    expect(otra.fallidos[0].error).toMatch(/categoría no existe/);
+  });
+
   it("solo el administrador o el socio, y solo en sus negocios", async () => {
     await expect(crearProductosLeidos(e.ctx.cajero, e.motos.id, [leido({})])).rejects.toThrow(AccesoDenegado);
     await expect(crearProductosLeidos(e.ctx.socio, e.motos.id, [leido({})])).rejects.toThrow(AccesoDenegado);

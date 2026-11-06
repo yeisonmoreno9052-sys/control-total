@@ -2,12 +2,16 @@
 // datosDe(), así que solo ve productos de sus negocios.
 //
 // El cajero NUNCA recibe el costo: las consultas ni siquiera lo piden a la base.
+import { leerPresentaciones, type Presentacion } from "@/lib/inventario/presentaciones";
 import { puedeVerCostos } from "@/lib/permisos";
 import { AccesoDenegado, datosDe } from "./alcance";
 import type { Contexto } from "./contexto";
 import { urlFoto } from "./fotos-producto";
 
 export const POR_PAGINA = 50;
+
+/** Valor del filtro de categoría para ver los productos que no tienen. */
+export const SIN_CATEGORIA = "sin";
 
 const camposBase = {
   id: true,
@@ -26,6 +30,7 @@ const camposBase = {
   condicion: true,
   controlaStock: true,
   botonRapido: true,
+  presentaciones: true,
   fotoEn: true,
   activo: true,
 } as const;
@@ -51,6 +56,7 @@ type Fila = {
   condicion: string;
   controlaStock: boolean;
   botonRapido: boolean;
+  presentaciones: unknown;
   fotoEn: Date | null;
   activo: boolean;
   costo?: number;
@@ -80,6 +86,7 @@ function aVista(p: Fila, categorias: Map<string, string>) {
     /** false: no se cuenta (tinto, jugos); se vende siempre. */
     controlaStock: p.controlaStock,
     botonRapido: p.botonRapido,
+    presentaciones: leerPresentaciones(p.presentaciones),
     fotoUrl: urlFoto(p.id, p.fotoEn),
     unidad: p.unidad as import("@/generated/prisma/enums").UnidadMedida,
     fraccionado: p.fraccionado,
@@ -115,7 +122,8 @@ export async function buscarProductos(ctx: Contexto, negocioId: string, filtros:
   const where = {
     negocioId,
     activo: true,
-    ...(filtros.categoriaId ? { categoriaId: filtros.categoriaId } : {}),
+    // "sin": los que no tienen categoría (para ordenarlos).
+    ...(filtros.categoriaId ? { categoriaId: filtros.categoriaId === SIN_CATEGORIA ? null : filtros.categoriaId } : {}),
     ...(filtros.stockBajo
       ? { stockMinimo: { gt: 0 }, stock: { lte: datos.producto.fields.stockMinimo } }
       : {}),
@@ -250,18 +258,20 @@ export type ProductoCaja = {
   controlaStock?: boolean;
   /** Puede faltar en copias sin internet guardadas antes de existir. */
   fotoUrl?: string | null;
+  /** Paquetes con precio propio (tubo completo). Puede faltar en copias sin internet guardadas antes de existir. */
+  presentaciones?: Presentacion[];
 };
 
 const CAMPOS_CAJA = {
   id: true, codigo: true, nombre: true, precioVenta: true, porcentajeIva: true, unidad: true, fraccionado: true, stock: true,
-  controlaStock: true, fotoEn: true,
+  controlaStock: true, fotoEn: true, presentaciones: true,
 } as const;
 
-type FilaCaja = { id: string; stock: { toString(): string }; fotoEn: Date | null };
+type FilaCaja = { id: string; stock: { toString(): string }; fotoEn: Date | null; presentaciones: unknown };
 
-/** Pasa una fila de la base a lo que recibe la caja: stock en texto y la dirección de la foto. */
-function aCaja<T extends FilaCaja>({ fotoEn, ...p }: T) {
-  return { ...p, stock: p.stock.toString(), fotoUrl: urlFoto(p.id, fotoEn) };
+/** Pasa una fila de la base a lo que recibe la caja: stock en texto, la dirección de la foto y los paquetes. */
+function aCaja<T extends FilaCaja>({ fotoEn, presentaciones, ...p }: T) {
+  return { ...p, stock: p.stock.toString(), fotoUrl: urlFoto(p.id, fotoEn), presentaciones: leerPresentaciones(presentaciones) };
 }
 
 /**

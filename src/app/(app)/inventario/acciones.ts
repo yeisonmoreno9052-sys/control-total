@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { MotivoAjuste } from "@/generated/prisma/enums";
-import { guardarCategoria, guardarMargenNegocio } from "@/lib/datos/categorias";
+import { asignarCategoria, guardarCategoria, guardarMargenNegocio } from "@/lib/datos/categorias";
 import { registrarPiezaSegunda } from "@/lib/datos/compras";
 import { FOTO_MAXIMO, guardarFotoPorArchivo, guardarFotoProducto } from "@/lib/datos/fotos-producto";
 import { analizarImportacion, ejecutarImportacion, type AnalisisImportacion } from "@/lib/datos/importacion";
@@ -25,6 +25,16 @@ async function contextoInventario() {
 function texto(formulario: FormData, campo: string) {
   const v = formulario.get(campo);
   return typeof v === "string" ? v : "";
+}
+
+/** Lo que llega en JSON de un campo oculto. Vacío o dañado = undefined (no se toca). */
+function leerJson(valor: string): unknown {
+  if (!valor) return undefined;
+  try {
+    return JSON.parse(valor);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Para el lector de código de barras: devuelve el id si el código coincide exacto. */
@@ -53,6 +63,7 @@ export async function guardarProducto(_: EstadoFormulario, formulario: FormData)
     controlaStock: formulario.get("sinStock") !== "on",
     // La casilla solo se muestra si el negocio usa botones rápidos; si no se mostró, no se toca.
     botonRapido: formulario.get("conBotonRapido") === "1" ? formulario.get("botonRapido") === "on" : undefined,
+    presentaciones: leerJson(texto(formulario, "presentaciones")),
   });
   if (!datos.success) {
     return { error: "Revisa los campos marcados.", campos: erroresPorCampo(datos.error) };
@@ -150,6 +161,20 @@ export async function guardarCategoriaAccion(_: EstadoFormulario, formulario: Fo
   if (!r.ok) return { error: r.error, campos: r.campos };
   revalidatePath("/inventario/categorias");
   return { ok: true };
+}
+
+/** "Cambiar categoría" a varios productos marcados en la lista. */
+export async function asignarCategoriaAccion(productoIds: string[], categoriaId: string | null) {
+  const ctx = await contextoInventario();
+  if (!ctx.negocioActivoId) return { ok: false as const, error: "Elige un negocio primero." };
+  const r = await asignarCategoria(
+    ctx,
+    ctx.negocioActivoId,
+    z.array(z.string().max(40)).max(500).parse(productoIds),
+    z.string().max(40).nullable().parse(categoriaId),
+  );
+  if (r.ok) revalidatePath("/inventario", "layout");
+  return r;
 }
 
 export async function guardarMargenAccion(_: EstadoFormulario, formulario: FormData): Promise<EstadoFormulario> {

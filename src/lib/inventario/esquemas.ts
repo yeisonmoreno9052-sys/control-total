@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { CondicionProducto, UnidadMedida } from "@/generated/prisma/enums";
 import { leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "./cantidades";
+import { esquemaPresentaciones, prepararPresentaciones, type Presentacion } from "./presentaciones";
 import { IVAS } from "./unidades";
 
 /** "$ 13.000" → 13000. Devuelve null si no es un valor en pesos válido. */
@@ -77,6 +78,8 @@ export const esquemaProducto = z
     /** Opcionales: la importación puede no traerlos y entonces no se tocan. */
     controlaStock: siNo.optional(),
     botonRapido: siNo.optional(),
+    /** Paquetes con precio propio (tubo completo = 6 m). undefined = no se tocan. */
+    presentaciones: esquemaPresentaciones.optional(),
   })
   .superRefine((p, ctx) => {
     if (p.fraccionado && p.unidad === "UNIDAD") {
@@ -92,7 +95,18 @@ export const esquemaProducto = z
     const minimo = leerCantidad(p.stockMinimo);
     const error = validarCantidad(minimo, { fraccionado: p.fraccionado });
     if (error) ctx.addIssue({ code: "custom", path: ["stockMinimo"], message: MENSAJES_CANTIDAD[error] });
-  });
+    if (p.presentaciones) {
+      const r = prepararPresentaciones(p.presentaciones, { fraccionado: p.fraccionado, leerPesos });
+      if (!r.ok) ctx.addIssue({ code: "custom", path: ["presentaciones"], message: r.error });
+    }
+  })
+  .transform(({ presentaciones, ...p }) => ({
+    ...p,
+    presentaciones: presentaciones
+      ? (prepararPresentaciones(presentaciones, { fraccionado: p.fraccionado, leerPesos }) as { presentaciones: Presentacion[] })
+          .presentaciones
+      : undefined,
+  }));
 
 export type ProductoEntrada = z.infer<typeof esquemaProducto>;
 

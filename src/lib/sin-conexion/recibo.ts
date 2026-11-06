@@ -1,9 +1,7 @@
 // Recibo de una venta hecha sin internet. No puede usar la página /recibo (vive en el
 // servidor), así que se arma aquí y se imprime desde un marco oculto. Mismo formato de 80 mm.
 import { formatearFecha, formatearHora, formatearPesos } from "@/lib/formato";
-import { formatearCantidad } from "@/lib/inventario/cantidades";
-import { UNIDADES } from "@/lib/inventario/unidades";
-import type { UnidadMedida } from "@/generated/prisma/enums";
+import { textoCantidad } from "@/lib/ventas/recibo";
 import type { DatosRecibo, ReciboLocal } from "./almacen";
 
 const escapar = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -52,7 +50,7 @@ ${r.cliente ? `<p>Cliente: ${escapar(r.cliente)}</p>` : ""}
 ${r.lineas
   .map(
     (l) =>
-      `<li><p>${escapar(l.nombre)}</p><div class="f"><span>${formatearCantidad(l.cantidad)} ${UNIDADES[l.unidad as UnidadMedida]?.corto ?? ""} × ${formatearPesos(l.precioUnitario)}${l.porcentajeIva ? "" : " (sin IVA)"}</span><span>${formatearPesos(l.subtotal)}</span></div>${l.descuento > 0 ? fila("Descuento", -l.descuento) : ""}</li>`,
+      `<li><p>${escapar(l.nombre)}</p><div class="f"><span>${escapar(textoCantidad({ cantidad: l.cantidad, unidad: l.unidad, presentacion: l.presentacion?.nombre, porPresentacion: l.presentacion?.cantidad, paquetes: l.presentacion ? l.cantidad : null }))} × ${formatearPesos(l.precioUnitario)}${l.porcentajeIva ? "" : " (sin IVA)"}</span><span>${formatearPesos(l.subtotal)}</span></div>${l.descuento > 0 ? fila("Descuento", -l.descuento) : ""}</li>`,
   )
   .join("")}
 </ul>

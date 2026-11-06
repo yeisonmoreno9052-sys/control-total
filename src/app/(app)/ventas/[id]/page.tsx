@@ -11,7 +11,7 @@ import { formatearCantidad } from "@/lib/inventario/cantidades";
 import { UNIDADES } from "@/lib/inventario/unidades";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
-import { enlaceWhatsApp, formatearConsecutivo, NOMBRE_MEDIO, textoWhatsApp } from "@/lib/ventas/recibo";
+import { enlaceWhatsApp, formatearConsecutivo, NOMBRE_MEDIO, textoCantidad, textoWhatsApp } from "@/lib/ventas/recibo";
 import type { UnidadMedida } from "@/generated/prisma/enums";
 import { EstadoVenta } from "../estado-venta";
 import { Correcciones } from "./correcciones";
@@ -96,7 +96,12 @@ export default async function DetalleVenta({ params }: PageProps<"/ventas/[id]">
                   )}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">
-                  {formatearCantidad(d.cantidad)} {UNIDADES[d.unidad as UnidadMedida]?.corto}
+                  {textoCantidad(d)}
+                  {d.presentacion && (
+                    <span className="block text-xs text-muted-foreground">
+                      {formatearCantidad(d.cantidad)} {UNIDADES[d.unidad as UnidadMedida]?.corto}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatearPesos(d.precioUnitario)}</td>
                 {verCosto && (

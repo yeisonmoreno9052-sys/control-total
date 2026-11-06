@@ -52,6 +52,7 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
           condicion: producto.condicion,
           controlaStock: producto.controlaStock,
           botonRapido: producto.botonRapido,
+          presentaciones: producto.presentaciones,
         }}
       />
     </div>

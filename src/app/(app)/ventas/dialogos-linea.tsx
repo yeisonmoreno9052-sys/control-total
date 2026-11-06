@@ -10,6 +10,8 @@ import { TecladoNumerico, useCampoTeclado } from "@/components/ventas/teclado-nu
 import type { ProductoCaja } from "@/lib/datos/productos";
 import { Decimal, formatearCantidad, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
 import { UNIDADES } from "@/lib/inventario/unidades";
+import type { Presentacion } from "@/lib/inventario/presentaciones";
+import { formatearPesos } from "@/lib/formato";
 import type { Descuento } from "@/lib/ventas/totales";
 import { cn } from "@/lib/utils";
 import type { UnidadMedida } from "@/generated/prisma/enums";
@@ -18,42 +20,52 @@ import type { UnidadMedida } from "@/generated/prisma/enums";
 export function DialogoCantidad({
   abierto,
   producto,
+  presentacion,
   actual,
   onConfirmar,
   onCerrar,
 }: {
   abierto: boolean;
   producto: ProductoCaja | null;
+  /** Si la línea es por paquete (tubo completo), la cantidad es de paquetes. */
+  presentacion?: Presentacion | null;
   actual: string | null;
   onConfirmar: (cantidad: Decimal) => string | null;
   onCerrar: () => void;
 }) {
+  const titulo = producto ? (presentacion ? `${producto.nombre} · ${presentacion.nombre}` : producto.nombre) : "Cantidad";
   return (
-    <Dialogo abierto={abierto} onCerrar={onCerrar} titulo={producto?.nombre ?? "Cantidad"}>
-      {producto && <FormularioCantidad producto={producto} actual={actual} onConfirmar={onConfirmar} />}
+    <Dialogo abierto={abierto} onCerrar={onCerrar} titulo={titulo}>
+      {producto && (
+        <FormularioCantidad producto={producto} presentacion={presentacion ?? null} actual={actual} onConfirmar={onConfirmar} />
+      )}
     </Dialogo>
   );
 }
 
 function FormularioCantidad({
   producto,
+  presentacion,
   actual,
   onConfirmar,
 }: {
   producto: ProductoCaja;
+  presentacion: Presentacion | null;
   actual: string | null;
   onConfirmar: (cantidad: Decimal) => string | null;
 }) {
   const unidad = UNIDADES[producto.unidad as UnidadMedida];
+  // Los paquetes se venden completos: 2 tubos, no 1,5.
+  const fraccionado = !presentacion && producto.fraccionado;
   const [texto, setTexto] = useState(actual ? formatearCantidad(actual) : "");
   const [error, setError] = useState<string | null>(null);
-  const teclado = useCampoTeclado(producto.fraccionado ? "decimal" : "numeric");
+  const teclado = useCampoTeclado(fraccionado ? "decimal" : "numeric");
 
   function confirmar(e: React.FormEvent) {
     e.preventDefault();
     const cantidad = leerCantidad(texto);
-    const problema = validarCantidad(cantidad, { fraccionado: producto.fraccionado });
-    if (problema) return setError(MENSAJES_CANTIDAD[problema]);
+    const problema = validarCantidad(cantidad, { fraccionado });
+    if (problema) return setError(presentacion && problema === "entera" ? "Escribe cuántos completos, sin decimales." : MENSAJES_CANTIDAD[problema]);
     if (cantidad!.lte(0)) return setError("La cantidad debe ser mayor que cero.");
     setError(onConfirmar(cantidad!));
   }
@@ -61,8 +73,9 @@ function FormularioCantidad({
   return (
     <form onSubmit={confirmar} className="space-y-4" noValidate>
       <p className="text-sm text-muted-foreground">
+        {presentacion && `Cada uno trae ${formatearCantidad(presentacion.cantidad)} ${unidad?.corto ?? ""}. `}
         {producto.controlaStock !== false && `Quedan ${formatearCantidad(producto.stock)} ${unidad?.corto ?? ""}.`}
-        {producto.fraccionado && " Puedes escribir decimales, por ejemplo 2,5 o 0,350."}
+        {fraccionado && " Puedes escribir decimales, por ejemplo 2,5 o 0,350."}
       </p>
       <div className="relative">
         <Input
@@ -73,18 +86,93 @@ function FormularioCantidad({
             setError(null);
           }}
           {...teclado}
-          aria-label={`Cantidad en ${unidad?.nombre.toLowerCase()}`}
+          aria-label={presentacion ? `Cuántos: ${presentacion.nombre}` : `Cantidad en ${unidad?.nombre.toLowerCase()}`}
           aria-invalid={!!error}
           className="h-16 pr-16 text-3xl font-semibold tabular-nums"
         />
-        <span className="absolute top-1/2 right-4 -translate-y-1/2 text-lg text-muted-foreground">{unidad?.corto}</span>
+        {!presentacion && (
+          <span className="absolute top-1/2 right-4 -translate-y-1/2 text-lg text-muted-foreground">{unidad?.corto}</span>
+        )}
       </div>
-      <TecladoNumerico decimales={producto.fraccionado} />
+      <TecladoNumerico decimales={fraccionado} />
       <AvisoError mensaje={error ?? undefined} />
       <Button type="submit" size="lg" className="h-14 w-full text-lg">
         Listo
       </Button>
     </form>
+  );
+}
+
+/**
+ * Producto que también se vende por paquete (tubo completo, caja de tornillos): la cajera
+ * elige cómo lo lleva el cliente. Con el teclado: 1 para la unidad, 2, 3… para los paquetes.
+ */
+export function DialogoPresentacion({
+  abierto,
+  producto,
+  onElegir,
+  onCerrar,
+}: {
+  abierto: boolean;
+  producto: ProductoCaja | null;
+  /** null = por la unidad del producto (por metro). */
+  onElegir: (presentacion: Presentacion | null) => void;
+  onCerrar: () => void;
+}) {
+  const unidad = producto ? UNIDADES[producto.unidad as UnidadMedida] : null;
+  const opciones = producto
+    ? [
+        {
+          presentacion: null,
+          titulo: `Por ${unidad?.nombre.toLowerCase() ?? "unidad"}`,
+          detalle: `${formatearPesos(producto.precioVenta)} ${producto.unidad === "UNIDAD" ? "cada una" : `el ${unidad?.corto ?? ""}`}`,
+        },
+        ...(producto.presentaciones ?? []).map((p) => ({
+          presentacion: p,
+          titulo: p.nombre,
+          detalle: `${formatearCantidad(p.cantidad)} ${unidad?.corto ?? ""} · ${formatearPesos(p.precio)}`,
+        })),
+      ]
+    : [];
+  return (
+    <Dialogo abierto={abierto} onCerrar={onCerrar} titulo={producto?.nombre ?? "¿Cómo lo lleva?"}>
+      {producto && (
+        <div
+          className="space-y-3"
+          onKeyDown={(e) => {
+            const n = Number(e.key);
+            if (Number.isInteger(n) && n >= 1 && n <= opciones.length) {
+              e.preventDefault();
+              onElegir(opciones[n - 1].presentacion);
+            }
+          }}
+        >
+          <p className="text-sm text-muted-foreground">
+            ¿Cómo lo lleva el cliente?
+            {producto.controlaStock !== false && ` Quedan ${formatearCantidad(producto.stock)} ${unidad?.corto ?? ""}.`}
+          </p>
+          <div className="grid gap-3">
+            {opciones.map((o, i) => (
+              <button
+                key={o.presentacion?.id ?? "unidad"}
+                type="button"
+                data-autofocus={i === 0 ? true : undefined}
+                onClick={() => onElegir(o.presentacion)}
+                className="flex min-h-16 items-center gap-3 rounded-xl border-2 bg-card px-4 py-3 text-left transition hover:border-primary focus-visible:border-primary focus-visible:outline-none active:scale-[0.99] active:bg-accent"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-lg font-semibold leading-tight">{o.titulo}</span>
+                  <span className="block text-muted-foreground tabular-nums">{o.detalle}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </Dialogo>
   );
 }
 
