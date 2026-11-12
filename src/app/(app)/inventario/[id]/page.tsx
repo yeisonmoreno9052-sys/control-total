@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { History, Pencil, SlidersHorizontal, Tag, Truck } from "lucide-react";
+import { History, Pencil, Shirt, SlidersHorizontal, Tag, Truck } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,13 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
         acciones={
           puedeEditarProductos(ctx) && (
             <>
+              {producto.prendaId && (
+                <Button asChild variant="outline">
+                  <Link href={`/inventario/prenda/${producto.prendaId}`}>
+                    <Shirt /> Todas las tallas
+                  </Link>
+                </Button>
+              )}
               {gestiona && (
                 <Button asChild variant="outline">
                   <Link href={`/etiqueta/${id}`}>
@@ -112,6 +119,8 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
       </div>
 
       <dl className="grid gap-x-6 gap-y-3 rounded-xl border p-4 text-sm sm:grid-cols-2 md:p-6 bg-card shadow-suave">
+        {producto.talla && <Fila titulo="Talla">{producto.talla}</Fila>}
+        {producto.color && <Fila titulo="Color">{producto.color}</Fila>}
         <Fila titulo="Categoría">{producto.categoria ?? "Sin categoría"}</Fila>
         <Fila titulo="Unidad">
           {unidad.nombre}

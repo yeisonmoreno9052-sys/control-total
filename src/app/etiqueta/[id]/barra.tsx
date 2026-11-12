@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SelectorTamano } from "@/components/etiquetas/selector-tamano";
+import type { TamanoEtiqueta } from "@/components/etiquetas/etiqueta";
 
 /** Barra de arriba (no sale en la impresión): volver, cuántas etiquetas e imprimir. */
 export function BarraEtiqueta({
@@ -12,20 +14,22 @@ export function BarraEtiqueta({
   copias,
   nueva,
   imprimir,
+  tamano,
 }: {
   productoId: string;
   copias: number;
   /** Código de la pieza recién registrada, para mostrar el aviso. */
   nueva: string | null;
   imprimir: boolean;
+  tamano: TamanoEtiqueta;
 }) {
   const router = useRouter();
   useEffect(() => {
     if (imprimir) window.print();
   }, [imprimir]);
 
-  const cambiar = (n: number) => {
-    const p = new URLSearchParams({ copias: String(Math.min(100, Math.max(1, n))) });
+  const cambiar = (n: number, tam: TamanoEtiqueta = tamano) => {
+    const p = new URLSearchParams({ copias: String(Math.min(100, Math.max(1, n))), tam });
     if (nueva) p.set("nueva", "1");
     router.replace(`/etiqueta/${productoId}?${p.toString()}`, { scroll: false });
   };
@@ -57,6 +61,7 @@ export function BarraEtiqueta({
           <Printer /> Imprimir
         </Button>
       </div>
+      <SelectorTamano tamano={tamano} onCambiar={(t) => cambiar(copias, t)} />
       {nueva && (
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link href="/inventario/segunda">Registrar otra pieza de segunda</Link>

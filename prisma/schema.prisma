@@ -117,6 +117,8 @@ model Negocio {
   botonesRapidos        Boolean  @default(false)
   /// Si se puede fiar (vender a crédito) y recibir abonos de los clientes.
   permiteCredito        Boolean  @default(false)
+  /// Si los productos se crean por prenda con tallas y colores (almacenes de ropa y calzado).
+  usaTallas             Boolean  @default(false)
   activo                Boolean  @default(true)
   creadoEn              DateTime @default(now())
   actualizadoEn         DateTime @updatedAt
@@ -316,6 +318,13 @@ model Producto {
   presentaciones Json             @default("[]")
   /// Cuándo se puso la foto (null = sin foto). Va en la dirección de la imagen para que el navegador pida la nueva.
   fotoEn        DateTime?
+  /// Prendas con tallas y colores: cada talla y color es un producto con su stock y su código;
+  /// los de la misma prenda comparten prendaId. null = producto suelto.
+  prendaId      String?
+  /// Nombre de la prenda sin talla ni color ("Blusa Lina").
+  prenda        String?
+  talla         String?
+  color         String?
   activo        Boolean           @default(true)
   creadoEn      DateTime          @default(now())
   actualizadoEn DateTime          @updatedAt
@@ -334,6 +343,7 @@ model Producto {
   @@index([empresaId])
   @@index([negocioId, nombre])
   @@index([categoriaId])
+  @@index([negocioId, prendaId])
   // Búsqueda rápida por partes del nombre o del código ("tornillo 1/4").
   @@index([nombre(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_nombre_trgm_idx")
   @@index([codigo(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_codigo_trgm_idx")

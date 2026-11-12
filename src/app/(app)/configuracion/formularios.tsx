@@ -117,6 +117,21 @@ export function FormularioPreferenciasVenta({ preferencias }: { preferencias: Pr
           </span>
         </span>
       </label>
+      <label className="flex items-start gap-3 rounded-lg border p-3">
+        <input
+          type="checkbox"
+          name="usaTallas"
+          defaultChecked={preferencias.usaTallas}
+          className="mt-0.5 size-5 accent-[var(--primary)]"
+        />
+        <span>
+          <span className="font-medium">Vender por tallas y colores</span>
+          <span className="block text-sm text-muted-foreground">
+            Para almacenes de ropa y calzado: en Inventario aparece &quot;Nueva prenda&quot;, donde se crea la prenda una vez con
+            sus tallas y colores. En la caja se escoge la talla y el color con botones.
+          </span>
+        </span>
+      </label>
       <AvisoError mensaje={estado.error} />
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={guardando}>

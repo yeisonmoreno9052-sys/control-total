@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, SearchX, TriangleAlert } from "lucide-react";
+import { FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, SearchX, Shirt, TriangleAlert } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Miniatura } from "@/components/inventario/miniatura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { listarCategorias } from "@/lib/datos/categorias";
+import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { buscarProductos, type ProductoVista } from "@/lib/datos/productos";
 import { formatearPesos } from "@/lib/formato";
 import { formatearCantidad } from "@/lib/inventario/cantidades";
@@ -49,7 +50,7 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
   // El cajero con permiso crea productos, pero no importa ni toca categorías.
   const crea = puedeEditarProductos(ctx);
 
-  const [resultado, categorias] = await Promise.all([
+  const [resultado, categorias, preferencias] = await Promise.all([
     buscarProductos(ctx, negocioId, {
       q: parametros.q,
       categoriaId: parametros.categoria,
@@ -57,6 +58,7 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
       pagina: Number(parametros.pagina) || 1,
     }),
     listarCategorias(ctx, negocioId),
+    obtenerPreferenciasVenta(ctx, negocioId),
   ]);
   const hayFiltros = !!(parametros.q || parametros.categoria || parametros.bajo);
 
@@ -85,11 +87,13 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
                       <FileSpreadsheet /> Importar
                     </Link>
                   </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/inventario/segunda">
-                      <Recycle /> Pieza de segunda
-                    </Link>
-                  </Button>
+                  {!preferencias.usaTallas && (
+                    <Button asChild variant="outline">
+                      <Link href="/inventario/segunda">
+                        <Recycle /> Pieza de segunda
+                      </Link>
+                    </Button>
+                  )}
                 </>
               )}
               <Button asChild variant="outline">
@@ -97,11 +101,26 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
                   <Images /> Subir fotos
                 </Link>
               </Button>
-              <Button asChild>
-                <Link href="/inventario/nuevo">
-                  <Plus /> Nuevo producto
-                </Link>
-              </Button>
+              {preferencias.usaTallas ? (
+                <>
+                  <Button asChild variant="outline">
+                    <Link href="/inventario/nuevo">
+                      <Plus /> Producto suelto
+                    </Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/inventario/prenda/nueva">
+                      <Shirt /> Nueva prenda
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <Button asChild>
+                  <Link href="/inventario/nuevo">
+                    <Plus /> Nuevo producto
+                  </Link>
+                </Button>
+              )}
             </>
           )
         }
@@ -137,15 +156,17 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
             titulo="Todavía no hay productos"
             descripcion={
               crea
-                ? "Agrega uno por uno o importa tu inventario desde Excel."
+                ? preferencias.usaTallas
+                  ? "Crea cada prenda con sus tallas y colores, o importa tu inventario desde Excel."
+                  : "Agrega uno por uno o importa tu inventario desde Excel."
                 : "Cuando el administrador cargue productos, aparecerán aquí."
             }
             accion={
               crea && (
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button asChild>
-                    <Link href="/inventario/nuevo">
-                      <Plus /> Nuevo producto
+                    <Link href={preferencias.usaTallas ? "/inventario/prenda/nueva" : "/inventario/nuevo"}>
+                      {preferencias.usaTallas ? <Shirt /> : <Plus />} {preferencias.usaTallas ? "Nueva prenda" : "Nuevo producto"}
                     </Link>
                   </Button>
                   {gestiona && (

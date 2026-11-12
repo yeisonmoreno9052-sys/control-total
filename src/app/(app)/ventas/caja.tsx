@@ -18,6 +18,7 @@ import { Miniatura } from "@/components/inventario/miniatura";
 import type { UnidadMedida } from "@/generated/prisma/enums";
 import { buscarProductoCaja, refrescarCarrito } from "./acciones";
 import { DialogoCliente } from "./dialogo-cliente";
+import { DialogoTalla } from "./dialogo-talla";
 import { DialogoCobrar } from "./dialogo-cobrar";
 import { DialogoDejarEnEspera, DialogoEnEspera, guardarEnEspera, leerEnEspera, type VentaEnEspera } from "./dialogos-espera";
 import { DialogoCancelar, DialogoCantidad, DialogoDescuento, DialogoPresentacion } from "./dialogos-linea";
@@ -80,6 +81,7 @@ export function faltaStock(producto: ProductoCaja, cantidad: Decimal) {
 type Dialogo =
   | { tipo: "cantidad"; producto: ProductoCaja; presentacion: Presentacion | null; nueva: boolean }
   | { tipo: "presentacion"; producto: ProductoCaja }
+  | { tipo: "talla"; variantes: ProductoCaja[] }
   | { tipo: "descuento"; clave: string | null }
   | { tipo: "cliente"; paraFiar?: boolean }
   | { tipo: "cobrar"; fiado?: boolean }
@@ -370,6 +372,7 @@ export function Caja({
           alElegir={(p) => {
             agregar(p);
           }}
+          alElegirPrenda={(variantes) => setDialogo({ tipo: "talla", variantes })}
           alAvisar={setAviso}
           onEscapeVacio={() => lineas.length && setDialogo({ tipo: "cancelar" })}
         />
@@ -624,6 +627,16 @@ export function Caja({
           </Button>
         </div>
       </aside>
+
+      <DialogoTalla
+        abierto={dialogo?.tipo === "talla"}
+        variantes={dialogo?.tipo === "talla" ? dialogo.variantes : []}
+        onElegir={(p) => {
+          cerrarDialogo();
+          agregar(p);
+        }}
+        onCerrar={cerrarDialogo}
+      />
 
       <DialogoPresentacion
         abierto={dialogo?.tipo === "presentacion"}
@@ -964,6 +977,7 @@ function Buscador({
   refInput,
   buscarProductos,
   alElegir,
+  alElegirPrenda,
   alAvisar,
   onEscapeVacio,
 }: {
@@ -972,6 +986,8 @@ function Buscador({
   refInput: React.RefObject<HTMLInputElement | null>;
   buscarProductos: (q: string) => Promise<{ exacto: ProductoCaja | null; resultados: ProductoCaja[] }>;
   alElegir: (p: ProductoCaja) => void;
+  /** Una prenda con varias tallas o colores: la caja pregunta cuál. */
+  alElegirPrenda: (variantes: ProductoCaja[]) => void;
   alAvisar: (mensaje: string | null) => void;
   onEscapeVacio: () => void;
 }) {
@@ -1012,8 +1028,12 @@ function Buscador({
     return () => clearTimeout(espera);
   }, [texto, buscar]);
 
-  const elegir = (p: ProductoCaja) => {
-    alElegir(p);
+  const opciones = useMemo(() => agruparPrendas(resultados), [resultados]);
+
+  const elegir = (o: OpcionBusqueda) => {
+    if (o.tipo === "producto") alElegir(o.producto);
+    else if (o.variantes.length === 1) alElegir(o.variantes[0]);
+    else alElegirPrenda(o.variantes);
     pedido.current++;
     setTexto("");
     setResultados([]);
@@ -1024,9 +1044,9 @@ function Buscador({
   async function alPresionar(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      if (!resultados.length) return;
+      if (!opciones.length) return;
       setAbierto(true);
-      setIndice((i) => (i + (e.key === "ArrowDown" ? 1 : resultados.length - 1)) % resultados.length);
+      setIndice((i) => (i + (e.key === "ArrowDown" ? 1 : opciones.length - 1)) % opciones.length);
     } else if (e.key === "Escape") {
       if (texto) {
         e.preventDefault();
@@ -1041,15 +1061,16 @@ function Buscador({
       if (!q) return;
       // El lector de código de barras escribe el código y manda Enter enseguida:
       // se busca ya, sin esperar la pausa, y si el código existe entra directo.
-      if (q === buscado && resultados.length) {
-        elegir(resultados[Math.min(indice, resultados.length - 1)]);
+      if (q === buscado && opciones.length) {
+        elegir(opciones[Math.min(indice, opciones.length - 1)]);
         return;
       }
       conEnter.current = true;
       const r = await buscar(q).finally(() => (conEnter.current = false));
       if (!r) return;
-      if (r.exacto) elegir(r.exacto);
-      else if (r.resultados.length === 1) elegir(r.resultados[0]);
+      const grupos = agruparPrendas(r.resultados);
+      if (r.exacto) elegir({ tipo: "producto", clave: r.exacto.id, producto: r.exacto });
+      else if (grupos.length === 1) elegir(grupos[0]);
       else if (r.resultados.length) {
         setResultados(r.resultados);
         setBuscado(q);
@@ -1096,18 +1117,49 @@ function Buscador({
           role="listbox"
           className="absolute inset-x-0 top-full z-30 mt-1 max-h-[60vh] overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg"
         >
-          {resultados.length === 0 ? (
+          {opciones.length === 0 ? (
             <li className="px-4 py-3 text-muted-foreground">No encontramos productos con &quot;{buscado}&quot;.</li>
           ) : (
-            resultados.map((p, i) => {
+            opciones.map((o, i) => {
+              if (o.tipo === "prenda") {
+                const hay = o.variantes.filter((v) => v.controlaStock === false || new Decimal(v.stock).gt(0));
+                const tallas = [...new Set(o.variantes.map((v) => v.talla).filter(Boolean))];
+                const colores = [...new Set(o.variantes.map((v) => v.color).filter(Boolean))];
+                const precios = [...new Set(o.variantes.map((v) => v.precioVenta))].sort((a, b) => a - b);
+                return (
+                  <li key={o.clave} role="option" aria-selected={i === indice}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => elegir(o)}
+                      onMouseEnter={() => setIndice(i)}
+                      className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left", i === indice && "bg-accent")}
+                    >
+                      <Miniatura src={o.variantes.find((v) => v.fotoUrl)?.fotoUrl} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{o.nombre}</p>
+                        <p className={cn("truncate text-sm", hay.length ? "text-muted-foreground" : "text-destructive")}>
+                          Tallas {tallas.join(", ")}
+                          {colores.length > 0 && ` · ${colores.length} ${colores.length === 1 ? "color" : "colores"}`}
+                          {!hay.length && " · Sin stock"}
+                        </p>
+                      </div>
+                      <p className="font-semibold tabular-nums">
+                        {precios.length > 1 ? `Desde ${formatearPesos(precios[0])}` : formatearPesos(precios[0])}
+                      </p>
+                    </button>
+                  </li>
+                );
+              }
+              const p = o.producto;
               const seCuenta = p.controlaStock !== false;
               const sinStock = seCuenta && new Decimal(p.stock).lte(0);
               return (
-                <li key={p.id} role="option" aria-selected={i === indice}>
+                <li key={o.clave} role="option" aria-selected={i === indice}>
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => elegir(p)}
+                    onClick={() => elegir(o)}
                     onMouseEnter={() => setIndice(i)}
                     className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left", i === indice && "bg-accent")}
                   >
@@ -1136,4 +1188,28 @@ function Buscador({
       )}
     </div>
   );
+}
+
+type OpcionBusqueda =
+  | { tipo: "producto"; clave: string; producto: ProductoCaja }
+  | { tipo: "prenda"; clave: string; nombre: string; variantes: ProductoCaja[] };
+
+/** Junta en una sola opción las tallas y colores de cada prenda; los demás productos quedan igual. */
+export function agruparPrendas(lista: ProductoCaja[]): OpcionBusqueda[] {
+  const salida: OpcionBusqueda[] = [];
+  const prendas = new Map<string, Extract<OpcionBusqueda, { tipo: "prenda" }>>();
+  for (const p of lista) {
+    if (!p.prendaId) {
+      salida.push({ tipo: "producto", clave: p.id, producto: p });
+      continue;
+    }
+    let grupo = prendas.get(p.prendaId);
+    if (!grupo) {
+      grupo = { tipo: "prenda", clave: `prenda-${p.prendaId}`, nombre: p.prenda ?? p.nombre, variantes: [] };
+      prendas.set(p.prendaId, grupo);
+      salida.push(grupo);
+    }
+    grupo.variantes.push(p);
+  }
+  return salida;
 }

@@ -3,6 +3,7 @@
 //
 // El cajero NUNCA recibe el costo: las consultas ni siquiera lo piden a la base.
 import { leerPresentaciones, type Presentacion } from "@/lib/inventario/presentaciones";
+import { ordenarConPrendas } from "@/lib/inventario/prendas";
 import { puedeVerCostos } from "@/lib/permisos";
 import { AccesoDenegado, datosDe } from "./alcance";
 import type { Contexto } from "./contexto";
@@ -32,6 +33,10 @@ const camposBase = {
   botonRapido: true,
   presentaciones: true,
   fotoEn: true,
+  prendaId: true,
+  prenda: true,
+  talla: true,
+  color: true,
   activo: true,
 } as const;
 
@@ -58,6 +63,10 @@ type Fila = {
   botonRapido: boolean;
   presentaciones: unknown;
   fotoEn: Date | null;
+  prendaId: string | null;
+  prenda: string | null;
+  talla: string | null;
+  color: string | null;
   activo: boolean;
   costo?: number;
 };
@@ -92,6 +101,11 @@ function aVista(p: Fila, categorias: Map<string, string>) {
     fraccionado: p.fraccionado,
     porcentajeIva: p.porcentajeIva,
     condicion: p.condicion as import("@/generated/prisma/enums").CondicionProducto,
+    /** Prendas con tallas y colores: los de la misma prenda comparten prendaId. */
+    prendaId: p.prendaId,
+    prenda: p.prenda,
+    talla: p.talla,
+    color: p.color,
     activo: p.activo,
   };
 }
@@ -260,11 +274,16 @@ export type ProductoCaja = {
   fotoUrl?: string | null;
   /** Paquetes con precio propio (tubo completo). Puede faltar en copias sin internet guardadas antes de existir. */
   presentaciones?: Presentacion[];
+  /** Prendas con tallas y colores: la caja agrupa por prendaId y pregunta talla y color. */
+  prendaId?: string | null;
+  prenda?: string | null;
+  talla?: string | null;
+  color?: string | null;
 };
 
 const CAMPOS_CAJA = {
   id: true, codigo: true, nombre: true, precioVenta: true, porcentajeIva: true, unidad: true, fraccionado: true, stock: true,
-  controlaStock: true, fotoEn: true, presentaciones: true,
+  controlaStock: true, fotoEn: true, presentaciones: true, prendaId: true, prenda: true, talla: true, color: true,
 } as const;
 
 type FilaCaja = { id: string; stock: { toString(): string }; fotoEn: Date | null; presentaciones: unknown };
@@ -303,7 +322,17 @@ export async function buscarParaVenta(ctx: Contexto, negocioId: string, texto: s
     orderBy: [{ nombre: "asc" }, { id: "asc" }],
     take: 8,
   });
-  return { exacto: null, resultados: filas.map(aCaja) };
+  // Si sale una prenda con tallas y colores, se traen todas sus combinaciones para escoger.
+  const prendas = [...new Set(filas.map((f) => f.prendaId).filter((id): id is string => !!id))];
+  if (!prendas.length) return { exacto: null, resultados: filas.map(aCaja) };
+  const variantes = await datos.producto.findMany({
+    where: { negocioId, activo: true, prendaId: { in: prendas } },
+    select: CAMPOS_CAJA,
+    orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+    take: 400,
+  });
+  const sueltos = filas.filter((f) => !f.prendaId);
+  return { exacto: null, resultados: ordenarConPrendas([...sueltos, ...variantes]).map(aCaja) };
 }
 
 /** Precios y stock actuales de los productos del carrito (al recargar la caja o si cambiaron). */
