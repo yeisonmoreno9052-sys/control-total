@@ -84,15 +84,15 @@ export async function guardarDatosNegocio(ctx: Contexto, id: string, entrada: un
 
 // ─── Cómo vende el negocio ──────────────────────────────────────────────────
 
-export type PreferenciasVenta = { ivaPorDefecto: number; botonesRapidos: boolean; permiteCredito: boolean };
+export type PreferenciasVenta = { ivaPorDefecto: number; botonesRapidos: boolean; permiteCredito: boolean; usaTallas: boolean };
 
 /** IVA con el que nacen los productos y si la caja usa botones rápidos. */
 export async function obtenerPreferenciasVenta(ctx: Contexto, negocioId: string): Promise<PreferenciasVenta> {
   const n = await datosDe(ctx).negocio.findFirst({
     where: { id: negocioId },
-    select: { ivaPorDefecto: true, botonesRapidos: true, permiteCredito: true },
+    select: { ivaPorDefecto: true, botonesRapidos: true, permiteCredito: true, usaTallas: true },
   });
-  return n ?? { ivaPorDefecto: 19, botonesRapidos: false, permiteCredito: false };
+  return n ?? { ivaPorDefecto: 19, botonesRapidos: false, permiteCredito: false, usaTallas: false };
 }
 
 export const esquemaPreferenciasVenta = z.object({
@@ -101,6 +101,7 @@ export const esquemaPreferenciasVenta = z.object({
     .refine((v) => (IVAS as readonly number[]).includes(v), "El IVA debe ser 0, 5 o 19 %."),
   botonesRapidos: z.boolean(),
   permiteCredito: z.boolean().optional().default(false),
+  usaTallas: z.boolean().optional().default(false),
 });
 
 export async function guardarPreferenciasVenta(ctx: Contexto, negocioId: string, entrada: unknown): Promise<Resultado> {
