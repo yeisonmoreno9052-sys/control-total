@@ -9,6 +9,24 @@ export const TAMANOS_ETIQUETA = {
 
 export type TamanoEtiqueta = keyof typeof TAMANOS_ETIQUETA;
 
+const MEDIDAS: Record<TamanoEtiqueta, string> = { "60x30": "60mm 30mm", "50x25": "50mm 25mm" };
+
+/**
+ * Para imprimir en la impresora de rollo: cada hoja es una etiqueta del tamaño del rollo,
+ * sin márgenes, y cada etiqueta va en su propia hoja. Así la impresora no la encoge ni la parte.
+ */
+export function EstiloRollo({ tamano }: { tamano: TamanoEtiqueta }) {
+  return (
+    <style>{`@page { size: ${MEDIDAS[tamano]}; margin: 0; }
+@media print {
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  .rollo-etiquetas { display: block !important; gap: 0 !important; margin: 0 !important; }
+  .rollo-etiquetas > article { break-after: page; page-break-after: always; border: 0 !important; border-radius: 0 !important; }
+  .rollo-etiquetas > article:last-child { break-after: auto; page-break-after: auto; }
+}`}</style>
+  );
+}
+
 export function leerTamano(valor: unknown, porDefecto: TamanoEtiqueta): TamanoEtiqueta {
   return typeof valor === "string" && valor in TAMANOS_ETIQUETA ? (valor as TamanoEtiqueta) : porDefecto;
 }

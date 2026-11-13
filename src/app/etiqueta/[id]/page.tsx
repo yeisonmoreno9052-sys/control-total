@@ -3,19 +3,17 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { obtenerProducto } from "@/lib/datos/productos";
 import { codigoBarrasSvg, textoParaBarras } from "@/lib/etiquetas/codigo-barras";
-import { Etiqueta, leerTamano } from "@/components/etiquetas/etiqueta";
+import { Etiqueta, EstiloRollo, leerTamano } from "@/components/etiquetas/etiqueta";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
 import { BarraEtiqueta } from "./barra";
 
 export const metadata: Metadata = { title: "Etiqueta · Control Total" };
 
-// Etiquetas de 60 × 30 mm o 50 × 25 mm. En la impresora de etiquetas sale una por etiqueta;
-// en una hoja carta salen varias por fila. Se recortan y se pegan en la pieza.
+// Etiquetas de 60 × 30 mm o 50 × 25 mm para la impresora de rollo: una etiqueta por hoja.
 export default function PaginaEtiqueta(props: PageProps<"/etiqueta/[id]">) {
   return (
     <main className="min-h-dvh bg-muted/40 px-4 py-6 print:bg-white print:p-0">
-      <style>{`@page { margin: 4mm; } @media print { html, body { background: #fff !important; } }`}</style>
       <Suspense fallback={<div className="mx-auto h-40 max-w-md animate-pulse rounded bg-muted" />}>
         <Etiquetas {...props} />
       </Suspense>
@@ -43,6 +41,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
 
   return (
     <>
+      <EstiloRollo tamano={tamano} />
       <BarraEtiqueta
         productoId={producto.id}
         copias={copias}
@@ -50,7 +49,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
         imprimir={sp.imprimir === "1"}
         tamano={tamano}
       />
-      <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-[3mm] print:max-w-none print:justify-start">
+      <div className="rollo-etiquetas mx-auto flex max-w-3xl flex-wrap justify-center gap-[3mm]">
         {Array.from({ length: copias }, (_, i) => (
           <Etiqueta
             key={i}

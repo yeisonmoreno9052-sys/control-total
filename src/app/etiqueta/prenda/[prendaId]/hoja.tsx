@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Minus, Plus, Printer } from "lucide-react";
-import { Etiqueta, type TamanoEtiqueta } from "@/components/etiquetas/etiqueta";
+import { Etiqueta, EstiloRollo, type TamanoEtiqueta } from "@/components/etiquetas/etiqueta";
 import { SelectorTamano } from "@/components/etiquetas/selector-tamano";
 import { Button } from "@/components/ui/button";
 
@@ -74,7 +74,8 @@ export function HojaPrenda({
         </div>
         {total > MAXIMO && <p className="text-sm text-destructive">Máximo {MAXIMO} etiquetas de una vez.</p>}
       </div>
-      <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-[3mm] print:max-w-none print:justify-start">
+      <EstiloRollo tamano={tamano} />
+      <div className="rollo-etiquetas mx-auto flex max-w-3xl flex-wrap justify-center gap-[3mm]">
         {total <= MAXIMO &&
           variantes.flatMap((v) =>
             Array.from({ length: copias[v.id] ?? 0 }, (_, i) => (
