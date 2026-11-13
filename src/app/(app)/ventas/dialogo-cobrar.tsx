@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Banknote, CheckCircle2, CloudOff, HandCoins, Landmark, MessageCircle, Printer, Shuffle, UserRound } from "lucide-react";
+import {
+  BadgeCheck,
+  Banknote,
+  CheckCircle2,
+  CloudOff,
+  CreditCard,
+  HandCoins,
+  Landmark,
+  MessageCircle,
+  Printer,
+  Shuffle,
+  UserRound,
+} from "lucide-react";
 import { AvisoError } from "@/components/layout/campo";
 import { esErrorDeRed, useConexion } from "@/components/sin-conexion/conexion";
 import { Button } from "@/components/ui/button";
@@ -34,6 +46,8 @@ export function DialogoCobrar(props: {
   total: number;
   /** El negocio deja fiar: aparece la opción "Fiado". */
   permiteCredito?: boolean;
+  /** Datáfono y Sistecrédito, si el negocio los usa. */
+  mediosExtra?: MediosExtra;
   /** Arranca con "Fiado" elegido (al volver de escoger el cliente). */
   formaInicial?: FormaPago["forma"];
   /** Abre la ventana para escoger o crear el cliente al que se le fía. */
@@ -71,12 +85,19 @@ export function DialogoCobrar(props: {
   );
 }
 
+export type MediosExtra = { tarjeta: boolean; sistecredito: boolean };
+
 const FORMAS = [
   { forma: "efectivo", nombre: "Efectivo", icono: Banknote },
   { forma: "transferencia", nombre: "Transferencia", icono: Landmark },
+  { forma: "tarjeta", nombre: "Datáfono", icono: CreditCard },
+  { forma: "sistecredito", nombre: "Sistecrédito", icono: BadgeCheck },
   { forma: "mixto", nombre: "Mixto", icono: Shuffle },
   { forma: "credito", nombre: "Fiado", icono: HandCoins },
 ] as const;
+
+/** Lo pagan otros (el banco o Sistecrédito): no entra a la caja y no hay vueltas. */
+const esDeTercero = (f: FormaPago["forma"]) => f === "tarjeta" || f === "sistecredito";
 
 /** Billetes con los que probablemente paga el cliente: los 3 valores redondos más cercanos por encima. */
 function sugerencias(total: number) {
@@ -95,6 +116,7 @@ function FormularioPago({
   cliente,
   total,
   permiteCredito = false,
+  mediosExtra,
   formaInicial,
   onElegirCliente,
   onVendida,
@@ -106,6 +128,7 @@ function FormularioPago({
   cliente: ClienteVista | null;
   total: number;
   permiteCredito?: boolean;
+  mediosExtra?: MediosExtra;
   formaInicial?: FormaPago["forma"];
   onElegirCliente?: () => void;
   onVendida: (v: Vendida) => void;
@@ -120,7 +143,13 @@ function FormularioPago({
   const [error, setError] = useState<string | null>(null);
   const { enLinea, usuario, marcarSinConexion, guardarVentaLocal } = useConexion();
   // Sin internet no se fía: no se puede revisar ni guardar la deuda del cliente.
-  const formas = FORMAS.filter((f) => f.forma !== "credito" || (permiteCredito && enLinea));
+  // Datáfono y Sistecrédito solo con internet: la venta sin internet guarda efectivo o transferencia.
+  const formas = FORMAS.filter((f) => {
+    if (f.forma === "credito") return permiteCredito && enLinea;
+    if (f.forma === "tarjeta") return !!mediosExtra?.tarjeta && enLinea;
+    if (f.forma === "sistecredito") return !!mediosExtra?.sistecredito && enLinea;
+    return true;
+  });
   const fiado = forma === "credito";
   const [debeAntes, setDebeAntes] = useState<{ clienteId: string; debe: number } | null>(null);
   useEffect(() => {
@@ -155,7 +184,7 @@ function FormularioPago({
   const pago: FormaPago =
     forma === "efectivo"
       ? { forma, recibido: recibido ?? total }
-      : forma === "transferencia"
+      : forma === "transferencia" || forma === "tarjeta" || forma === "sistecredito"
         ? { forma, referencia }
         : forma === "credito"
           ? { forma }
@@ -180,9 +209,9 @@ function FormularioPago({
     setError(null);
     const idLocal = idLocalActual();
     if (!enLinea) {
-      if (fiado) {
+      if (fiado || esDeTercero(forma)) {
         setEnviando(false);
-        return setError("Sin internet no se puede fiar. Cobra en efectivo o transferencia.");
+        return setError(`Sin internet no se puede ${fiado ? "fiar" : "cobrar así"}. Cobra en efectivo o transferencia.`);
       }
       await guardarSinInternet(idLocal);
       setEnviando(false);
@@ -212,7 +241,9 @@ function FormularioPago({
     } catch (e) {
       if (esErrorDeRed(e)) {
         marcarSinConexion();
-        if (fiado) setError("Se fue el internet. Sin internet no se puede fiar: cobra en efectivo o transferencia.");
+        if (fiado || esDeTercero(forma)) {
+          setError(`Se fue el internet. Sin internet no se puede ${fiado ? "fiar" : "cobrar así"}: cobra en efectivo o transferencia.`);
+        }
         else await guardarSinInternet(idLocal);
       } else {
         setError("No pudimos registrar la venta. Intenta de nuevo.");
@@ -408,15 +439,18 @@ function FormularioPago({
           </>
         )}
 
-        {(forma === "transferencia" || forma === "mixto") && (
+        {(forma === "transferencia" || forma === "mixto" || esDeTercero(forma)) && (
           <label className="block space-y-1.5">
-            <span className="text-sm text-muted-foreground">Referencia de la transferencia (opcional)</span>
+            <span className="text-sm text-muted-foreground">
+              {esDeTercero(forma) ? "Número de aprobación (opcional)" : "Referencia de la transferencia (opcional)"}
+            </span>
             <Input
-              autoFocus={forma === "transferencia"}
+              key={forma}
+              autoFocus={forma === "transferencia" || esDeTercero(forma)}
               value={referencia}
               onChange={(e) => setReferencia(e.target.value)}
               maxLength={100}
-              placeholder="Ej.: Nequi 4521"
+              placeholder={esDeTercero(forma) ? "Ej.: 004512" : "Ej.: Nequi 4521"}
             />
           </label>
         )}

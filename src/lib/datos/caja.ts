@@ -87,6 +87,9 @@ export type ResumenCaja = {
   ventas: number;
   ventasEfectivo: number;
   ventasTransferencia: number;
+  /** Datáfono y Sistecrédito: no entran a la caja. */
+  ventasTarjeta: number;
+  ventasSistecredito: number;
   /** Lo fiado en esta caja: no entra plata. */
   ventasCredito: number;
   abonosEfectivo: number;
@@ -154,6 +157,8 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
     ventas,
     ventasEfectivo,
     ventasTransferencia: porMedio("TRANSFERENCIA"),
+    ventasTarjeta: porMedio("TARJETA"),
+    ventasSistecredito: porMedio("SISTECREDITO"),
     ventasCredito: porMedio("CREDITO"),
     abonosEfectivo,
     abonosTransferencia: abonoPor("TRANSFERENCIA"),

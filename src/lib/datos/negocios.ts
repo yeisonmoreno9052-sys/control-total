@@ -84,15 +84,31 @@ export async function guardarDatosNegocio(ctx: Contexto, id: string, entrada: un
 
 // ─── Cómo vende el negocio ──────────────────────────────────────────────────
 
-export type PreferenciasVenta = { ivaPorDefecto: number; botonesRapidos: boolean; permiteCredito: boolean; usaTallas: boolean };
+export type PreferenciasVenta = {
+  ivaPorDefecto: number;
+  botonesRapidos: boolean;
+  permiteCredito: boolean;
+  usaTallas: boolean;
+  aceptaTarjeta: boolean;
+  aceptaSistecredito: boolean;
+};
 
 /** IVA con el que nacen los productos y si la caja usa botones rápidos. */
 export async function obtenerPreferenciasVenta(ctx: Contexto, negocioId: string): Promise<PreferenciasVenta> {
   const n = await datosDe(ctx).negocio.findFirst({
     where: { id: negocioId },
-    select: { ivaPorDefecto: true, botonesRapidos: true, permiteCredito: true, usaTallas: true },
+    select: { ivaPorDefecto: true, botonesRapidos: true, permiteCredito: true, usaTallas: true, aceptaTarjeta: true, aceptaSistecredito: true },
   });
-  return n ?? { ivaPorDefecto: 19, botonesRapidos: false, permiteCredito: false, usaTallas: false };
+  return (
+    n ?? {
+      ivaPorDefecto: 19,
+      botonesRapidos: false,
+      permiteCredito: false,
+      usaTallas: false,
+      aceptaTarjeta: false,
+      aceptaSistecredito: false,
+    }
+  );
 }
 
 export const esquemaPreferenciasVenta = z.object({
@@ -102,6 +118,8 @@ export const esquemaPreferenciasVenta = z.object({
   botonesRapidos: z.boolean(),
   permiteCredito: z.boolean().optional().default(false),
   usaTallas: z.boolean().optional().default(false),
+  aceptaTarjeta: z.boolean().optional().default(false),
+  aceptaSistecredito: z.boolean().optional().default(false),
 });
 
 export async function guardarPreferenciasVenta(ctx: Contexto, negocioId: string, entrada: unknown): Promise<Resultado> {

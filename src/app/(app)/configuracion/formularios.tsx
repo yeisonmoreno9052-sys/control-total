@@ -132,6 +132,34 @@ export function FormularioPreferenciasVenta({ preferencias }: { preferencias: Pr
           </span>
         </span>
       </label>
+      <label className="flex items-start gap-3 rounded-lg border p-3">
+        <input
+          type="checkbox"
+          name="aceptaTarjeta"
+          defaultChecked={preferencias.aceptaTarjeta}
+          className="mt-0.5 size-5 accent-[var(--primary)]"
+        />
+        <span>
+          <span className="font-medium">Cobrar con datáfono (tarjeta)</span>
+          <span className="block text-sm text-muted-foreground">
+            Al cobrar aparece &quot;Datáfono&quot;. En el cierre de caja sale aparte, porque esa plata la paga el banco.
+          </span>
+        </span>
+      </label>
+      <label className="flex items-start gap-3 rounded-lg border p-3">
+        <input
+          type="checkbox"
+          name="aceptaSistecredito"
+          defaultChecked={preferencias.aceptaSistecredito}
+          className="mt-0.5 size-5 accent-[var(--primary)]"
+        />
+        <span>
+          <span className="font-medium">Cobrar con Sistecrédito</span>
+          <span className="block text-sm text-muted-foreground">
+            Al cobrar aparece &quot;Sistecrédito&quot;. En el cierre de caja sale aparte, porque esa plata la paga Sistecrédito.
+          </span>
+        </span>
+      </label>
       <AvisoError mensaje={estado.error} />
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={guardando}>

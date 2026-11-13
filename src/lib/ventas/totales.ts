@@ -142,10 +142,15 @@ export type FormaPago =
   | { forma: "transferencia"; referencia?: string | null }
   | { forma: "mixto"; transferencia: number; recibido: number; referencia?: string | null }
   /** Fiado: el total queda como deuda del cliente. */
-  | { forma: "credito" };
+  | { forma: "credito" }
+  /** Datáfono (tarjeta) o Sistecrédito: el total lo paga un tercero; no entra a la caja. */
+  | { forma: "tarjeta"; referencia?: string | null }
+  | { forma: "sistecredito"; referencia?: string | null };
+
+export type MedioDePago = "EFECTIVO" | "TRANSFERENCIA" | "CREDITO" | "TARJETA" | "SISTECREDITO";
 
 export type PagoCalculado = {
-  pagos: { medio: "EFECTIVO" | "TRANSFERENCIA" | "CREDITO"; valor: number; referencia: string | null }[];
+  pagos: { medio: MedioDePago; valor: number; referencia: string | null }[];
   recibido: number | null;
   cambio: number | null;
 };
@@ -155,6 +160,10 @@ export function calcularPago(total: number, forma: FormaPago): PagoCalculado {
   const referencia = (r?: string | null) => r?.trim() || null;
   if (forma.forma === "transferencia") {
     return { pagos: [{ medio: "TRANSFERENCIA", valor: total, referencia: referencia(forma.referencia) }], recibido: null, cambio: null };
+  }
+  if (forma.forma === "tarjeta" || forma.forma === "sistecredito") {
+    const medio = forma.forma === "tarjeta" ? "TARJETA" : "SISTECREDITO";
+    return { pagos: [{ medio, valor: total, referencia: referencia(forma.referencia) }], recibido: null, cambio: null };
   }
   if (forma.forma === "credito") {
     return { pagos: [{ medio: "CREDITO", valor: total, referencia: null }], recibido: null, cambio: null };

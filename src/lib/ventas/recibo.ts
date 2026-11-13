@@ -41,7 +41,13 @@ export function textoCantidad(d: CantidadLinea) {
   return `${formatearCantidad(d.cantidad)} ${unidad}`;
 }
 
-export const NOMBRE_MEDIO = { EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", CREDITO: "Crédito (fiado)" } as const;
+export const NOMBRE_MEDIO = {
+  EFECTIVO: "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  CREDITO: "Crédito (fiado)",
+  TARJETA: "Datáfono",
+  SISTECREDITO: "Sistecrédito",
+} as const;
 
 export type VentaParaRecibo = {
   consecutivo: number;

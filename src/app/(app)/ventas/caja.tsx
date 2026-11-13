@@ -19,7 +19,7 @@ import type { UnidadMedida } from "@/generated/prisma/enums";
 import { buscarProductoCaja, refrescarCarrito } from "./acciones";
 import { DialogoCliente } from "./dialogo-cliente";
 import { DialogoTalla } from "./dialogo-talla";
-import { DialogoCobrar } from "./dialogo-cobrar";
+import { DialogoCobrar, type MediosExtra } from "./dialogo-cobrar";
 import { DialogoDejarEnEspera, DialogoEnEspera, guardarEnEspera, leerEnEspera, type VentaEnEspera } from "./dialogos-espera";
 import { DialogoCancelar, DialogoCantidad, DialogoDescuento, DialogoPresentacion } from "./dialogos-linea";
 
@@ -113,10 +113,13 @@ export function Caja({
   negocioId,
   botones = [],
   permiteCredito = false,
+  mediosExtra,
 }: {
   negocioId: string;
   botones?: BotonRapido[];
   permiteCredito?: boolean;
+  /** Datáfono y Sistecrédito, si el negocio los usa. */
+  mediosExtra?: MediosExtra;
 }) {
   // Con botones rápidos (cafeterías) la caja muestra cuadros para tocar y el pedido va a un lado.
   const modoBotones = botones.length > 0;
@@ -750,6 +753,7 @@ export function Caja({
         cliente={cliente}
         total={t?.total ?? 0}
         permiteCredito={permiteCredito}
+        mediosExtra={mediosExtra}
         formaInicial={dialogo?.tipo === "cobrar" && dialogo.fiado ? "credito" : undefined}
         onElegirCliente={() => setDialogo({ tipo: "cliente", paraFiar: true })}
         onVendida={limpiar}
