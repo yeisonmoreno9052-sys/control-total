@@ -187,13 +187,18 @@ export function CuadroCantidades({
   );
 }
 
+// Los más comunes en almacenes de ropa (lista de DB Shop).
 export const COLORES_RAPIDOS = [
-  { nombre: "Negro", valores: ["Negro"] },
-  { nombre: "Blanco", valores: ["Blanco"] },
-  { nombre: "Azul", valores: ["Azul"] },
-  { nombre: "Rojo", valores: ["Rojo"] },
-  { nombre: "Beige", valores: ["Beige"] },
-  { nombre: "Gris", valores: ["Gris"] },
-  { nombre: "Rosado", valores: ["Rosado"] },
-  { nombre: "Verde", valores: ["Verde"] },
-];
+  "Negro",
+  "Blanco",
+  "Beige",
+  "Gris",
+  "Rojo",
+  "Rosado",
+  "Lila",
+  "Vino tinto",
+  "Amarillo",
+  "Café",
+  "Azul claro",
+  "Azul rey",
+].map((c) => ({ nombre: c, valores: [c] }));
