@@ -9,8 +9,8 @@ import { IVAS } from "./unidades";
 
 /** Tallas que se ofrecen con un toque al crear la prenda. */
 export const TALLAS_RAPIDAS: { nombre: string; tallas: string[] }[] = [
-  { nombre: "Letras", tallas: ["XS", "S", "M", "L", "XL"] },
-  { nombre: "Números", tallas: ["6", "8", "10", "12", "14", "16"] },
+  { nombre: "Letras", tallas: ["S", "M", "L", "XL"] },
+  { nombre: "Números", tallas: ["6", "8", "10", "12", "14", "16", "18", "20", "22"] },
   { nombre: "Jean dama", tallas: ["4", "6", "8", "10", "12", "14"] },
   { nombre: "Jean hombre", tallas: ["28", "30", "32", "34", "36", "38"] },
   { nombre: "Calzado", tallas: ["35", "36", "37", "38", "39", "40"] },
