@@ -13,7 +13,6 @@ export const metadata: Metadata = { title: "Etiquetas de la prenda · Control To
 export default function PaginaEtiquetasPrenda(props: PageProps<"/etiqueta/prenda/[prendaId]">) {
   return (
     <main className="min-h-dvh bg-muted/40 px-4 py-6 print:bg-white print:p-0">
-      <style>{`@page { margin: 4mm; } @media print { html, body { background: #fff !important; } }`}</style>
       <Suspense fallback={<div className="mx-auto h-40 max-w-md animate-pulse rounded bg-muted" />}>
         <Etiquetas {...props} />
       </Suspense>
