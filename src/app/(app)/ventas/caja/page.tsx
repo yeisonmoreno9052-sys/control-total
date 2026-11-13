@@ -112,6 +112,8 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
               <p className="pt-2 text-muted-foreground">
                 {resumen.ventas} {resumen.ventas === 1 ? "venta" : "ventas"} · Transferencias{" "}
                 {formatearPesos(resumen.ventasTransferencia + resumen.abonosTransferencia)} (no están en la caja)
+                {!!resumen.ventasTarjeta && <> · Datáfono {formatearPesos(resumen.ventasTarjeta)}</>}
+                {!!resumen.ventasSistecredito && <> · Sistecrédito {formatearPesos(resumen.ventasSistecredito)}</>}
                 {!!resumen.ventasCredito && <> · Fiado {formatearPesos(resumen.ventasCredito)}</>}
               </p>
               {deTurnos.turnos.length > 0 && <TurnosDelDia turnos={deTurnos.turnos} />}

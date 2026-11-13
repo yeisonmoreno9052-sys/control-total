@@ -132,6 +132,18 @@ export async function registrarVenta(
     const negocio = await datosDe(ctx).negocio.findFirst({ where: { id: negocioId }, select: { permiteCredito: true } });
     if (!negocio?.permiteCredito) return { ok: false, error: "Este negocio no tiene activadas las ventas a crédito." };
   }
+  if (entrada.pago.forma === "tarjeta" || entrada.pago.forma === "sistecredito") {
+    const negocio = await datosDe(ctx).negocio.findFirst({
+      where: { id: negocioId },
+      select: { aceptaTarjeta: true, aceptaSistecredito: true },
+    });
+    if (entrada.pago.forma === "tarjeta" && !negocio?.aceptaTarjeta) {
+      return { ok: false, error: "Este negocio no tiene activado el cobro con datáfono." };
+    }
+    if (entrada.pago.forma === "sistecredito" && !negocio?.aceptaSistecredito) {
+      return { ok: false, error: "Este negocio no tiene activado el cobro con Sistecrédito." };
+    }
+  }
 
   try {
     return await prisma.$transaction(

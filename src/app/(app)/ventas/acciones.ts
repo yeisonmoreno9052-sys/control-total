@@ -66,6 +66,8 @@ const esquemaVenta = z.object({
     z.object({ forma: z.literal("efectivo"), recibido: z.number().int().min(0) }),
     z.object({ forma: z.literal("transferencia"), referencia: z.string().max(100).nullable().optional() }),
     z.object({ forma: z.literal("credito") }),
+    z.object({ forma: z.literal("tarjeta"), referencia: z.string().max(100).nullable().optional() }),
+    z.object({ forma: z.literal("sistecredito"), referencia: z.string().max(100).nullable().optional() }),
     z.object({
       forma: z.literal("mixto"),
       transferencia: z.number().int().min(0),

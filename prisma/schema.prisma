@@ -119,6 +119,9 @@ model Negocio {
   permiteCredito        Boolean  @default(false)
   /// Si los productos se crean por prenda con tallas y colores (almacenes de ropa y calzado).
   usaTallas             Boolean  @default(false)
+  /// Formas de pago que no son efectivo ni transferencia. Aparecen al cobrar solo si están activas.
+  aceptaTarjeta         Boolean  @default(false)
+  aceptaSistecredito    Boolean  @default(false)
   activo                Boolean  @default(true)
   creadoEn              DateTime @default(now())
   actualizadoEn         DateTime @updatedAt
@@ -414,6 +417,10 @@ enum MedioPago {
   TRANSFERENCIA
   /// Venta fiada: el cliente queda debiendo. No entra plata a la caja hasta que abona.
   CREDITO
+  /// Datáfono (tarjeta débito o crédito). No entra a la caja; lo paga el banco.
+  TARJETA
+  /// Sistecrédito: la cliente le queda debiendo a Sistecrédito, que le paga al negocio.
+  SISTECREDITO
 }
 
 enum TipoDocumento {

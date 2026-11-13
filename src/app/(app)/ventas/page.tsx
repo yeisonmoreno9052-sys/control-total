@@ -4,7 +4,7 @@ import { HandCoins, History, Lock, Receipt, Users, Store, TriangleAlert, Wallet 
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Button } from "@/components/ui/button";
 import { estadoDeCaja } from "@/lib/datos/caja";
-import { negocioPermiteCredito } from "@/lib/datos/creditos";
+import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { botonesRapidos } from "@/lib/datos/productos";
 import { formatearDia, formatearPesos } from "@/lib/formato";
 import { exigirModulo } from "@/lib/modulos";
@@ -22,7 +22,11 @@ export default async function Ventas() {
     return <EstadoVacio icono={Store} titulo="Sin negocio" descripcion="No tienes un negocio asignado." />;
   }
   const negocioId = ctx.negocioActivoId;
-  const [{ hoy, pendiente }, fiar] = await Promise.all([estadoDeCaja(ctx, negocioId), negocioPermiteCredito(ctx, negocioId)]);
+  const [{ hoy, pendiente }, preferencias] = await Promise.all([
+    estadoDeCaja(ctx, negocioId),
+    obtenerPreferenciasVenta(ctx, negocioId),
+  ]);
+  const fiar = preferencias.permiteCredito;
 
   const enlaces = (
     <div className="flex flex-wrap gap-1">
@@ -119,7 +123,13 @@ export default async function Ventas() {
         {enlaces}
       </div>
       {/* key: al cambiar de negocio arriba, la caja arranca con el carrito de ese negocio */}
-      <CajaCliente key={negocioId} negocioId={negocioId} botones={botones} permiteCredito={fiar} />
+      <CajaCliente
+        key={negocioId}
+        negocioId={negocioId}
+        botones={botones}
+        permiteCredito={fiar}
+        mediosExtra={{ tarjeta: preferencias.aceptaTarjeta, sistecredito: preferencias.aceptaSistecredito }}
+      />
     </div>
   );
 }
