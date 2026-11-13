@@ -4,6 +4,7 @@
 export const PALETAS = [
   { valor: "indigo", nombre: "Índigo noche", descripcion: "La de Control Total", muestra: ["#111633", "#4f46e5", "#f4f5fb"] },
   { valor: "cafe", nombre: "Café y crema", descripcion: "Cálida, para cafeterías", muestra: ["#2a1a12", "#9a5b22", "#faf5ee"] },
+  { valor: "dorado", nombre: "Negro y dorado", descripcion: "Elegante, para tiendas de ropa", muestra: ["#0e0e10", "#8f6420", "#faf8f3"] },
 ] as const;
 
 export type Paleta = (typeof PALETAS)[number]["valor"];

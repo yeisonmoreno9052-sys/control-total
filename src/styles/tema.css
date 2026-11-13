@@ -189,3 +189,84 @@ html.dark[data-paleta="cafe"] {
   --sombra-suave: 0 1px 2px rgb(0 0 0 / 0.3);
   --sombra-destacado: 0 18px 40px -16px rgb(107 61 20 / 0.6);
 }
+
+/*
+  Paleta "Negro y dorado": elegante, para almacenes de ropa (DB Shop).
+  El dorado oscuro deja el texto blanco legible en los botones.
+*/
+html[data-paleta="dorado"] {
+  --marca-indigo: #8f6420;
+  --marca-indigo-claro: #f5eedf;
+  --marca-indigo-oscuro: #5e4012;
+  --marca-violeta: #c9a24a;
+  --marca-noche: #0e0e10;
+  --marca-gris: #66625b;
+  --marca-gris-claro: #f1ede4;
+  --marca-gris-borde: #e6dfd1;
+
+  --background: #faf8f3;
+  --foreground: #1a1814;
+  --card: #ffffff;
+  --card-foreground: #1a1814;
+  --popover: #ffffff;
+  --popover-foreground: #1a1814;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #1a1814;
+  --destructive: #c62f3f;
+
+  --menu-foreground: #d6cdbb;
+  --menu-activo: rgb(212 175 55 / 0.18);
+  --menu-resalte: #d4af37;
+  --chip-desde: #a87b2c;
+  --chip-hasta: #d4af37;
+  --chip-sombra: rgb(168 123 44 / 0.45);
+
+  --categoria-1: #a87b2c;
+  --categoria-2: #2f2f35;
+  --categoria-3: #8a5a44;
+  --categoria-4: #c9a24a;
+  --categoria-5: #6b6457;
+  --categoria-6: #9c6b3c;
+  --categoria-7: #4f5a5e;
+  --categoria-8: #b8934f;
+
+  --barra-claro: #e3c886;
+  --barra: #8f6420;
+  --barra-ultima-claro: #f0d99a;
+  --barra-ultima: #c9a24a;
+
+  --destacado-desde: #141416;
+  --destacado-hasta: #5e4012;
+  --franja:
+    radial-gradient(1200px 300px at 20% -40%, #b8913a 0%, transparent 60%), linear-gradient(120deg, #0e0e10, #1c1a17 55%, #4a3616);
+  --sombra-suave: 0 1px 2px rgb(26 24 20 / 0.05), 0 12px 32px -14px rgb(26 24 20 / 0.18);
+  --sombra-destacado: 0 18px 40px -12px rgb(94 64 18 / 0.5);
+}
+html.dark[data-paleta="dorado"] {
+  --marca-indigo: #d4af37;
+  --marca-indigo-claro: #2e2618;
+  --marca-indigo-oscuro: #f1e2b8;
+  --marca-noche: #08080a;
+  --marca-gris: #b3ab9c;
+  --marca-gris-claro: #1f1d19;
+  --marca-gris-borde: #36322a;
+
+  --background: #111012;
+  --foreground: #f2eee6;
+  --card: #1a191b;
+  --card-foreground: #f2eee6;
+  --popover: #1a191b;
+  --popover-foreground: #f2eee6;
+  --primary-foreground: #141210;
+  --secondary-foreground: #f2eee6;
+  --destructive: #ff6b81;
+
+  --menu-foreground: #cfc6b4;
+  --menu-activo: rgb(212 175 55 / 0.16);
+
+  --destacado-desde: #1a1814;
+  --destacado-hasta: #5e4012;
+  --franja: linear-gradient(120deg, #0b0b0d, #19171a 55%, #3a2a12);
+  --sombra-suave: 0 1px 2px rgb(0 0 0 / 0.3);
+  --sombra-destacado: 0 18px 40px -16px rgb(94 64 18 / 0.6);
+}
