@@ -2,6 +2,7 @@
 // datosDe(), así que solo ve productos de sus negocios.
 //
 // El cajero NUNCA recibe el costo: las consultas ni siquiera lo piden a la base.
+import { paraBuscar } from "@/lib/texto";
 import { leerPresentaciones, type Presentacion } from "@/lib/inventario/presentaciones";
 import { ordenarConPrendas } from "@/lib/inventario/prendas";
 import { puedeVerCostos } from "@/lib/permisos";
@@ -147,7 +148,7 @@ export async function buscarProductos(ctx: Contexto, negocioId: string, filtros:
             { codigo: { equals: q, mode: "insensitive" as const } },
             { codigoBarras: q },
             { codigo: { startsWith: q, mode: "insensitive" as const } },
-            { AND: palabras.map((p) => ({ nombre: { contains: p, mode: "insensitive" as const } })) },
+            { AND: palabras.map((p) => ({ nombreBusqueda: { contains: paraBuscar(p) } })) },
           ],
         }
       : {}),
@@ -315,7 +316,7 @@ export async function buscarParaVenta(ctx: Contexto, negocioId: string, texto: s
       activo: true,
       OR: [
         { codigo: { startsWith: q, mode: "insensitive" } },
-        { AND: palabras.map((p) => ({ nombre: { contains: p, mode: "insensitive" as const } })) },
+        { AND: palabras.map((p) => ({ nombreBusqueda: { contains: paraBuscar(p) } })) },
       ],
     },
     select: CAMPOS_CAJA,

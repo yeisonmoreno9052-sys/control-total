@@ -325,6 +325,9 @@ model Producto {
   prenda        String?
   talla         String?
   color         String?
+  /// El nombre en minúsculas y sin tildes, para buscar ("pantalon" encuentra "Pantalón").
+  /// Lo llena la base de datos sola; no se escribe desde el código.
+  nombreBusqueda String           @default("")
   activo        Boolean           @default(true)
   creadoEn      DateTime          @default(now())
   actualizadoEn DateTime          @updatedAt
@@ -347,6 +350,7 @@ model Producto {
   // Búsqueda rápida por partes del nombre o del código ("tornillo 1/4").
   @@index([nombre(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_nombre_trgm_idx")
   @@index([codigo(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_codigo_trgm_idx")
+  @@index([nombreBusqueda(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_nombreBusqueda_trgm_idx")
 }
 
 /// Toda entrada o salida de stock. El stock de un producto es la suma de sus movimientos.
