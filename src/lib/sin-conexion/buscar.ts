@@ -3,6 +3,7 @@
 // así o nombre que contiene todas las palabras.
 import type { ProductoCatalogo, ProductoCaja } from "@/lib/datos/productos";
 import { ordenarConPrendas } from "@/lib/inventario/prendas";
+import { paraBuscar } from "@/lib/texto";
 
 export function aCaja(p: ProductoCatalogo): ProductoCaja {
   return {
@@ -29,10 +30,10 @@ export function buscarEnCopia(productos: ProductoCatalogo[], texto: string) {
   const exacto = productos.find((p) => p.codigoBarras === q || p.codigo.toLowerCase() === minuscula);
   if (exacto) return { exacto: aCaja(exacto), resultados: [aCaja(exacto)] };
 
-  const palabras = minuscula.split(/\s+/).filter(Boolean).slice(0, 6);
+  const palabras = paraBuscar(minuscula).split(/\s+/).filter(Boolean).slice(0, 6);
   const resultados: ProductoCatalogo[] = [];
   for (const p of productos) {
-    const nombre = p.nombre.toLowerCase();
+    const nombre = paraBuscar(p.nombre);
     if (p.codigo.toLowerCase().startsWith(minuscula) || palabras.every((w) => nombre.includes(w))) resultados.push(p);
   }
   resultados.sort((a, b) => a.nombre.localeCompare(b.nombre, "es") || (a.id < b.id ? -1 : 1));

@@ -6,6 +6,7 @@
 //   3. sube el stock con movimientos de tipo COMPRA,
 //   4. si es de contado, queda pagada (y si fue en efectivo desde la caja, sale de ella).
 // Solo administrador y socio usan este módulo; el cajero no entra.
+import { paraBuscar } from "@/lib/texto";
 import { z } from "zod";
 import type { MedioPago } from "@/generated/prisma/enums";
 import type { Prisma } from "@/generated/prisma/client";
@@ -181,7 +182,7 @@ export async function buscarProductosCompra(ctx: Contexto, negocioId: string, te
           activo: true,
           OR: [
             { codigo: { startsWith: q, mode: "insensitive" } },
-            { AND: palabras.map((p) => ({ nombre: { contains: p, mode: "insensitive" as const } })) },
+            { AND: palabras.map((p) => ({ nombreBusqueda: { contains: paraBuscar(p) } })) },
           ],
         },
         select: campos,
