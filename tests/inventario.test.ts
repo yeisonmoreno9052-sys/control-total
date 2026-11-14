@@ -233,6 +233,37 @@ describe("importación", () => {
     expect(await prisma.producto.count()).toBe(1);
   });
 
+  it("importa prendas con talla y color: las filas de la misma prenda quedan juntas", async () => {
+    const archivo = csv(
+      "Código,Prenda,Talla,Color,Categoría,Costo,Precio de venta,Stock,IVA %\n" +
+        "BL-S-NEG,Blusa Lina,S,Negro,Mujer,30000,59900,2,0\n" +
+        "BL-M-NEG,Blusa Lina,M,Negro,Mujer,30000,59900,3,0\n" +
+        "JE-8,Jean Tiro Alto,8,,Mujer,45000,89900,1,0\n" +
+        "BL-M-BEI,blusa lina,M,Beige,Mujer,30000,59900,1,0\n",
+    );
+    const r = await ejecutarImportacion(e.ctx.admin, e.ferreteria.id, archivo, "ropa.csv");
+    expect(r).toMatchObject({ ok: true, nuevos: 4 });
+    const blusas = await prisma.producto.findMany({ where: { prenda: { in: ["Blusa Lina", "blusa lina"] } } });
+    expect(blusas).toHaveLength(3);
+    expect(new Set(blusas.map((b) => b.prendaId)).size).toBe(1);
+    const s = blusas.find((b) => b.codigo === "BL-S-NEG")!;
+    expect(s).toMatchObject({ nombre: "Blusa Lina - S - Negro", talla: "S", color: "Negro" });
+    const jean = await prisma.producto.findFirstOrThrow({ where: { codigo: "JE-8" } });
+    expect(jean).toMatchObject({ nombre: "Jean Tiro Alto - 8", talla: "8", color: null });
+    expect(jean.prendaId).not.toBe(s.prendaId);
+
+    // Una talla nueva en otro archivo se suma a la prenda que ya existe.
+    await ejecutarImportacion(e.ctx.admin, e.ferreteria.id, csv("Código,Prenda,Talla,Precio de venta\nJE-10,Jean tiro alto,10,89900\n"), "b.csv");
+    const otra = await prisma.producto.findFirstOrThrow({ where: { codigo: "JE-10" } });
+    expect(otra.prendaId).toBe(jean.prendaId);
+  });
+
+  it("una talla sin prenda es un error", async () => {
+    const r = await analizarImportacion(e.ctx.admin, e.ferreteria.id, csv("Código,Nombre,Talla,Precio de venta\nA,Blusa,M,100\n"), "p.csv");
+    expect(r.ok).toBe(false);
+    expect(r.errores[0].mensaje).toContain("Prenda");
+  });
+
   it("el cajero no puede importar", async () => {
     await expect(
       ejecutarImportacion(e.ctx.cajero, e.motos.id, csv("Código,Nombre,Precio de venta\nA,B,1\n"), "p.csv"),
