@@ -39,6 +39,8 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
   // Las prendas salen por defecto en 50 × 25 mm, el rollo común en almacenes de ropa.
   const tamano = leerTamano(sp.tam, producto.talla ? "50x25" : "60x30");
 
+  const sinPrecio = sp.precio === "0";
+
   return (
     <>
       <EstiloRollo tamano={tamano} />
@@ -48,6 +50,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
         nueva={sp.nueva === "1" ? producto.codigo : null}
         imprimir={sp.imprimir === "1"}
         tamano={tamano}
+        sinPrecio={sinPrecio}
       />
       <div className="rollo-etiquetas mx-auto flex max-w-3xl flex-wrap justify-center gap-[3mm]">
         {Array.from({ length: copias }, (_, i) => (
@@ -58,7 +61,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
             color={producto.color}
             texto={texto}
             svg={svg}
-            precio={producto.precioVenta}
+            precio={sinPrecio ? null : producto.precioVenta}
             tamano={tamano}
           />
         ))}

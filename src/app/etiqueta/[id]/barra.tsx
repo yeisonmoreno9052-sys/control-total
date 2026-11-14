@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SelectorTamano } from "@/components/etiquetas/selector-tamano";
+import { SelectorPrecio, SelectorTamano, sinPrecioGuardado } from "@/components/etiquetas/selector-tamano";
 import type { TamanoEtiqueta } from "@/components/etiquetas/etiqueta";
 
 /** Barra de arriba (no sale en la impresión): volver, cuántas etiquetas e imprimir. */
@@ -15,6 +15,7 @@ export function BarraEtiqueta({
   nueva,
   imprimir,
   tamano,
+  sinPrecio,
 }: {
   productoId: string;
   copias: number;
@@ -22,17 +23,26 @@ export function BarraEtiqueta({
   nueva: string | null;
   imprimir: boolean;
   tamano: TamanoEtiqueta;
+  sinPrecio: boolean;
 }) {
   const router = useRouter();
-  useEffect(() => {
-    if (imprimir) window.print();
-  }, [imprimir]);
 
-  const cambiar = (n: number, tam: TamanoEtiqueta = tamano) => {
+  const cambiar = (n: number, tam: TamanoEtiqueta = tamano, sin: boolean = sinPrecio) => {
     const p = new URLSearchParams({ copias: String(Math.min(100, Math.max(1, n))), tam });
     if (nueva) p.set("nueva", "1");
+    if (sin) p.set("precio", "0");
     router.replace(`/etiqueta/${productoId}?${p.toString()}`, { scroll: false });
   };
+
+  // Si en este equipo se escogió "Sin precio", se respeta; si no, se imprime de una vez cuando lo piden.
+  const recordarSinPrecio = !sinPrecio && sinPrecioGuardado();
+  useEffect(() => {
+    if (recordarSinPrecio) {
+      const p = new URLSearchParams(window.location.search);
+      p.set("precio", "0");
+      router.replace(`/etiqueta/${productoId}?${p.toString()}`, { scroll: false });
+    } else if (imprimir) window.print();
+  }, [recordarSinPrecio, imprimir, productoId, router]);
 
   return (
     <div className="mx-auto mb-6 max-w-3xl space-y-4 print:hidden">
@@ -62,6 +72,7 @@ export function BarraEtiqueta({
         </Button>
       </div>
       <SelectorTamano tamano={tamano} onCambiar={(t) => cambiar(copias, t)} />
+      <SelectorPrecio sinPrecio={sinPrecio} onCambiar={(sin) => cambiar(copias, tamano, sin)} />
       {nueva && (
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link href="/inventario/segunda">Registrar otra pieza de segunda</Link>

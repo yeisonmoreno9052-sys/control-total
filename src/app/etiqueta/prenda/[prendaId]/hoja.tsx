@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Minus, Plus, Printer } from "lucide-react";
 import { Etiqueta, EstiloRollo, type TamanoEtiqueta } from "@/components/etiquetas/etiqueta";
-import { SelectorTamano } from "@/components/etiquetas/selector-tamano";
+import { SelectorPrecio, SelectorTamano, useSinPrecio } from "@/components/etiquetas/selector-tamano";
 import { Button } from "@/components/ui/button";
 
 type Variante = { id: string; talla: string; color: string | null; precio: number; texto: string; svg: string | null; stock: number };
@@ -25,6 +25,7 @@ export function HojaPrenda({
 }) {
   const [copias, setCopias] = useState<Record<string, number>>(() => Object.fromEntries(variantes.map((v) => [v.id, v.stock])));
   const [tamano, setTamano] = useState<TamanoEtiqueta>("50x25");
+  const [sinPrecio, setSinPrecio] = useSinPrecio();
   const total = variantes.reduce((a, v) => a + (copias[v.id] ?? 0), 0);
   const cambiar = (id: string, n: number) => setCopias((c) => ({ ...c, [id]: Math.max(0, Math.min(99, n)) }));
 
@@ -47,6 +48,7 @@ export function HojaPrenda({
           </Button>
         </div>
         <SelectorTamano tamano={tamano} onCambiar={setTamano} />
+        <SelectorPrecio sinPrecio={sinPrecio} onCambiar={setSinPrecio} />
         <div className="rounded-xl border bg-card shadow-suave">
           <p className="border-b px-4 py-3 text-sm text-muted-foreground">
             Cuántas etiquetas de cada una. Ya vienen con lo que hay en stock.
@@ -86,7 +88,7 @@ export function HojaPrenda({
                 color={v.color}
                 texto={v.texto}
                 svg={v.svg}
-                precio={v.precio}
+                precio={sinPrecio ? null : v.precio}
                 tamano={tamano}
               />
             )),
