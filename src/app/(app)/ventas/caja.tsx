@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { corregirLector } from "@/lib/inventario/lector";
 import { Clock, Minus, Pause, Percent, Plus, ScanBarcode, Search, ShoppingCart, Trash2, UserRound, X } from "lucide-react";
 import { esErrorDeRed, useConexion } from "@/components/sin-conexion/conexion";
 import { Button } from "@/components/ui/button";
@@ -1070,8 +1071,15 @@ function Buscador({
         return;
       }
       conEnter.current = true;
-      const r = await buscar(q).finally(() => (conEnter.current = false));
+      let r = await buscar(q).finally(() => (conEnter.current = false));
       if (!r) return;
+      // Lector con teclado en inglés y computador en español: EJ'ACC01 en vez de EJ-ACC01.
+      const corregido = corregirLector(q);
+      if (!r.exacto && corregido) {
+        conEnter.current = true;
+        const otro = await buscar(corregido).finally(() => (conEnter.current = false));
+        if (otro?.exacto) r = otro;
+      }
       const grupos = agruparPrendas(r.resultados);
       if (r.exacto) elegir({ tipo: "producto", clave: r.exacto.id, producto: r.exacto });
       else if (grupos.length === 1) elegir(grupos[0]);

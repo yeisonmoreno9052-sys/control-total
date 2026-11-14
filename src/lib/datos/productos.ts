@@ -3,6 +3,7 @@
 //
 // El cajero NUNCA recibe el costo: las consultas ni siquiera lo piden a la base.
 import { paraBuscar } from "@/lib/texto";
+import { corregirLector } from "@/lib/inventario/lector";
 import { leerPresentaciones, type Presentacion } from "@/lib/inventario/presentaciones";
 import { ordenarConPrendas } from "@/lib/inventario/prendas";
 import { puedeVerCostos } from "@/lib/permisos";
@@ -179,11 +180,13 @@ export async function buscarProductos(ctx: Contexto, negocioId: string, filtros:
 export async function buscarPorCodigoExacto(ctx: Contexto, negocioId: string, codigo: string) {
   const c = codigo.trim();
   if (!c) return null;
+  // El código tal cual y, si llegó con comilla en vez de guion (teclado en español), corregido.
+  const opciones = [c, corregirLector(c)].filter((x): x is string => !!x);
   const producto = await datosDe(ctx).producto.findFirst({
     where: {
       negocioId,
       activo: true,
-      OR: [{ codigoBarras: c }, { codigo: { equals: c, mode: "insensitive" } }],
+      OR: opciones.flatMap((x) => [{ codigoBarras: x }, { codigo: { equals: x, mode: "insensitive" as const } }]),
     },
     select: { id: true },
   });
