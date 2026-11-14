@@ -1,5 +1,6 @@
 // Estados de WhatsApp: datos de las prendas para armar la imagen en el navegador.
 import { agruparPiezas, resumirPieza, type PiezaEstado, type VarianteEstado } from "@/lib/estados/piezas";
+import { paraBuscar } from "@/lib/texto";
 import { datosDe } from "./alcance";
 import type { Contexto } from "./contexto";
 import { guardarFotoProducto, urlFoto } from "./fotos-producto";
@@ -86,6 +87,48 @@ export async function listarNovedades(ctx: Contexto, negocioId: string, limite =
     take: 400,
   });
   return agruparPiezas(filas.map(aVariante), limite);
+}
+
+/**
+ * Busca prendas o productos por nombre o código para el collage (cualquiera, no solo lo
+ * nuevo). Una prenda sale con todas sus tallas aunque el texto coincida con una sola.
+ */
+export async function buscarPiezasEstado(ctx: Contexto, negocioId: string, texto: string, limite = 30): Promise<PiezaEstado[]> {
+  const q = texto.trim().slice(0, 80);
+  const palabras = q.split(/\s+/).filter(Boolean).slice(0, 6);
+  if (!palabras.length) return [];
+  const datos = datosDe(ctx);
+  const encontrados = await datos.producto.findMany({
+    where: {
+      negocioId,
+      activo: true,
+      OR: [
+        { codigo: { startsWith: q, mode: "insensitive" } },
+        { codigoBarras: q },
+        { AND: palabras.map((p) => ({ nombreBusqueda: { contains: paraBuscar(p) } })) },
+      ],
+    },
+    select: campos,
+    orderBy: [{ nombre: "asc" }, { id: "asc" }],
+    take: 200,
+  });
+  // Las prendas se completan con todas sus tallas (para saber cuáles tienen stock).
+  const prendaIds = [...new Set(encontrados.map((f) => f.prendaId).filter((id): id is string => !!id))];
+  const tallas = prendaIds.length
+    ? await datos.producto.findMany({
+        where: { negocioId, activo: true, prendaId: { in: prendaIds } },
+        select: campos,
+        orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+      })
+    : [];
+  const grupos = new Map<string, Fila[]>();
+  for (const f of encontrados) {
+    const clave = f.prendaId ? `prenda:${f.prendaId}` : `producto:${f.id}`;
+    if (grupos.has(clave)) continue;
+    if (grupos.size >= limite) break;
+    grupos.set(clave, f.prendaId ? tallas.filter((t) => t.prendaId === f.prendaId) : [f]);
+  }
+  return [...grupos.values()].map((g) => resumirPieza(g.map(aVariante))).filter((p): p is PiezaEstado => !!p);
 }
 
 /**

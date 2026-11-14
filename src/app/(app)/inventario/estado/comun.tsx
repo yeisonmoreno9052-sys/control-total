@@ -104,12 +104,16 @@ export function Acciones({
   nombre,
   texto,
   listo,
+  version,
 }: {
   lienzo: React.RefObject<HTMLCanvasElement | null>;
   nombre: string;
   texto: string;
   listo: boolean;
+  /** Cambia cuando cambia el dibujo: la imagen se deja lista antes de tocar Compartir. */
+  version: string;
 }) {
+  const preparado = useRef<File | null>(null);
   const [puedeCompartir, setPuedeCompartir] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,10 +131,27 @@ export function Acciones({
     return aArchivo(lienzo.current, nombre);
   }
 
+  // El celular solo deja compartir justo después del toque: la imagen se arma antes.
+  useEffect(() => {
+    preparado.current = null;
+    if (!listo) return;
+    let vivo = true;
+    const espera = setTimeout(async () => {
+      const f = lienzo.current ? await aArchivo(lienzo.current, nombre) : null;
+      if (vivo) preparado.current = f;
+    }, 500);
+    return () => {
+      vivo = false;
+      clearTimeout(espera);
+    };
+  }, [version, nombre, listo, lienzo]);
+
   async function compartir() {
     setError(null);
-    const f = await archivo();
+    const f = preparado.current ?? (await archivo());
     if (!f) return setError("No pudimos armar la imagen. Intenta de nuevo.");
+    // Instagram no recibe el texto: queda copiado para pegarlo si se quiere.
+    navigator.clipboard?.writeText(texto).catch(() => {});
     try {
       await navigator.share({ files: [f], text: texto });
     } catch (e) {
@@ -165,7 +186,7 @@ export function Acciones({
       <div className="grid gap-2 sm:grid-cols-2">
         {puedeCompartir && (
           <Button type="button" size="lg" className="h-14 text-base sm:col-span-2" onClick={compartir} disabled={!listo}>
-            <Share2 /> Compartir en WhatsApp
+            <Share2 /> Compartir (WhatsApp o Instagram)
           </Button>
         )}
         <Button
@@ -189,8 +210,8 @@ export function Acciones({
       )}
       <p className="text-sm text-muted-foreground">
         {puedeCompartir
-          ? "Toca Compartir, elige WhatsApp y luego «Mi estado». El texto queda copiado para pegarlo si quieres."
-          : "Descarga la imagen y súbela a tu Estado desde el celular o desde WhatsApp Web (pestaña Estados)."}
+          ? "Toca Compartir y elige WhatsApp («Mi estado») o Instagram («Tu historia»). El texto queda copiado para pegarlo si quieres."
+          : "Descarga la imagen y súbela a tu Estado de WhatsApp o a tu historia de Instagram desde el celular. En el computador también sirve WhatsApp Web (pestaña Estados)."}
       </p>
       <details className="rounded-xl border bg-card p-3 text-sm shadow-suave">
         <summary className="cursor-pointer font-medium">Ver el texto</summary>

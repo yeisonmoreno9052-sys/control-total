@@ -25,7 +25,7 @@ export default async function EstadoPieza({ params }: PageProps<"/inventario/est
     <div>
       <EncabezadoPagina
         titulo="Compartir en Estado"
-        subtitulo="Arma la imagen para tu Estado de WhatsApp. Los cambios de aquí no cambian el inventario."
+        subtitulo="Arma la imagen para tu Estado de WhatsApp o tu historia de Instagram. Los cambios de aquí no cambian el inventario."
         volver={{
           href: pieza.prendaId ? `/inventario/prenda/${pieza.prendaId}` : `/inventario/${id}`,
           texto: pieza.nombre,

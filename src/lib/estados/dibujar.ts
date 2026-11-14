@@ -2,7 +2,7 @@
 // El navegador hace todo: no se sube nada al servidor y la imagen sale al instante.
 import { formatearPesos } from "@/lib/formato";
 import type { Paleta } from "@/lib/paletas";
-import { porcentajeRebaja, rejillaCollage, type DisenoCollage, type DisenoPieza } from "./piezas";
+import { hayPromocion, porcentajeRebaja, rejillaCollage, type DisenoCollage, type DisenoPieza } from "./piezas";
 
 export const ANCHO = 1080;
 export const ALTO = 1920;
@@ -441,7 +441,7 @@ export function dibujarCollage(
   c.font = `700 30px ${f.texto}`;
   espaciado(c, 8);
   c.fillStyle = col.suave;
-  c.fillText("✦ RECIÉN LLEGADO ✦", centro + 4, 272);
+  c.fillText(hayPromocion(d) ? "✦ PROMOCIÓN ✦" : "✦ RECIÉN LLEGADO ✦", centro + 4, 272);
   espaciado(c, 0);
   const titulo = ajustarTexto(
     c,
@@ -468,12 +468,14 @@ export function dibujarCollage(
     const { columnas, filas } = rejillaCollage(piezas.length);
     const espacio = 26;
     const anchoTarjeta = (ANCHO - 100 - espacio * (columnas - 1)) / columnas;
-    const altoTexto = columnas === 1 ? 170 : 130;
+    const escalaTexto = columnas === 1 ? 1.5 : columnas === 2 ? 1.2 : 1;
+    // Con promoción cada tarjeta lleva también el precio de antes, tachado.
+    const conOferta = hayPromocion({ piezas });
+    const altoTexto = (columnas === 1 ? 170 : 130) + (conOferta ? 34 * escalaTexto : 0);
     const altoFoto = Math.min(anchoTarjeta * 1.2, (abajo - arriba - espacio * (filas - 1)) / filas - altoTexto);
     const altoTarjeta = altoFoto + altoTexto;
     const altoRejilla = filas * altoTarjeta + (filas - 1) * espacio;
     const yRejilla = arriba + (abajo - arriba - altoRejilla) / 2;
-    const escalaTexto = columnas === 1 ? 1.5 : columnas === 2 ? 1.2 : 1;
 
     piezas.forEach((p, i) => {
       const fila = Math.floor(i / columnas);
@@ -517,11 +519,35 @@ export function dibujarCollage(
       c.font = `600 ${Math.round(30 * escalaTexto)}px ${f.texto}`;
       c.fillStyle = "#f3ead8";
       c.fillText(recortarUnaLinea(c, p.nombre, anchoTarjeta - 30), x + anchoTarjeta / 2, y + altoFoto + 20 * escalaTexto);
+      const rebaja = p.oferta !== null ? porcentajeRebaja(p.precio, p.oferta) : null;
+      let yPrecio = y + altoFoto + 62 * escalaTexto;
+      if (rebaja) {
+        const pxAntes = Math.round(26 * escalaTexto);
+        c.font = `500 ${pxAntes}px ${f.texto}`;
+        const antes = formatearPesos(p.precio);
+        c.fillStyle = "#8d826b";
+        c.fillText(antes, x + anchoTarjeta / 2, yPrecio - 4);
+        const w = c.measureText(antes).width;
+        c.fillStyle = "#e0303d";
+        c.fillRect(x + anchoTarjeta / 2 - w / 2 - 4, yPrecio - 4 + pxAntes * 0.55, w + 8, Math.max(3, 3 * escalaTexto));
+        yPrecio += 34 * escalaTexto;
+        // Etiqueta roja con el descuento, sobre la foto.
+        c.font = `800 ${Math.round(28 * escalaTexto)}px ${f.texto}`;
+        const etiqueta = `-${rebaja}%`;
+        const we = c.measureText(etiqueta).width + 24 * escalaTexto;
+        const he = 46 * escalaTexto;
+        rectRedondo(c, x + 14, y + 14, we, he, 12);
+        c.fillStyle = "#d01c2b";
+        c.fill();
+        c.fillStyle = "#fff";
+        c.textBaseline = "middle";
+        c.fillText(etiqueta, x + 14 + we / 2, y + 14 + he / 2 + 2);
+        c.textBaseline = "top";
+      }
       const px = Math.round(42 * escalaTexto);
       c.font = `800 ${px}px ${f.texto}`;
-      const yPrecio = y + altoFoto + 62 * escalaTexto;
       c.fillStyle = degradadoAcento(c, col, yPrecio, px);
-      c.fillText(formatearPesos(p.precio), x + anchoTarjeta / 2, yPrecio);
+      c.fillText(formatearPesos(rebaja ? p.oferta! : p.precio), x + anchoTarjeta / 2, yPrecio);
     });
   }
 

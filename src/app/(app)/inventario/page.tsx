@@ -68,68 +68,72 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
         titulo="Inventario"
         subtitulo={`${resultado.total.toLocaleString("es-CO")} ${resultado.total === 1 ? "producto" : "productos"}${hayFiltros ? " encontrados" : ""}`}
         acciones={
-          crea && (
-            <>
-              {gestiona && (
-                <>
-                  <Button asChild variant="outline">
-                    <Link href="/inventario/categorias">
-                      <FolderTree /> Categorías
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/inventario/cambiar-categoria?categoria=sin">
-                      <FolderInput /> Cambiar categoría
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/inventario/importar">
-                      <FileSpreadsheet /> Importar
-                    </Link>
-                  </Button>
-                  {!preferencias.usaTallas && (
-                    <Button asChild variant="outline">
-                      <Link href="/inventario/segunda">
-                        <Recycle /> Pieza de segunda
-                      </Link>
-                    </Button>
-                  )}
-                </>
-              )}
+          <>
+            {/* Las vendedoras también publican: no hace falta permiso de editar productos. */}
+            {preferencias.usaTallas && (
               <Button asChild variant="outline">
-                <Link href="/inventario/fotos">
-                  <Images /> Subir fotos
+                <Link href="/inventario/estado/nuevos">
+                  <Share2 /> Compartir varias
                 </Link>
               </Button>
-              {preferencias.usaTallas && (
+            )}
+            {crea && (
+              <>
+                {gestiona && (
+                  <>
+                    <Button asChild variant="outline">
+                      <Link href="/inventario/categorias">
+                        <FolderTree /> Categorías
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                      <Link href="/inventario/cambiar-categoria?categoria=sin">
+                        <FolderInput /> Cambiar categoría
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                      <Link href="/inventario/importar">
+                        <FileSpreadsheet /> Importar
+                      </Link>
+                    </Button>
+                    {!preferencias.usaTallas && (
+                      <Button asChild variant="outline">
+                        <Link href="/inventario/segunda">
+                          <Recycle /> Pieza de segunda
+                        </Link>
+                      </Button>
+                    )}
+                  </>
+                )}
                 <Button asChild variant="outline">
-                  <Link href="/inventario/estado/nuevos">
-                    <Share2 /> Mercancía nueva
+                  <Link href="/inventario/fotos">
+                    <Images /> Subir fotos
                   </Link>
                 </Button>
-              )}
-              {preferencias.usaTallas ? (
-                <>
-                  <Button asChild variant="outline">
-                    <Link href="/inventario/nuevo">
-                      <Plus /> Producto suelto
-                    </Link>
-                  </Button>
+
+                {preferencias.usaTallas ? (
+                  <>
+                    <Button asChild variant="outline">
+                      <Link href="/inventario/nuevo">
+                        <Plus /> Producto suelto
+                      </Link>
+                    </Button>
+                    <Button asChild>
+                      <Link href="/inventario/prenda/nueva">
+                        <Shirt /> Nueva prenda
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
                   <Button asChild>
-                    <Link href="/inventario/prenda/nueva">
-                      <Shirt /> Nueva prenda
+                    <Link href="/inventario/nuevo">
+                      <Plus /> Nuevo producto
                     </Link>
                   </Button>
-                </>
-              ) : (
-                <Button asChild>
-                  <Link href="/inventario/nuevo">
-                    <Plus /> Nuevo producto
-                  </Link>
-                </Button>
-              )}
-            </>
-          )
+                )}
+              </>
+            )}
+          </>
         }
       />
 
@@ -280,8 +284,12 @@ function TablaProductos({ productos, verCosto }: { productos: ProductoVista[]; v
                   </div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{p.categoria ?? "—"}</td>
-                {verCosto && <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{formatearPesos(p.costo ?? 0)}</td>}
-                <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatearPesos(p.precioVenta)}</td>
+                {verCosto && (
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{formatearPesos(p.costo ?? 0)}</td>
+                )}
+                <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">
+                  {formatearPesos(p.precioVenta)}
+                </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   <Stock p={p} />
                   {p.stockBajo && (
