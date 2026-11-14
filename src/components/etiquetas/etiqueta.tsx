@@ -32,7 +32,7 @@ export function leerTamano(valor: unknown, porDefecto: TamanoEtiqueta): TamanoEt
 }
 
 /**
- * Una etiqueta adhesiva: nombre, código de barras, código y precio. Si es una prenda,
+ * Una etiqueta adhesiva: nombre, código de barras, código y precio (si se pide). Si es una prenda,
  * la talla va grande en negro (es lo que la clienta busca) y el color debajo del nombre.
  */
 export function Etiqueta({
@@ -50,7 +50,8 @@ export function Etiqueta({
   /** Lo que va en las barras (código de barras o código). */
   texto: string;
   svg: string | null;
-  precio: number;
+  /** null: la etiqueta sale sin precio (la prenda sí lo tiene guardado y la caja lo cobra). */
+  precio: number | null;
   tamano: TamanoEtiqueta;
 }) {
   const t = TAMANOS_ETIQUETA[tamano];
@@ -89,11 +90,13 @@ export function Etiqueta({
       ) : (
         <p className="text-center text-[7pt]">Este código no se puede pasar a barras</p>
       )}
-      <div className="flex items-end justify-between gap-2">
+      <div className={cn("flex items-end gap-2", precio === null ? "justify-center" : "justify-between")}>
         <span className={cn("truncate font-mono", chica ? "text-[7pt]" : "text-[8pt]")}>{texto}</span>
-        <span className={cn("leading-none font-bold whitespace-nowrap tabular-nums", chica ? "text-[11pt]" : "text-[13pt]")}>
-          {formatearPesos(precio)}
-        </span>
+        {precio !== null && (
+          <span className={cn("leading-none font-bold whitespace-nowrap tabular-nums", chica ? "text-[11pt]" : "text-[13pt]")}>
+            {formatearPesos(precio)}
+          </span>
+        )}
       </div>
     </article>
   );
