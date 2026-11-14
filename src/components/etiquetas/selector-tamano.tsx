@@ -89,3 +89,51 @@ export function useSinPrecio(): [boolean, (sin: boolean) => void] {
   }, []);
   return [sin, setSin];
 }
+
+const CLAVE_LOGO = "ct-etiqueta-sin-logo";
+
+/**
+ * Con o sin el logo de la tienda en la etiqueta. Se recuerda en el equipo. Cuando es "sin logo"
+ * pone una regla que esconde los logos: así sirve igual para una etiqueta o para toda la hoja.
+ */
+export function SelectorLogo() {
+  const [sinLogo, setSinLogo] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (window.localStorage.getItem(CLAVE_LOGO) === "1") setSinLogo(true);
+    } catch {}
+  }, []);
+  function cambiar(sin: boolean) {
+    setSinLogo(sin);
+    try {
+      if (sin) window.localStorage.setItem(CLAVE_LOGO, "1");
+      else window.localStorage.removeItem(CLAVE_LOGO);
+    } catch {}
+  }
+  const opciones = [
+    { sin: false, nombre: "Con logo" },
+    { sin: true, nombre: "Sin logo" },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-2 print:hidden" role="radiogroup" aria-label="Logo en la etiqueta">
+      {sinLogo && <style>{`.etiqueta-logo { display: none !important; }`}</style>}
+      <span className="text-sm text-muted-foreground">Logo de la tienda:</span>
+      {opciones.map((o) => (
+        <button
+          key={o.nombre}
+          type="button"
+          role="radio"
+          aria-checked={sinLogo === o.sin}
+          onClick={() => cambiar(o.sin)}
+          className={cn(
+            "rounded-full border px-3 py-1.5 text-sm",
+            sinLogo === o.sin ? "border-primary bg-accent font-medium text-accent-foreground" : "bg-card hover:border-primary",
+          )}
+        >
+          {o.nombre}
+        </button>
+      ))}
+    </div>
+  );
+}

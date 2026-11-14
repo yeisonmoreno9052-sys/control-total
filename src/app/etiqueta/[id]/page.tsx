@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { obtenerProducto } from "@/lib/datos/productos";
 import { codigoBarrasSvg, textoParaBarras } from "@/lib/etiquetas/codigo-barras";
 import { Etiqueta, EstiloRollo, leerTamano } from "@/components/etiquetas/etiqueta";
@@ -26,7 +27,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
   exigirModulo(ctx, "INVENTARIO");
   const { id } = await params;
   const sp = await searchParams;
-  const producto = await obtenerProducto(ctx, id);
+  const [producto, empresa] = await Promise.all([obtenerProducto(ctx, id), obtenerEmpresa(ctx)]);
   if (!producto) notFound();
 
   const texto = textoParaBarras(producto);
@@ -51,6 +52,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
         imprimir={sp.imprimir === "1"}
         tamano={tamano}
         sinPrecio={sinPrecio}
+        conLogo={!!empresa?.logoUrl}
       />
       <div className="rollo-etiquetas mx-auto flex max-w-3xl flex-wrap justify-center gap-[3mm]">
         {Array.from({ length: copias }, (_, i) => (
@@ -63,6 +65,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/[id]">) 
             svg={svg}
             precio={sinPrecio ? null : producto.precioVenta}
             tamano={tamano}
+            logoUrl={empresa?.logoUrl}
           />
         ))}
       </div>

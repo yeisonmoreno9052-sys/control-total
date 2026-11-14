@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Minus, Plus, Printer } from "lucide-react";
 import { Etiqueta, EstiloRollo, type TamanoEtiqueta } from "@/components/etiquetas/etiqueta";
-import { SelectorPrecio, SelectorTamano, useSinPrecio } from "@/components/etiquetas/selector-tamano";
+import { SelectorLogo, SelectorPrecio, SelectorTamano, useSinPrecio } from "@/components/etiquetas/selector-tamano";
 import { Button } from "@/components/ui/button";
 
 type Variante = { id: string; talla: string; color: string | null; precio: number; texto: string; svg: string | null; stock: number };
@@ -17,11 +17,13 @@ export function HojaPrenda({
   nombre,
   variantes,
   nueva,
+  logoUrl,
 }: {
   prendaId: string;
   nombre: string;
   variantes: Variante[];
   nueva: boolean;
+  logoUrl: string | null;
 }) {
   const [copias, setCopias] = useState<Record<string, number>>(() => Object.fromEntries(variantes.map((v) => [v.id, v.stock])));
   const [tamano, setTamano] = useState<TamanoEtiqueta>("50x25");
@@ -49,6 +51,7 @@ export function HojaPrenda({
         </div>
         <SelectorTamano tamano={tamano} onCambiar={setTamano} />
         <SelectorPrecio sinPrecio={sinPrecio} onCambiar={setSinPrecio} />
+        {logoUrl && <SelectorLogo />}
         <div className="rounded-xl border bg-card shadow-suave">
           <p className="border-b px-4 py-3 text-sm text-muted-foreground">
             Cuántas etiquetas de cada una. Ya vienen con lo que hay en stock.
@@ -90,6 +93,7 @@ export function HojaPrenda({
                 svg={v.svg}
                 precio={sinPrecio ? null : v.precio}
                 tamano={tamano}
+                logoUrl={logoUrl}
               />
             )),
           )}

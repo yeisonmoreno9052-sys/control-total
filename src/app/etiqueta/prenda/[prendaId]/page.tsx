@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { obtenerPrenda } from "@/lib/datos/prendas";
 import { codigoBarrasSvg, textoParaBarras } from "@/lib/etiquetas/codigo-barras";
 import { exigirModulo } from "@/lib/modulos";
@@ -25,7 +26,7 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/prenda/[
   exigirModulo(ctx, "INVENTARIO");
   const { prendaId } = await params;
   const sp = await searchParams;
-  const prenda = await obtenerPrenda(ctx, prendaId);
+  const [prenda, empresa] = await Promise.all([obtenerPrenda(ctx, prendaId), obtenerEmpresa(ctx)]);
   if (!prenda) notFound();
 
   const variantes = prenda.variantes
@@ -43,5 +44,5 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/prenda/[
       };
     });
 
-  return <HojaPrenda prendaId={prendaId} nombre={prenda.nombre} variantes={variantes} nueva={sp.nueva === "1"} />;
+  return <HojaPrenda prendaId={prendaId} nombre={prenda.nombre} variantes={variantes} nueva={sp.nueva === "1"} logoUrl={empresa?.logoUrl ?? null} />;
 }

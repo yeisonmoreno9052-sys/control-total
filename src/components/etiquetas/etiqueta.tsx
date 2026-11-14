@@ -43,6 +43,7 @@ export function Etiqueta({
   svg,
   precio,
   tamano,
+  logoUrl,
 }: {
   nombre: string;
   talla?: string | null;
@@ -53,6 +54,8 @@ export function Etiqueta({
   /** null: la etiqueta sale sin precio (la prenda sí lo tiene guardado y la caja lo cobra). */
   precio: number | null;
   tamano: TamanoEtiqueta;
+  /** Logo de la tienda, pequeño a la izquierda del nombre. Se puede esconder con SelectorLogo. */
+  logoUrl?: string | null;
 }) {
   const t = TAMANOS_ETIQUETA[tamano];
   const chica = tamano === "50x25";
@@ -64,7 +67,17 @@ export function Etiqueta({
       )}
     >
       <div className="flex items-start justify-between gap-[1.5mm]">
-        <div className="min-w-0">
+        {logoUrl && (
+          // La impresora de etiquetas imprime solo en negro: el logo se pasa a blanco y negro
+          // con mucho contraste para que salga nítido (el dorado queda blanco, el negro, negro).
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt=""
+            className={cn("etiqueta-logo shrink-0 object-contain [filter:grayscale(1)_contrast(4)]", chica ? "size-[8mm]" : "size-[9mm]")}
+          />
+        )}
+        <div className="min-w-0 flex-1">
           <p className={cn("leading-tight font-semibold", talla ? "line-clamp-1" : "line-clamp-2", chica ? "text-[8pt]" : "text-[9pt]")}>
             {nombre}
           </p>
