@@ -1,5 +1,6 @@
 import { formatearPesos } from "@/lib/formato";
 import { cn } from "@/lib/utils";
+import { LogoEtiqueta } from "./logo-etiqueta";
 
 /** Tamaños de rollo: 60 × 30 mm (el de siempre) y 50 × 25 mm (el común en almacenes de ropa). */
 export const TAMANOS_ETIQUETA = {
@@ -67,16 +68,7 @@ export function Etiqueta({
       )}
     >
       <div className="flex items-start justify-between gap-[1.5mm]">
-        {logoUrl && (
-          // La impresora de etiquetas imprime solo en negro: el logo se pasa a blanco y negro
-          // con mucho contraste para que salga nítido (el dorado queda blanco, el negro, negro).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoUrl}
-            alt=""
-            className={cn("etiqueta-logo shrink-0 object-contain [filter:grayscale(1)_contrast(4)]", chica ? "size-[8mm]" : "size-[9mm]")}
-          />
-        )}
+        {logoUrl && <LogoEtiqueta url={logoUrl} className={chica ? "size-[8mm]" : "size-[9mm]"} />}
         <div className="min-w-0 flex-1">
           <p className={cn("leading-tight font-semibold", talla ? "line-clamp-1" : "line-clamp-2", chica ? "text-[8pt]" : "text-[9pt]")}>
             {nombre}
