@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { History, Pencil, Shirt, SlidersHorizontal, Tag, Truck } from "lucide-react";
+import { History, Pencil, Share2, Shirt, SlidersHorizontal, Tag, Truck } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { Badge } from "@/components/ui/badge";
@@ -47,36 +47,45 @@ export default async function DetalleProducto({ params, searchParams }: PageProp
         }
         volver={{ href: "/inventario", texto: "Inventario" }}
         acciones={
-          puedeEditarProductos(ctx) && (
-            <>
-              {producto.prendaId && (
-                <Button asChild variant="outline">
-                  <Link href={`/inventario/prenda/${producto.prendaId}`}>
-                    <Shirt /> Todas las tallas
-                  </Link>
-                </Button>
-              )}
-              {gestiona && (
-                <Button asChild variant="outline">
-                  <Link href={`/etiqueta/${id}`}>
-                    <Tag /> Etiqueta
-                  </Link>
-                </Button>
-              )}
+          <>
+            {producto.activo && (
               <Button asChild variant="outline">
-                <Link href={`/inventario/${id}/editar`}>
-                  <Pencil /> Editar
+                <Link href={`/inventario/estado/${id}`}>
+                  <Share2 /> Compartir en Estado
                 </Link>
               </Button>
-              {gestiona && producto.controlaStock && (
-                <Button asChild>
-                  <Link href={`/inventario/${id}/ajustar`}>
-                    <SlidersHorizontal /> Ajustar stock
+            )}
+            {puedeEditarProductos(ctx) && (
+              <>
+                {producto.prendaId && (
+                  <Button asChild variant="outline">
+                    <Link href={`/inventario/prenda/${producto.prendaId}`}>
+                      <Shirt /> Todas las tallas
+                    </Link>
+                  </Button>
+                )}
+                {gestiona && (
+                  <Button asChild variant="outline">
+                    <Link href={`/etiqueta/${id}`}>
+                      <Tag /> Etiqueta
+                    </Link>
+                  </Button>
+                )}
+                <Button asChild variant="outline">
+                  <Link href={`/inventario/${id}/editar`}>
+                    <Pencil /> Editar
                   </Link>
                 </Button>
-              )}
-            </>
-          )
+                {gestiona && producto.controlaStock && (
+                  <Button asChild>
+                    <Link href={`/inventario/${id}/ajustar`}>
+                      <SlidersHorizontal /> Ajustar stock
+                    </Link>
+                  </Button>
+                )}
+              </>
+            )}
+          </>
         }
       />
 

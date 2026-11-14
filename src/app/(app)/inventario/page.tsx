@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, SearchX, Shirt, TriangleAlert } from "lucide-react";
+import { FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, SearchX, Share2, Shirt, TriangleAlert } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Miniatura } from "@/components/inventario/miniatura";
@@ -101,6 +101,13 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
                   <Images /> Subir fotos
                 </Link>
               </Button>
+              {preferencias.usaTallas && (
+                <Button asChild variant="outline">
+                  <Link href="/inventario/estado/nuevos">
+                    <Share2 /> Mercancía nueva
+                  </Link>
+                </Button>
+              )}
               {preferencias.usaTallas ? (
                 <>
                   <Button asChild variant="outline">
