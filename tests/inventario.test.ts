@@ -4,7 +4,7 @@ import { AccesoDenegado, datosDe } from "@/lib/datos/alcance";
 import { prisma } from "@/lib/datos/cliente";
 import { ajustarStock, actualizarProducto, crearProducto } from "@/lib/datos/inventario";
 import { analizarImportacion, ejecutarImportacion } from "@/lib/datos/importacion";
-import { buscarProductos, contarStockBajo, obtenerProducto } from "@/lib/datos/productos";
+import { buscarPorCodigoExacto, buscarProductos, contarStockBajo, obtenerProducto } from "@/lib/datos/productos";
 import { esquemaProducto, type ProductoEntrada } from "@/lib/inventario/esquemas";
 import { crearEscenario, type Escenario } from "./escenario";
 
@@ -160,6 +160,13 @@ describe("permisos de inventario", () => {
 });
 
 describe("búsqueda y stock bajo", () => {
+  it("el lector con teclado en español manda comilla en vez de guion: igual encuentra el producto", async () => {
+    const id = await crear(e.ctx.admin, e.ferreteria.id, { codigo: "EJ-ACC01" });
+    expect(await buscarPorCodigoExacto(e.ctx.admin, e.ferreteria.id, "EJ'ACC01")).toBe(id);
+    expect(await buscarPorCodigoExacto(e.ctx.admin, e.ferreteria.id, "ej-acc01")).toBe(id);
+    expect(await buscarPorCodigoExacto(e.ctx.admin, e.ferreteria.id, "EJ'ACC02")).toBeNull();
+  });
+
   it("busca por partes del nombre, por código y por código de barras", async () => {
     await crear(e.ctx.admin, e.ferreteria.id, { codigo: "TOR-14", nombre: "Tornillo drywall 1/4 x 2", codigoBarras: "7701" });
     await crear(e.ctx.admin, e.ferreteria.id, { codigo: "PUN-1", nombre: "Puntilla 1 pulgada" });
