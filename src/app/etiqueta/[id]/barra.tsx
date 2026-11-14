@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SelectorPrecio, SelectorTamano, sinPrecioGuardado } from "@/components/etiquetas/selector-tamano";
+import { SelectorLogo, SelectorPrecio, SelectorTamano, sinPrecioGuardado } from "@/components/etiquetas/selector-tamano";
 import type { TamanoEtiqueta } from "@/components/etiquetas/etiqueta";
 
 /** Barra de arriba (no sale en la impresión): volver, cuántas etiquetas e imprimir. */
@@ -16,6 +16,7 @@ export function BarraEtiqueta({
   imprimir,
   tamano,
   sinPrecio,
+  conLogo,
 }: {
   productoId: string;
   copias: number;
@@ -24,6 +25,8 @@ export function BarraEtiqueta({
   imprimir: boolean;
   tamano: TamanoEtiqueta;
   sinPrecio: boolean;
+  /** La empresa tiene logo: se puede escoger si sale en la etiqueta. */
+  conLogo: boolean;
 }) {
   const router = useRouter();
 
@@ -73,6 +76,7 @@ export function BarraEtiqueta({
       </div>
       <SelectorTamano tamano={tamano} onCambiar={(t) => cambiar(copias, t)} />
       <SelectorPrecio sinPrecio={sinPrecio} onCambiar={(sin) => cambiar(copias, tamano, sin)} />
+      {conLogo && <SelectorLogo />}
       {nueva && (
         <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link href="/inventario/segunda">Registrar otra pieza de segunda</Link>
