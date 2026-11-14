@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Printer } from "lucide-react";
+import { Printer, Share2 } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ export default async function DetallePrenda({ params, searchParams }: PageProps<
   const porClave = new Map(prenda.variantes.map((v) => [claveVariante(v.talla, v.color), v]));
   const filas: (string | null)[] = prenda.colores.length ? prenda.colores : [null];
   const precios = [...new Set(prenda.variantes.map((v) => v.precioVenta))];
+  const primera = prenda.variantes.find((v) => v.activo);
 
   return (
     <div className="space-y-6">
@@ -35,13 +36,22 @@ export default async function DetallePrenda({ params, searchParams }: PageProps<
         subtitulo={`${prenda.tallas.length} ${prenda.tallas.length === 1 ? "talla" : "tallas"}${prenda.colores.length ? ` · ${prenda.colores.length} ${prenda.colores.length === 1 ? "color" : "colores"}` : ""} · ${prenda.unidades.toLocaleString("es-CO")} en stock`}
         volver={{ href: "/inventario", texto: "Inventario" }}
         acciones={
-          gestiona && (
-            <Button asChild>
-              <Link href={`/etiqueta/prenda/${prendaId}`}>
-                <Printer /> Imprimir etiquetas
-              </Link>
-            </Button>
-          )
+          <>
+            {primera && (
+              <Button asChild variant="outline">
+                <Link href={`/inventario/estado/${primera.id}`}>
+                  <Share2 /> Compartir en Estado
+                </Link>
+              </Button>
+            )}
+            {gestiona && (
+              <Button asChild>
+                <Link href={`/etiqueta/prenda/${prendaId}`}>
+                  <Printer /> Imprimir etiquetas
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
 
