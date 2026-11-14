@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guardarFotoPieza } from "@/lib/datos/estados";
+import { buscarPiezasEstado, guardarFotoPieza } from "@/lib/datos/estados";
+import type { PiezaEstado } from "@/lib/estados/piezas";
 import { FOTO_MAXIMO } from "@/lib/datos/fotos-producto";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
@@ -18,4 +19,12 @@ export async function guardarFotoEstadoAccion(productoId: string, formulario: Fo
   revalidatePath("/inventario");
   revalidatePath("/ventas");
   return {};
+}
+
+/** Buscar cualquier prenda del negocio para ponerla en el collage. */
+export async function buscarPiezasAccion(texto: string): Promise<PiezaEstado[]> {
+  const ctx = await obtenerContexto();
+  exigirModulo(ctx, "INVENTARIO");
+  if (!ctx.negocioActivoId) return [];
+  return buscarPiezasEstado(ctx, ctx.negocioActivoId, String(texto ?? ""));
 }

@@ -3,11 +3,13 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { AccesoDenegado } from "@/lib/datos/alcance";
 import { prisma } from "@/lib/datos/cliente";
-import { guardarFotoPieza, listarNovedades, obtenerPiezaEstado } from "@/lib/datos/estados";
+import { buscarPiezasEstado, guardarFotoPieza, listarNovedades, obtenerPiezaEstado } from "@/lib/datos/estados";
 import { crearProducto } from "@/lib/datos/inventario";
 import { crearPrenda } from "@/lib/datos/prendas";
 import {
   agruparPiezas,
+  aplicarDescuento,
+  hayPromocion,
   leerTallas,
   nombreArchivo,
   porcentajeRebaja,
@@ -102,13 +104,23 @@ describe("Ayudas del Estado (sin base de datos)", () => {
       nota: "Pregunta por tu talla",
       telefono: "300 123 4567",
       piezas: [
-        { nombre: "Jean", precio: 89900, fotoUrl: null },
-        { nombre: "Blusa", precio: 59900, fotoUrl: null },
+        { nombre: "Jean", precio: 89900, oferta: 69900, fotoUrl: null },
+        { nombre: "Blusa", precio: 59900, oferta: null, fotoUrl: null },
       ],
     });
     expect(texto).toBe(
-      "✨ *Llegó mercancía nueva* ✨\n\n• Jean: $ 89.900\n• Blusa: $ 59.900\n\nPregunta por tu talla\nEscríbenos al 300 123 4567 📲",
+      "✨ *Llegó mercancía nueva* ✨\n\n• Jean: ~$ 89.900~ *$ 69.900*\n• Blusa: $ 59.900\n\nPregunta por tu talla\nEscríbenos al 300 123 4567 📲",
     );
+  });
+
+  it("aplica un descuento general redondeado y sabe si hay promoción", () => {
+    expect(aplicarDescuento(89900, 20)).toBe(71900);
+    expect(aplicarDescuento(59900, 15)).toBe(50900);
+    expect(aplicarDescuento(59900, null)).toBeNull();
+    expect(aplicarDescuento(59900, 0)).toBeNull();
+    expect(aplicarDescuento(59900, 100)).toBeNull();
+    expect(hayPromocion({ piezas: [{ nombre: "a", precio: 100, oferta: 100, fotoUrl: null }] })).toBe(false);
+    expect(hayPromocion({ piezas: [{ nombre: "a", precio: 100, oferta: 80, fotoUrl: null }] })).toBe(true);
   });
 
   it("acomoda la rejilla del collage y nombra el archivo", () => {
@@ -193,6 +205,21 @@ describe("Estados de WhatsApp con la base de datos", () => {
     const novedades = await listarNovedades(e.ctx.admin, e.motos.id);
     expect(novedades.map((p) => p.nombre)).toEqual(["Correa de cuero", "Jean tiro alto"]);
     expect(novedades[1].tallas).toEqual(["8", "10"]);
+  });
+
+  it("busca cualquier prenda sin tildes, con todas sus tallas, aunque esté agotada", async () => {
+    await jean();
+    await crearPrenda(e.ctx.admin, e.motos.id, {
+      nombre: "Pantalón café", costo: "1", precioVenta: "50.000", porcentajeIva: "0", stockMinimo: "0",
+      tallas: ["S"], colores: [], cantidades: {},
+    });
+    const jeans = await buscarPiezasEstado(e.ctx.cajero, e.motos.id, "jean tiro");
+    expect(jeans).toHaveLength(1);
+    expect(jeans[0]).toMatchObject({ nombre: "Jean tiro alto", tallas: ["8", "10"] });
+    const agotado = await buscarPiezasEstado(e.ctx.admin, e.motos.id, "pantalon cafe");
+    expect(agotado).toMatchObject([{ nombre: "Pantalón café", tallas: [] }]);
+    expect(await buscarPiezasEstado(e.ctx.admin, e.motos.id, " ")).toEqual([]);
+    expect(await buscarPiezasEstado(e.ctx.adminOtra, e.motos.id, "jean")).toEqual([]);
   });
 
   it("no se ven prendas de otro negocio ni de otra empresa", async () => {

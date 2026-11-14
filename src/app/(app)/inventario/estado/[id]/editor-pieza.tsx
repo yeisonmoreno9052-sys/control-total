@@ -153,7 +153,13 @@ export function EditorPieza({
           )}
         </section>
 
-        <Acciones lienzo={lienzo} nombre={nombreArchivo(nombre)} texto={textoPieza(diseno)} listo={!!fuentes} />
+        <Acciones
+          lienzo={lienzo}
+          nombre={nombreArchivo(nombre)}
+          texto={textoPieza(diseno)}
+          listo={!!fuentes}
+          version={`${JSON.stringify(diseno)}|${imagenes.size}|${fotoUrl}`}
+        />
       </div>
     </div>
   );

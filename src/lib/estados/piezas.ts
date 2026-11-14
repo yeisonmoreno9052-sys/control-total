@@ -136,15 +136,31 @@ export function textoPieza(d: DisenoPieza) {
 export type DisenoCollage = {
   titulo: string;
   nota: string;
-  piezas: { nombre: string; precio: number; fotoUrl: string | null }[];
+  /** oferta: precio de promoción; si es menor que el precio, el precio sale tachado. */
+  piezas: { nombre: string; precio: number; oferta: number | null; fotoUrl: string | null }[];
   telefono: string;
 };
+
+/** ¿Alguna prenda del collage está en promoción? */
+export function hayPromocion(d: Pick<DisenoCollage, "piezas">) {
+  return d.piezas.some((p) => p.oferta !== null && porcentajeRebaja(p.precio, p.oferta) !== null);
+}
+
+/** Precio con un descuento general, redondeado a los $100 más cercanos ($89.900 -20 % = $71.900). */
+export function aplicarDescuento(precio: number, porcentaje: number | null) {
+  if (!porcentaje || porcentaje <= 0 || porcentaje >= 100) return null;
+  return Math.round((precio * (100 - porcentaje)) / 100 / 100) * 100;
+}
 
 export function textoCollage(d: DisenoCollage) {
   return [
     `✨ *${d.titulo.trim()}* ✨`,
     "",
-    ...d.piezas.map((p) => `• ${p.nombre}: ${formatearPesos(p.precio)}`),
+    ...d.piezas.map((p) =>
+      p.oferta !== null && porcentajeRebaja(p.precio, p.oferta)
+        ? `• ${p.nombre}: ~${formatearPesos(p.precio)}~ *${formatearPesos(p.oferta)}*`
+        : `• ${p.nombre}: ${formatearPesos(p.precio)}`,
+    ),
     d.nota.trim() ? `\n${d.nota.trim()}` : null,
     d.telefono.trim() ? `Escríbenos al ${d.telefono.trim()} 📲` : null,
   ]

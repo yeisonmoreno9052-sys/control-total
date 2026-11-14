@@ -24,8 +24,8 @@ export default async function EstadoNovedades() {
   return (
     <div>
       <EncabezadoPagina
-        titulo="Llegó mercancía nueva"
-        subtitulo="Escoge hasta 6 prendas y comparte la imagen en tu Estado de WhatsApp."
+        titulo="Compartir varias prendas"
+        subtitulo="Escoge hasta 6 prendas, ponles precio de promoción si quieres y compártelas en WhatsApp o Instagram."
         volver={{ href: "/inventario", texto: "Inventario" }}
       />
       {piezas.length === 0 ? (
