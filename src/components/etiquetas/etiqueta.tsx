@@ -68,7 +68,7 @@ export function Etiqueta({
       )}
     >
       <div className="flex items-start justify-between gap-[1.5mm]">
-        {logoUrl && <LogoEtiqueta url={logoUrl} className={chica ? "size-[8mm]" : "size-[9mm]"} />}
+        {logoUrl && <LogoEtiqueta url={logoUrl} className={chica ? "size-[10mm]" : "size-[11mm]"} />}
         <div className="min-w-0 flex-1">
           <p className={cn("leading-tight font-semibold", talla ? "line-clamp-1" : "line-clamp-2", chica ? "text-[8pt]" : "text-[9pt]")}>
             {nombre}
