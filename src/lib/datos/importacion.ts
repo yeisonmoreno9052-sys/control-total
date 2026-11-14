@@ -4,12 +4,14 @@
 //   1. analizarImportacion(): lee, valida cada fila y arma la vista previa.
 //   2. ejecutarImportacion(): vuelve a analizar y, solo si no hay errores, guarda
 //      todo en una sola transacción (o se guarda todo, o nada).
+import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import type { Prisma } from "@/generated/prisma/client";
 import Papa from "papaparse";
 import { Decimal, leerCantidad, MENSAJES_CANTIDAD, validarCantidad } from "@/lib/inventario/cantidades";
 import { esquemaProducto, leerPesos } from "@/lib/inventario/esquemas";
 import { precioSugerido } from "@/lib/inventario/precios";
+import { nombreVariante } from "@/lib/inventario/prendas";
 import { exigirGestion } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import { prisma } from "./cliente";
@@ -45,6 +47,14 @@ export const COLUMNAS = [
     ejemplo: "no",
     nota: "sí o no. Sí = sale como cuadro para tocar en la caja (si el negocio usa botones rápidos).",
   },
+  {
+    clave: "prenda",
+    titulo: "Prenda",
+    ejemplo: "",
+    nota: "Solo ropa y calzado. Nombre de la prenda sin talla ni color (Blusa Lina). Las filas con la misma prenda quedan juntas.",
+  },
+  { clave: "talla", titulo: "Talla", ejemplo: "", nota: "Solo ropa y calzado: S, M, L, 8, 38… Necesita la columna Prenda." },
+  { clave: "color", titulo: "Color", ejemplo: "", nota: "Solo ropa y calzado. Opcional: Negro, Beige…" },
 ] as const;
 
 type Clave = (typeof COLUMNAS)[number]["clave"];
@@ -65,6 +75,9 @@ const ALIAS: Record<string, Clave> = {
   condicion: "condicion", estado: "condicion",
   "controlar stock": "controlaStock", "controla stock": "controlaStock", "maneja inventario": "controlaStock",
   "boton rapido": "botonRapido", rapido: "botonRapido", favorito: "botonRapido",
+  prenda: "prenda", "nombre prenda": "prenda", "nombre de la prenda": "prenda", modelo: "prenda", estilo: "prenda",
+  talla: "talla", tallas: "talla", size: "talla", numero: "talla",
+  color: "color", colores: "color",
 };
 
 /** "sí"/"no" escrito a mano → true/false; vacío → undefined (no se toca). */
@@ -153,7 +166,8 @@ async function leerFilas(archivo: Uint8Array, nombreArchivo: string): Promise<Fi
   if (indiceEncabezado < 0) return { error: "El archivo está vacío." };
   const mapa = mapearEncabezado(tabla[indiceEncabezado]);
   const claves = new Set(mapa.values());
-  const faltan = (["codigo", "nombre"] as const).filter((c) => !claves.has(c));
+  // El nombre puede salir de la prenda, la talla y el color.
+  const faltan = (["codigo", "nombre"] as const).filter((c) => !claves.has(c) && !(c === "nombre" && claves.has("prenda")));
   if (faltan.length) {
     return {
       error: `No encontramos la columna ${faltan.map((c) => `"${COLUMNAS.find((k) => k.clave === c)!.titulo}"`).join(" ni ")} en la primera fila. Usa la plantilla.`,
@@ -192,6 +206,10 @@ type ProductoImportado = {
     condicion?: string;
     controlaStock?: boolean;
     botonRapido?: boolean;
+    prendaId?: string | null;
+    prenda?: string | null;
+    talla?: string | null;
+    color?: string | null;
   };
   stock: Decimal | null;
 };
@@ -235,6 +253,8 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
         porcentajeIva: true,
         condicion: true,
         controlaStock: true,
+        prendaId: true,
+        prenda: true,
       },
     }),
     datos.categoria.findMany({ where: { negocioId }, select: { id: true, nombre: true, margenSugerido: true } }),
@@ -244,6 +264,10 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
   const barrasEnUso = new Map(existentes.filter((p) => p.codigoBarras).map((p) => [p.codigoBarras!, p.codigo.toLowerCase()]));
   const categoriasPorNombre = new Map(categorias.map((c) => [normalizar(c.nombre), c]));
   const margenNegocio = Number(negocio?.margenSugerido ?? 0);
+  // Prendas: las filas con el mismo nombre de prenda comparten prendaId (y si la prenda
+  // ya existe en el negocio, se suman a ella).
+  const prendaIds = new Map<string, string>();
+  for (const p of existentes) if (p.prendaId && p.prenda) prendaIds.set(normalizar(p.prenda), p.prendaId);
 
   const errores: ErrorFila[] = [];
   const productos: ProductoImportado[] = [];
@@ -329,11 +353,30 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
     }
     const seCuenta = controlaStock ?? existente?.controlaStock ?? true;
 
+    const prenda = (v.prenda ?? "").trim().slice(0, 120);
+    const talla = (v.talla ?? "").trim().slice(0, 20);
+    const color = (v.color ?? "").trim().slice(0, 40);
+    if ((talla || color) && !prenda) {
+      errorFila("Tiene talla o color pero le falta el nombre de la prenda (columna Prenda).");
+      continue;
+    }
+    let datosPrenda: Pick<ProductoImportado["datos"], "prendaId" | "prenda" | "talla" | "color"> = {};
+    if (prenda) {
+      const clavePrenda = normalizar(prenda);
+      let prendaId = prendaIds.get(clavePrenda);
+      if (!prendaId) {
+        prendaId = existente?.prendaId ?? randomUUID();
+        prendaIds.set(clavePrenda, prendaId);
+      }
+      datosPrenda = { prendaId, prenda, talla: talla || null, color: color || null };
+    }
+
     const ivaTexto = (v.iva ?? "").replace("%", "").trim();
     const entrada = {
       codigo,
       codigoBarras: v.codigoBarras !== undefined ? v.codigoBarras : existente?.codigoBarras ?? "",
-      nombre: (v.nombre ?? "").trim() || existente?.nombre || "",
+      nombre:
+        (v.nombre ?? "").trim() || (prenda ? nombreVariante(prenda, talla || "", color || null) : "") || existente?.nombre || "",
       costo,
       precioVenta,
       stockMinimo: seCuenta ? (v.stockMinimo ?? "").trim() || existente?.stockMinimo.toString() || "0" : "0",
@@ -383,7 +426,7 @@ async function analizar(ctx: Contexto, negocioId: string, archivo: Uint8Array, n
       codigo,
       existenteId: existente?.id ?? null,
       categoria: categoriaNombre || null,
-      datos: { ...validado.data, codigoBarras: validado.data.codigoBarras ?? null },
+      datos: { ...validado.data, codigoBarras: validado.data.codigoBarras ?? null, ...datosPrenda },
       stock,
     });
   }
