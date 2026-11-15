@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Ruler, SearchX, Shirt } from "lucide-react";
+import { PackagePlus, Ruler, SearchX, Shirt } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { tallasDisponibles, type DisponibilidadPrenda } from "@/lib/datos/prendas";
 import { formatearPesos } from "@/lib/formato";
 import { claveVariante } from "@/lib/inventario/prendas";
 import { exigirModulo } from "@/lib/modulos";
+import { puedeEditarProductos } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Buscador } from "../buscador";
 
 export const metadata: Metadata = { title: "Tallas disponibles · Control Total" };
@@ -40,7 +42,7 @@ export default async function TallasDisponibles({ searchParams }: PageProps<"/in
       ) : (
         <div className="space-y-4">
           {prendas.map((p) => (
-            <TarjetaPrenda key={p.prendaId} prenda={p} />
+            <TarjetaPrenda key={p.prendaId} prenda={p} volver={`/inventario/tallas?q=${encodeURIComponent(q)}`} llegada={puedeEditarProductos(ctx)} />
           ))}
         </div>
       )}
@@ -48,7 +50,7 @@ export default async function TallasDisponibles({ searchParams }: PageProps<"/in
   );
 }
 
-function TarjetaPrenda({ prenda }: { prenda: DisponibilidadPrenda }) {
+function TarjetaPrenda({ prenda, volver, llegada }: { prenda: DisponibilidadPrenda; volver: string; llegada: boolean }) {
   const porClave = new Map(prenda.variantes.map((v) => [claveVariante(v.talla, v.color), v]));
   const filas: (string | null)[] = prenda.colores.length ? prenda.colores : [null];
   const hay = prenda.tallas.filter((t) => prenda.variantes.some((v) => v.talla === t && v.stock > 0));
@@ -94,6 +96,13 @@ function TarjetaPrenda({ prenda }: { prenda: DisponibilidadPrenda }) {
           </div>
         ))}
       </div>
+      {llegada && (
+        <Button asChild variant="outline" className="w-full sm:w-auto">
+          <Link href={`/inventario/prenda/${prenda.prendaId}/llegada?volver=${encodeURIComponent(volver)}`}>
+            <PackagePlus /> Llegó mercancía
+          </Link>
+        </Button>
+      )}
     </section>
   );
 }

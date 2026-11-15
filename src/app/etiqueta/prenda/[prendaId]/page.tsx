@@ -44,5 +44,26 @@ async function Etiquetas({ params, searchParams }: PageProps<"/etiqueta/prenda/[
       };
     });
 
-  return <HojaPrenda prendaId={prendaId} nombre={prenda.nombre} variantes={variantes} nueva={sp.nueva === "1"} logoUrl={empresa?.logoUrl ?? null} />;
+  // Después de "Llegó mercancía": solo las etiquetas de lo que llegó ("id.cantidad,…").
+  const llegada =
+    typeof sp.llegada === "string"
+      ? Object.fromEntries(
+          sp.llegada
+            .split(",")
+            .map((p) => p.split("."))
+            .filter(([id, n]) => id && Number(n) > 0)
+            .map(([id, n]) => [id, Math.min(99, Math.floor(Number(n)))]),
+        )
+      : null;
+
+  return (
+    <HojaPrenda
+      prendaId={prendaId}
+      nombre={prenda.nombre}
+      variantes={variantes}
+      nueva={sp.nueva === "1"}
+      logoUrl={empresa?.logoUrl ?? null}
+      llegada={llegada}
+    />
+  );
 }

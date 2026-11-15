@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { agregarVariantes, cambiarPrecioPrenda, crearPrenda } from "@/lib/datos/prendas";
+import { agregarVariantes, cambiarPrecioPrenda, crearPrenda, registrarLlegada } from "@/lib/datos/prendas";
 import { leerPesos } from "@/lib/inventario/esquemas";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
@@ -40,4 +40,16 @@ export async function cambiarPrecioPrendaAccion(prendaId: string, precio: string
   if (!r.ok) return { ok: false, error: r.error, campos: r.campos };
   revalidatePath("/inventario");
   return { ok: true, prendaId };
+}
+
+/** "Llegó mercancía": suma lo que llegó y crea tallas o colores nuevos. Devuelve "id.cantidad,…" para las etiquetas. */
+export async function registrarLlegadaAccion(
+  prendaId: string,
+  datos: unknown,
+): Promise<{ ok: true; etiquetas: string } | { ok: false; error: string; campos?: Record<string, string> }> {
+  const ctx = await contextoPrendas();
+  const r = await registrarLlegada(ctx, prendaId, datos);
+  if (!r.ok) return { ok: false, error: r.error, campos: r.campos };
+  revalidatePath("/inventario");
+  return { ok: true, etiquetas: r.llegaron.map((l) => `${l.id}.${l.cantidad}`).join(",") };
 }
