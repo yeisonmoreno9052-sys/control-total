@@ -415,3 +415,15 @@ export async function tallasDisponibles(ctx: Contexto, negocioId: string, texto:
   }
   return [...porPrenda.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
+
+/** Los colores que ya se han escrito en las prendas del negocio, para ofrecerlos con un toque. */
+export async function coloresUsados(ctx: Contexto, negocioId: string): Promise<string[]> {
+  const filas = await datosDe(ctx).producto.findMany({
+    where: { negocioId, color: { not: null } },
+    select: { color: true },
+    distinct: ["color"],
+    orderBy: [{ color: "asc" }],
+    take: 200,
+  });
+  return filas.map((f) => f.color!).filter(Boolean);
+}

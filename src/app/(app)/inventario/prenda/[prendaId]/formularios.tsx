@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { leerPesos } from "@/lib/inventario/esquemas";
 import { TALLAS_RAPIDAS } from "@/lib/inventario/prendas";
 import { agregarVariantesAccion, cambiarPrecioPrendaAccion } from "../acciones";
-import { COLORES_RAPIDOS, CuadroCantidades, EditorOpciones } from "../componentes";
+import { CuadroCantidades, EditorOpciones, coloresRapidos } from "../componentes";
 
 const pesosATexto = (n: number) => (n ? new Intl.NumberFormat("es-CO").format(n) : "");
 
@@ -58,11 +58,13 @@ export function AgregarTallas({
   tallas,
   colores,
   existentes,
+  coloresGuardados = [],
 }: {
   prendaId: string;
   tallas: string[];
   colores: string[];
   existentes: string[];
+  coloresGuardados?: string[];
 }) {
   const router = useRouter();
   const [nuevasTallas, setNuevasTallas] = useState<string[]>([]);
@@ -110,7 +112,7 @@ export function AgregarTallas({
             fijas={colores}
             valores={nuevosColores}
             onCambiar={setNuevosColores}
-            sugeridas={COLORES_RAPIDOS}
+            sugeridas={coloresRapidos(coloresGuardados)}
             placeholder="Nuevo color"
           />
         </div>

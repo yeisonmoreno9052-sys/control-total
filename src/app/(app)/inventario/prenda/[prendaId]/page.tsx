@@ -4,7 +4,7 @@ import { Printer, Share2 } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { Button } from "@/components/ui/button";
-import { obtenerPrenda } from "@/lib/datos/prendas";
+import { coloresUsados, obtenerPrenda } from "@/lib/datos/prendas";
 import { formatearPesos } from "@/lib/formato";
 import { formatearCantidad } from "@/lib/inventario/cantidades";
 import { claveVariante } from "@/lib/inventario/prendas";
@@ -23,6 +23,7 @@ export default async function DetallePrenda({ params, searchParams }: PageProps<
   const sp = await searchParams;
   const prenda = await obtenerPrenda(ctx, prendaId);
   if (!prenda) return <NoEncontrado />;
+  const colores = puedeEditarProductos(ctx) ? await coloresUsados(ctx, prenda.negocioId) : [];
   const gestiona = puedeGestionar(ctx);
   const porClave = new Map(prenda.variantes.map((v) => [claveVariante(v.talla, v.color), v]));
   const filas: (string | null)[] = prenda.colores.length ? prenda.colores : [null];
@@ -126,7 +127,7 @@ export default async function DetallePrenda({ params, searchParams }: PageProps<
           <div className="space-y-3 rounded-xl border bg-card p-4 shadow-suave md:p-6">
             <h2 className="font-semibold">Agregar tallas o colores</h2>
             <p className="text-sm text-muted-foreground">Quedan con el mismo precio y su propio código.</p>
-            <AgregarTallas prendaId={prendaId} tallas={prenda.tallas} colores={prenda.colores} existentes={[...porClave.keys()]} />
+            <AgregarTallas prendaId={prendaId} tallas={prenda.tallas} colores={prenda.colores} existentes={[...porClave.keys()]} coloresGuardados={colores} />
           </div>
         )}
       </section>

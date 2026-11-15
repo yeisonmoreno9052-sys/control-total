@@ -13,7 +13,7 @@ import { calcularMargen, margenEfectivo, precioSugerido } from "@/lib/inventario
 import { TALLAS_RAPIDAS } from "@/lib/inventario/prendas";
 import { IVAS } from "@/lib/inventario/unidades";
 import { crearPrendaAccion } from "./acciones";
-import { COLORES_RAPIDOS, CuadroCantidades, EditorOpciones } from "./componentes";
+import { CuadroCantidades, EditorOpciones, coloresRapidos } from "./componentes";
 
 const pesosATexto = (n: number) => (n ? new Intl.NumberFormat("es-CO").format(n) : "");
 
@@ -22,8 +22,11 @@ export function FormularioPrenda({
   margenNegocio,
   ivaPorDefecto,
   verCostos,
+  coloresGuardados = [],
 }: {
   categorias: { id: string; nombre: string; margenSugerido: number | null }[];
+  /** Colores que ya se han usado en el negocio: salen como botones rápidos. */
+  coloresGuardados?: string[];
   margenNegocio: number;
   ivaPorDefecto: number;
   verCostos: boolean;
@@ -148,7 +151,7 @@ export function FormularioPrenda({
           id="color"
           valores={colores}
           onCambiar={setColores}
-          sugeridas={COLORES_RAPIDOS}
+          sugeridas={coloresRapidos(coloresGuardados)}
           placeholder="Ej.: Negro, Azul claro"
           error={campos.colores}
         />
