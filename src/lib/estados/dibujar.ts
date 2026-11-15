@@ -93,6 +93,14 @@ function rectRedondo(c: C, x: number, y: number, w: number, h: number, r: number
   c.roundRect(x, y, w, h, r);
 }
 
+/** Dibuja la imagen completa dentro del cuadro, centrada (como object-fit: contain). */
+function dibujarCompleta(c: C, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+  const escala = Math.min(w / img.width, h / img.height);
+  const dw = img.width * escala;
+  const dh = img.height * escala;
+  c.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
 /** Dibuja la imagen cubriendo el cuadro (recorta lo que sobra, como object-fit: cover). */
 function dibujarCubriendo(c: C, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
   const escala = Math.max(w / img.width, h / img.height);
@@ -213,8 +221,8 @@ function piePagina(c: C, r: Recursos, col: Colores, f: Fuentes) {
 }
 
 /** Medidas de los círculos de tallas; si son muchas o largas, se achican y bajan a otra fila. */
-function medirTallas(c: C, tallas: string[], f: Fuentes) {
-  for (const px of [44, 38, 32]) {
+function medirTallas(c: C, tallas: string[], f: Fuentes, k = 1) {
+  for (const px of [44, 38, 32].map((n) => Math.round(n * k))) {
     c.font = `700 ${px}px ${f.texto}`;
     const alto = Math.round(px * 2.2);
     const anchos = tallas.map((t) => Math.max(alto, c.measureText(t).width + px * 1.1));
@@ -226,9 +234,9 @@ function medirTallas(c: C, tallas: string[], f: Fuentes) {
         usado = 0;
       }
       filas[filas.length - 1].push(i);
-      usado += w + 22;
+      usado += w + Math.round(22 * k);
     });
-    if (filas.length <= 2 || px === 32) return { px, alto, anchos, filas: filas.slice(0, 2) };
+    if (filas.length <= 2 || px === Math.round(32 * k)) return { px, alto, anchos, filas: filas.slice(0, 2) };
   }
   throw new Error("inalcanzable");
 }
@@ -238,35 +246,41 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
   c.clearRect(0, 0, ANCHO, ALTO);
   fondoOscuro(c, col);
   const centro = ANCHO / 2;
+  // Con foto el texto va más pequeño para que la prenda se vea completa.
+  const k = foto ? 0.75 : 1;
+  const n = (v: number) => Math.round(v * k);
 
   const rebaja = d.oferta ? porcentajeRebaja(d.precio, d.oferta) : null;
   // Bloque de texto: primero se mide y luego se dibuja.
   const fuenteNombre = (px: number) => `700 ${px}px ${f.titulo}`;
-  const nombre = ajustarTexto(c, d.nombre.trim() || "Nombre de la prenda", fuenteNombre, 960, 104, 60, 2);
+  const nombre = ajustarTexto(c, d.nombre.trim() || "Nombre de la prenda", fuenteNombre, 960, n(104), n(60), 2);
   const altoNombre = nombre.lineas.length * nombre.px * 1.08;
   const detalle = d.detalle.trim();
-  const tallas = d.tallas.length ? medirTallas(c, d.tallas, f) : null;
+  const tallas = d.tallas.length ? medirTallas(c, d.tallas, f, foto ? 0.85 : 1) : null;
   const precioFinal = rebaja ? d.oferta! : d.precio;
   const fuentePrecio = (px: number) => `700 ${px}px ${f.titulo}`;
-  const precio = ajustarTexto(c, formatearPesos(precioFinal), fuentePrecio, 960, 150, 90, 1);
+  const precio = ajustarTexto(c, formatearPesos(precioFinal), fuentePrecio, 960, n(150), n(90), 1);
 
   const bloque =
     altoNombre +
-    (detalle ? 18 + 46 : 0) +
-    (tallas ? 34 + 2 + 34 + 34 + 22 + tallas.filas.length * tallas.alto + (tallas.filas.length - 1) * 18 : 0) +
-    (rebaja ? 30 + 64 : 0) +
-    26 +
+    (detalle ? n(18) + n(46) : 0) +
+    (tallas ? n(34) + 2 + n(34) + n(34) + n(22) + tallas.filas.length * tallas.alto + (tallas.filas.length - 1) * n(18) : 0) +
+    (rebaja ? n(30) + n(64) : 0) +
+    n(26) +
     precio.px * 1.1;
-  const finBloque = d.telefono.trim() ? 1650 : 1780;
+  const finBloque = d.telefono.trim() ? 1650 : foto ? 1740 : 1780;
   // Con foto el texto va pegado abajo (sube sobre la foto si es largo); sin foto, centrado.
   const y0 = foto ? Math.max(640, finBloque - bloque) : Math.max(320, (330 + finBloque - bloque) / 2 + 30);
 
   if (foto) {
-    // La foto ocupa todo el espacio de arriba del texto y se ve con su brillo real: nada de capas
-    // oscuras encima de la prenda. Solo el borde de abajo se funde con el fondo.
-    const altoFoto = y0 - 30;
-    dibujarCubriendo(c, foto, 0, 0, ANCHO, altoFoto);
-    const fundido = 110;
+    // La prenda se ve completa (sin recortar) y con su brillo real, sin capas oscuras encima.
+    // Detrás, la misma foto ampliada y desenfocada llena lo que sobra y se funde con el fondo.
+    const altoFoto = y0 - 20;
+    c.save();
+    c.filter = "blur(40px) brightness(0.7)";
+    dibujarCubriendo(c, foto, -60, -60, ANCHO + 120, altoFoto + 120);
+    c.restore();
+    const fundido = 140;
     const g = c.createLinearGradient(0, altoFoto - fundido, 0, altoFoto);
     g.addColorStop(0, "rgba(0,0,0,0)");
     g.addColorStop(1, col.fondo);
@@ -274,9 +288,10 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
     c.fillRect(0, altoFoto - fundido, ANCHO, fundido + 1);
     c.fillStyle = col.fondo;
     c.fillRect(0, altoFoto, ANCHO, ALTO - altoFoto);
+    dibujarCompleta(c, foto, 0, 0, ANCHO, altoFoto);
   }
 
-  logoArriba(c, r, col, f, 190);
+  logoArriba(c, r, col, f, foto ? 150 : 190);
 
   // Etiquetas de arriba.
   if (d.etiqueta === "nuevo") {
@@ -354,32 +369,32 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
   y += altoNombre;
 
   if (detalle) {
-    y += 18;
-    c.font = `400 38px ${f.texto}`;
+    y += n(18);
+    c.font = `400 ${n(38)}px ${f.texto}`;
     c.fillStyle = col.suave;
     c.fillText(recortarUnaLinea(c, detalle, 960), centro, y);
-    y += 46;
+    y += n(46);
   }
 
   if (tallas) {
-    y += 34;
+    y += n(34);
     const linea = c.createLinearGradient(120, 0, ANCHO - 120, 0);
     linea.addColorStop(0, "rgba(0,0,0,0)");
     linea.addColorStop(0.5, col.acento[1]);
     linea.addColorStop(1, "rgba(0,0,0,0)");
     c.fillStyle = linea;
     c.fillRect(120, y, ANCHO - 240, 2);
-    y += 2 + 34;
-    c.font = `700 28px ${f.texto}`;
-    espaciado(c, 8);
+    y += 2 + n(34);
+    c.font = `700 ${Math.max(24, n(28))}px ${f.texto}`;
+    espaciado(c, n(8));
     c.fillStyle = col.tenue;
     c.fillText(d.etiqueta === "ultimas" ? "QUEDAN SOLO ESTAS TALLAS" : "TALLAS DISPONIBLES", centro + 4, y);
     espaciado(c, 0);
-    y += 34 + 22;
+    y += n(34) + n(22);
     c.font = `700 ${tallas.px}px ${f.texto}`;
     c.textBaseline = "middle";
     for (const fila of tallas.filas) {
-      const total = fila.reduce((a, i) => a + tallas.anchos[i], 0) + (fila.length - 1) * 22;
+      const total = fila.reduce((a, i) => a + tallas.anchos[i], 0) + (fila.length - 1) * n(22);
       let x = centro - total / 2;
       for (const i of fila) {
         const w = tallas.anchos[i];
@@ -389,27 +404,27 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
         c.stroke();
         c.fillStyle = col.acento[0];
         c.fillText(d.tallas[i], x + w / 2, y + tallas.alto / 2 + 2);
-        x += w + 22;
+        x += w + n(22);
       }
-      y += tallas.alto + 18;
+      y += tallas.alto + n(18);
     }
-    y -= 18;
+    y -= n(18);
     c.textBaseline = "top";
   }
 
   if (rebaja) {
-    y += 30;
-    c.font = `500 56px ${f.texto}`;
+    y += n(30);
+    c.font = `500 ${n(56)}px ${f.texto}`;
     const antes = formatearPesos(d.precio);
     c.fillStyle = "#8d826b";
     c.fillText(antes, centro, y);
     const w = c.measureText(antes).width;
     c.fillStyle = "#e0303d";
-    c.fillRect(centro - w / 2 - 8, y + 30, w + 16, 6);
-    y += 64;
+    c.fillRect(centro - w / 2 - 8, y + n(30), w + 16, Math.max(4, n(6)));
+    y += n(64);
   }
 
-  y += 26;
+  y += n(26);
   c.font = fuentePrecio(precio.px);
   c.fillStyle = degradadoAcento(c, col, y, precio.px);
   c.fillText(precio.lineas[0], centro, y);
