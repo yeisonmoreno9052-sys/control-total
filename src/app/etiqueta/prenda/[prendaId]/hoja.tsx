@@ -18,14 +18,19 @@ export function HojaPrenda({
   variantes,
   nueva,
   logoUrl,
+  llegada = null,
 }: {
   prendaId: string;
   nombre: string;
   variantes: Variante[];
   nueva: boolean;
   logoUrl: string | null;
+  /** Recién llegada: cuántas etiquetas por producto (las demás en 0). */
+  llegada?: Record<string, number> | null;
 }) {
-  const [copias, setCopias] = useState<Record<string, number>>(() => Object.fromEntries(variantes.map((v) => [v.id, v.stock])));
+  const [copias, setCopias] = useState<Record<string, number>>(() =>
+    Object.fromEntries(variantes.map((v) => [v.id, llegada ? (llegada[v.id] ?? 0) : v.stock])),
+  );
   const [tamano, setTamano] = useState<TamanoEtiqueta>("50x25");
   const [sinPrecio, setSinPrecio] = useSinPrecio();
   const total = variantes.reduce((a, v) => a + (copias[v.id] ?? 0), 0);
@@ -34,9 +39,10 @@ export function HojaPrenda({
   return (
     <>
       <div className="mx-auto mb-6 max-w-3xl space-y-4 print:hidden">
-        {nueva && (
+        {(nueva || llegada) && (
           <p role="status" className="rounded-md bg-accent px-3 py-2 text-accent-foreground">
-            <strong>{nombre}</strong> quedó guardada. Imprime las etiquetas y pégale a cada prenda la suya.
+            <strong>{nombre}</strong> {llegada ? "quedó con lo que llegó. Ya vienen solo las etiquetas de lo nuevo." : "quedó guardada."} Imprime
+            y pégale a cada prenda la suya.
           </p>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3">

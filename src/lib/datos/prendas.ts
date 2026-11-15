@@ -430,3 +430,66 @@ export async function coloresUsados(ctx: Contexto, negocioId: string): Promise<s
   });
   return filas.map((f) => f.color!).filter(Boolean);
 }
+
+/**
+ * "Llegó mercancía" de una prenda, en un solo paso: suma lo que llegó a las tallas y colores
+ * que ya existen y crea las tallas o colores nuevos con su cantidad. Devuelve, por producto,
+ * cuántas llegaron (para imprimir solo esas etiquetas).
+ */
+export async function registrarLlegada(
+  ctx: Contexto,
+  prendaId: string,
+  entrada: unknown,
+): Promise<Resultado<{ llegaron: { id: string; cantidad: number }[] }>> {
+  exigirEdicionProductos(ctx);
+  const r = esquemaAgregarVariantes.safeParse(entrada);
+  if (!r.success) return { ok: false, error: "Revisa los campos marcados.", campos: erroresPorCampo(r.error) };
+  const prenda = await obtenerPrenda(ctx, prendaId);
+  if (!prenda) return { ok: false, error: "No encontramos esa prenda." };
+  exigirNegocioPermitido(ctx, prenda.negocioId);
+
+  const cantidadDe = (clave: string) => Number(r.data.cantidades[clave] ?? 0) || 0;
+  const existentes = new Map(prenda.variantes.map((v) => [claveVariante(v.talla, v.color), v]));
+  const combos = combinaciones(r.data.tallas, r.data.colores);
+  const faltan = combos.filter((c) => !existentes.has(claveVariante(c.talla, c.color)));
+  const suman = combos
+    .map((c) => ({ v: existentes.get(claveVariante(c.talla, c.color)), n: cantidadDe(claveVariante(c.talla, c.color)) }))
+    .filter((x): x is { v: VariantePrenda; n: number } => !!x.v && x.v.activo && x.n > 0);
+  if (!faltan.length && !suman.length) return { ok: false, error: "Escribe cuántas llegaron de al menos una talla." };
+
+  if (faltan.length) {
+    const nuevas = await agregarVariantes(ctx, prendaId, {
+      tallas: r.data.tallas,
+      colores: r.data.colores,
+      cantidades: Object.fromEntries(faltan.map((c) => [claveVariante(c.talla, c.color), String(cantidadDe(claveVariante(c.talla, c.color)))])),
+    });
+    if (!nuevas.ok) return nuevas;
+  }
+
+  if (suman.length) {
+    await prisma.$transaction(async (tx) => {
+      for (const { v, n } of suman) {
+        const { antes, despues } = await registrarMovimiento(tx, ctx, {
+          productoId: v.id,
+          tipo: "AJUSTE",
+          cantidad: new Decimal(n),
+          motivo: "OTRO",
+          nota: "Llegó mercancía",
+        });
+        await registrarAuditoria(tx, ctx, {
+          negocioId: prenda.negocioId,
+          accion: "AJUSTE_STOCK",
+          entidad: "Producto",
+          entidadId: v.id,
+          detalle: { codigo: v.codigo, motivo: "OTRO", nota: "Llegó mercancía", antes: antes.toString(), despues: despues.toString() },
+        });
+      }
+    });
+  }
+
+  const despues = await obtenerPrenda(ctx, prendaId);
+  const llegaron = (despues?.variantes ?? [])
+    .map((v) => ({ id: v.id, cantidad: cantidadDe(claveVariante(v.talla, v.color)) }))
+    .filter((x) => x.cantidad > 0);
+  return { ok: true, llegaron };
+}

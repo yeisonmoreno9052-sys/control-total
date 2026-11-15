@@ -5,7 +5,7 @@ import { AccesoDenegado } from "@/lib/datos/alcance";
 import { abrirCaja } from "@/lib/datos/caja";
 import { prisma } from "@/lib/datos/cliente";
 import { guardarPreferenciasVenta, obtenerPreferenciasVenta } from "@/lib/datos/negocios";
-import { agregarVariantes, cambiarPrecioPrenda, crearPrenda, obtenerPrenda } from "@/lib/datos/prendas";
+import { agregarVariantes, cambiarPrecioPrenda, crearPrenda, obtenerPrenda, registrarLlegada } from "@/lib/datos/prendas";
 import { buscarParaVenta } from "@/lib/datos/productos";
 import { registrarVenta } from "@/lib/datos/ventas";
 import {
@@ -149,6 +149,26 @@ describe("Prenda existente", () => {
     expect(xl.stock.toString()).toBe("4");
     const repetida = await agregarVariantes(e.ctx.admin, r.prendaId, { tallas: ["m"], colores: ["negro"] });
     expect(repetida.ok).toBe(false);
+  });
+
+  it("llegó mercancía: suma a las tallas que existen y crea la talla nueva, con sus movimientos", async () => {
+    const r = await crear();
+    const l = await registrarLlegada(e.ctx.admin, r.prendaId, {
+      tallas: ["S", "M", "L", "XL"],
+      colores: ["Negro", "Blanco"],
+      cantidades: { [claveVariante("M", "Negro")]: "2", [claveVariante("XL", "Blanco")]: "1" },
+    });
+    expect(l.ok).toBe(true);
+    if (!l.ok) return;
+    expect(l.llegaron.map((x) => x.cantidad).sort()).toEqual([1, 2]);
+    const m = await prisma.producto.findFirstOrThrow({ where: { prendaId: r.prendaId, talla: "M", color: "Negro" } });
+    expect(m.stock.toString()).toBe("5");
+    const xl = await prisma.producto.findFirstOrThrow({ where: { prendaId: r.prendaId, talla: "XL", color: "Blanco" } });
+    expect(xl.stock.toString()).toBe("1");
+    expect(await prisma.producto.count({ where: { prendaId: r.prendaId } })).toBe(8);
+    expect(await prisma.movimientoInventario.count({ where: { productoId: m.id, tipo: "AJUSTE" } })).toBe(1);
+    const nada = await registrarLlegada(e.ctx.admin, r.prendaId, { tallas: ["S"], colores: ["Negro"], cantidades: {} });
+    expect(nada.ok).toBe(false);
   });
 
   it("cambia el precio de todas las tallas y deja auditoría", async () => {

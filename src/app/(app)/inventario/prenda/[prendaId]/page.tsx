@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Printer, Share2 } from "lucide-react";
+import { PackagePlus, Printer, Share2 } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { NoEncontrado } from "@/components/layout/no-encontrado";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,13 @@ export default async function DetallePrenda({ params, searchParams }: PageProps<
               <Button asChild variant="outline">
                 <Link href={`/inventario/estado/${primera.id}`}>
                   <Share2 /> Compartir en Estado
+                </Link>
+              </Button>
+            )}
+            {puedeEditarProductos(ctx) && (
+              <Button asChild variant="outline">
+                <Link href={`/inventario/prenda/${prendaId}/llegada`}>
+                  <PackagePlus /> Llegó mercancía
                 </Link>
               </Button>
             )}
