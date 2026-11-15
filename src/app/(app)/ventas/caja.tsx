@@ -1008,7 +1008,10 @@ function Buscador({
   const buscar = useCallback(
     async (q: string) => {
       const n = ++pedido.current;
-      const r = await buscarProductos(q);
+      let r = await buscarProductos(q);
+      // Lector con teclado en inglés y computador en español: EJ'ACC01 en vez de EJ-ACC01.
+      const corregido = corregirLector(q);
+      if (corregido && !r.exacto && !r.resultados.length) r = await buscarProductos(corregido);
       return n === pedido.current ? r : null; // una respuesta vieja no pisa a la nueva
     },
     [buscarProductos],
@@ -1073,7 +1076,7 @@ function Buscador({
       conEnter.current = true;
       let r = await buscar(q).finally(() => (conEnter.current = false));
       if (!r) return;
-      // Lector con teclado en inglés y computador en español: EJ'ACC01 en vez de EJ-ACC01.
+      // Si con la comilla hubo resultados pero ninguno exacto, se prueba el código con guion.
       const corregido = corregirLector(q);
       if (!r.exacto && corregido) {
         conEnter.current = true;
