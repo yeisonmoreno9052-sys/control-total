@@ -13,6 +13,7 @@ const campos = {
   prendaId: true,
   descripcion: true,
   talla: true,
+  color: true,
   precioVenta: true,
   stock: true,
   controlaStock: true,
@@ -26,6 +27,7 @@ type Fila = {
   prendaId: string | null;
   descripcion: string | null;
   talla: string | null;
+  color: string | null;
   precioVenta: number;
   stock: { toString(): string };
   controlaStock: boolean;
@@ -39,6 +41,7 @@ const aVariante = (f: Fila): VarianteEstado => ({
   prendaId: f.prendaId,
   descripcion: f.descripcion,
   talla: f.talla,
+  color: f.color,
   precioVenta: f.precioVenta,
   stock: f.stock.toString(),
   controlaStock: f.controlaStock,

@@ -10,6 +10,7 @@ import {
   agruparPiezas,
   aplicarDescuento,
   hayPromocion,
+  leerColores,
   leerTallas,
   nombreArchivo,
   porcentajeRebaja,
@@ -46,6 +47,19 @@ describe("Ayudas del Estado (sin base de datos)", () => {
       v({ id: "d", talla: "10", stock: "1.000", precioVenta: 95000 }),
     ]);
     expect(pieza).toMatchObject({ productoId: "a", nombre: "Jean", tallas: ["8", "10"], precio: 89900, fotoUrl: "/f/c" });
+  });
+
+  it("junta los colores con stock, sin repetir, y los pone en el texto", () => {
+    const pieza = resumirPieza([
+      v({ id: "a", talla: "S", color: "Negro", stock: "1" }),
+      v({ id: "b", talla: "M", color: "negro ", stock: "2" }),
+      v({ id: "c", talla: "S", color: "Vino tinto", stock: "1" }),
+      v({ id: "d", talla: "S", color: "Beige", stock: "0" }),
+    ]);
+    expect(pieza?.colores).toEqual(["Negro", "Vino tinto"]);
+    expect(leerColores("Negro, vino tinto y beige")).toEqual(["Negro", "vino tinto", "beige"]);
+    const texto = textoPieza({ nombre: "Blusa", detalle: "", tallas: ["S"], colores: ["Negro", "Vino tinto"], precio: 50000, oferta: null, etiqueta: "ninguna", telefono: "" });
+    expect(texto).toBe("*Blusa*\nTallas: S\nColores: Negro y Vino tinto\nPrecio: *$ 50.000*");
   });
 
   it("si no queda stock igual muestra la prenda, sin tallas", () => {

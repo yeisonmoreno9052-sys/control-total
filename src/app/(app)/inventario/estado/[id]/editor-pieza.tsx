@@ -8,6 +8,7 @@ import { CampoPesos } from "@/components/ventas/campo-pesos";
 import { COLORES, dibujarPieza } from "@/lib/estados/dibujar";
 import {
   ETIQUETAS,
+  leerColores,
   leerTallas,
   nombreArchivo,
   porcentajeRebaja,
@@ -44,6 +45,7 @@ export function EditorPieza({
   const [nombre, setNombre] = useState(pieza.nombre);
   const [detalle, setDetalle] = useState(pieza.descripcion ?? "");
   const [tallas, setTallas] = useState(pieza.tallas.join(", "));
+  const [colores, setColores] = useState(pieza.colores.join(", "));
   const [precio, setPrecio] = useState<number | null>(pieza.precio);
   const [oferta, setOferta] = useState<number | null>(null);
   const [etiqueta, setEtiqueta] = useState<Etiqueta>("ninguna");
@@ -54,12 +56,13 @@ export function EditorPieza({
       nombre,
       detalle,
       tallas: leerTallas(tallas),
+      colores: leerColores(colores),
       precio: precio ?? 0,
       oferta,
       etiqueta,
       telefono,
     }),
-    [nombre, detalle, tallas, precio, oferta, etiqueta, telefono],
+    [nombre, detalle, tallas, colores, precio, oferta, etiqueta, telefono],
   );
   const rebaja = oferta ? porcentajeRebaja(precio ?? 0, oferta) : null;
 
@@ -105,6 +108,17 @@ export function EditorPieza({
             }
           >
             <Input id="e-tallas" value={tallas} maxLength={80} onChange={(e) => setTallas(e.target.value)} />
+          </Campo>
+          <Campo
+            id="e-colores"
+            etiqueta="Colores"
+            ayuda={
+              pieza.colores.length
+                ? "Salen los que hay en stock. Puedes quitar o agregar."
+                : "Sepáralos con comas. Vacío: no salen colores."
+            }
+          >
+            <Input id="e-colores" value={colores} maxLength={100} onChange={(e) => setColores(e.target.value)} />
           </Campo>
           <Campo id="e-precio" etiqueta="Precio">
             <CampoPesos id="e-precio" valor={precio} onValor={setPrecio} />
