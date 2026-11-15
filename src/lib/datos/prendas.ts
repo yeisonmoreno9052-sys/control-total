@@ -11,6 +11,7 @@ import {
   nombreVariante,
   normalizar,
 } from "@/lib/inventario/prendas";
+import { corregirLector } from "@/lib/inventario/lector";
 import { paraBuscar } from "@/lib/texto";
 import { Decimal } from "@/lib/inventario/cantidades";
 import { erroresPorCampo } from "@/lib/inventario/esquemas";
@@ -378,8 +379,10 @@ export async function tallasDisponibles(ctx: Contexto, negocioId: string, texto:
       activo: true,
       prendaId: { not: null },
       OR: [
-        { codigoBarras: q },
-        { codigo: { startsWith: q, mode: "insensitive" } },
+        // El lector con teclado en español escribe ' en vez de -: se busca también corregido.
+        ...[q, corregirLector(q)]
+          .filter((x): x is string => !!x)
+          .flatMap((x) => [{ codigoBarras: x }, { codigo: { startsWith: x, mode: "insensitive" as const } }]),
         { AND: palabras.map((p) => ({ nombreBusqueda: { contains: paraBuscar(p) } })) },
       ],
     },
