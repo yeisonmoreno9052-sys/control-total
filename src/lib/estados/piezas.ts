@@ -13,6 +13,8 @@ export type PiezaEstado = {
   precio: number;
   /** Tallas que hay en stock, en el orden en que se crearon. Vacío si no maneja tallas. */
   tallas: string[];
+  /** Colores que hay en stock, sin repetir. Vacío si no maneja colores. */
+  colores: string[];
   fotoUrl: string | null;
 };
 
@@ -23,6 +25,7 @@ export type VarianteEstado = {
   prendaId: string | null;
   descripcion: string | null;
   talla: string | null;
+  color?: string | null;
   precioVenta: number;
   /** Cantidad en stock (texto con decimales, como la guarda la base). */
   stock: string;
@@ -48,6 +51,10 @@ export function resumirPieza(variantes: VarianteEstado[]): PiezaEstado | null {
   for (const v of conStock) {
     if (v.talla && !tallas.some((t) => comparable(t) === comparable(v.talla!))) tallas.push(v.talla.trim());
   }
+  const colores: string[] = [];
+  for (const v of conStock) {
+    if (v.color && !colores.some((t) => comparable(t) === comparable(v.color!))) colores.push(v.color.trim());
+  }
   return {
     productoId: primera.id,
     prendaId: primera.prendaId,
@@ -55,6 +62,7 @@ export function resumirPieza(variantes: VarianteEstado[]): PiezaEstado | null {
     descripcion: variantes.find((v) => v.descripcion)?.descripcion ?? null,
     precio: Math.min(...base.map((v) => v.precioVenta)),
     tallas,
+    colores,
     fotoUrl: (base.find((v) => v.fotoUrl) ?? variantes.find((v) => v.fotoUrl))?.fotoUrl ?? null,
   };
 }
@@ -84,6 +92,15 @@ export function leerTallas(texto: string): string[] {
     .slice(0, 12);
 }
 
+/** Convierte "Negro, vino tinto y beige" en la lista de colores (un color puede tener varias palabras). */
+export function leerColores(texto: string): string[] {
+  return texto
+    .split(/\s*(?:,|;|\/|\s+y\s+)\s*/i)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
 /** "6, 8 y 10" */
 export function unirTallas(tallas: string[]) {
   if (tallas.length <= 1) return tallas.join("");
@@ -109,6 +126,7 @@ export type DisenoPieza = {
   nombre: string;
   detalle: string;
   tallas: string[];
+  colores?: string[];
   precio: number;
   /** Precio de oferta. Si es menor que el precio, el precio sale tachado. */
   oferta: number | null;
@@ -124,6 +142,7 @@ export function textoPieza(d: DisenoPieza) {
     `*${d.nombre.trim()}*`,
     d.detalle.trim() || null,
     d.tallas.length ? `Tallas: ${unirTallas(d.tallas)}` : null,
+    d.colores?.length ? `Colores: ${unirTallas(d.colores)}` : null,
     rebaja
       ? `Antes ${formatearPesos(d.precio)}, ahora *${formatearPesos(d.oferta!)}* (-${rebaja} %)`
       : `Precio: *${formatearPesos(d.precio)}*`,

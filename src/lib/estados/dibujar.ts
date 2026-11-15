@@ -305,6 +305,11 @@ function etiquetasArriba(c: C, d: DisenoPieza, rebaja: number | null, col: Color
 
 }
 
+/** "Colores: Negro · Blanco · Vino tinto", o null si no hay colores. */
+function textoColores(d: DisenoPieza) {
+  return d.colores?.length ? `Colores: ${d.colores.join(" · ")}` : null;
+}
+
 /** Imagen de una sola prenda: foto grande, nombre, tallas, precio y teléfono. */
 export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null, r: Recursos, col: Colores, f: Fuentes) {
   if (foto) return dibujarPiezaConFoto(c, d, foto, r, col, f);
@@ -322,6 +327,7 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
   const altoNombre = nombre.lineas.length * nombre.px * 1.08;
   const detalle = d.detalle.trim();
   const tallas = d.tallas.length ? medirTallas(c, d.tallas, f, foto ? 0.85 : 1) : null;
+  const colores = textoColores(d);
   const precioFinal = rebaja ? d.oferta! : d.precio;
   const fuentePrecio = (px: number) => `700 ${px}px ${f.titulo}`;
   const precio = ajustarTexto(c, formatearPesos(precioFinal), fuentePrecio, 960, n(150), n(90), 1);
@@ -330,6 +336,7 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
     altoNombre +
     (detalle ? n(18) + n(46) : 0) +
     (tallas ? n(34) + 2 + n(34) + n(34) + n(22) + tallas.filas.length * tallas.alto + (tallas.filas.length - 1) * n(18) : 0) +
+    (colores ? n(22) + n(44) : 0) +
     (rebaja ? n(30) + n(64) : 0) +
     n(26) +
     precio.px * 1.1;
@@ -419,6 +426,14 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
     c.textBaseline = "top";
   }
 
+  if (colores) {
+    y += n(22);
+    c.font = `500 ${n(36)}px ${f.texto}`;
+    c.fillStyle = col.suave;
+    c.fillText(recortarUnaLinea(c, colores, 960), centro, y);
+    y += n(44);
+  }
+
   if (rebaja) {
     y += n(30);
     c.font = `500 ${n(56)}px ${f.texto}`;
@@ -458,6 +473,7 @@ function dibujarPiezaConFoto(c: C, d: DisenoPieza, foto: HTMLImageElement, r: Re
   const nombre = ajustarTexto(c, d.nombre.trim() || "Nombre de la prenda", fuenteNombre, util, 48, 32, 1);
   const detalle = d.detalle.trim();
   const tallas = d.tallas.length ? medirTallas(c, d.tallas, f, 0.6) : null;
+  const colores = textoColores(d);
   const precioFinal = rebaja ? d.oferta! : d.precio;
   const fuentePrecio = (px: number) => `700 ${px}px ${f.titulo}`;
   const precio = ajustarTexto(c, formatearPesos(precioFinal), fuentePrecio, util, 72, 52, 1);
@@ -466,6 +482,7 @@ function dibujarPiezaConFoto(c: C, d: DisenoPieza, foto: HTMLImageElement, r: Re
     nombre.px * 1.1 +
     (detalle ? 6 + 34 : 0) +
     (tallas ? 14 + tallas.filas.length * tallas.alto + (tallas.filas.length - 1) * 10 : 0) +
+    (colores ? 10 + 32 : 0) +
     (rebaja ? 10 + 36 : 0) +
     10 +
     precio.px * 1.05 +
@@ -538,6 +555,14 @@ function dibujarPiezaConFoto(c: C, d: DisenoPieza, foto: HTMLImageElement, r: Re
     }
     y -= 10;
     c.textBaseline = "top";
+  }
+
+  if (colores) {
+    y += 10;
+    c.font = `500 28px ${f.texto}`;
+    c.fillStyle = col.suave;
+    c.fillText(recortarUnaLinea(c, colores, util), centro, y);
+    y += 32;
   }
 
   if (rebaja) {
