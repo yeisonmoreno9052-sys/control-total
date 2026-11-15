@@ -1,36 +1,59 @@
-// Solo en el navegador: deja la foto lista para subir (cuadrada y liviana).
+// Solo en el navegador: deja la foto lista para subir (liviana).
 
 const LADO = 480;
 /** El servidor no recibe fotos de más de 200 KB (FOTO_MAXIMO). */
 const PESO_MAXIMO = 190 * 1024;
 
 /**
- * Achica la foto a un cuadrado recortando el centro, como se ve en la caja.
- * Con 480 px una foto del celular (3–5 MB) queda en unos 30 KB. Para los Estados de
- * WhatsApp se pide más grande (900 px, unos 100–150 KB) para que no se vea borrosa.
+ * Achica la foto antes de subirla.
+ * - Normal (caja, inventario): cuadrado de 480 px recortando el centro, unos 30 KB.
+ * - Con `{ completa: true }` (Estados de WhatsApp): conserva la forma de la foto
+ *   (vertical u horizontal, sin recortar) y el lado largo mide hasta `salida` px.
+ * Si queda pesada (fotos con mucho detalle o brillos), baja la calidad y luego el
+ * tamaño hasta que quepa: nunca se rechaza una foto por pesada.
  */
-export async function achicarFoto(archivo: File, salida = LADO): Promise<Blob> {
+export async function achicarFoto(archivo: File, salida = LADO, opciones: { completa?: boolean } = {}): Promise<Blob> {
   const imagen = await createImageBitmap(archivo);
-  const lado = Math.min(imagen.width, imagen.height);
+  try {
+    let ultima: Blob | null = null;
+    for (const escala of [1, 0.8, 0.65, 0.5]) {
+      const lienzo = dibujar(imagen, Math.round(salida * escala), !!opciones.completa);
+      for (const calidad of [0.82, 0.7, 0.58]) {
+        ultima = await aBlob(lienzo, calidad);
+        if (ultima.size <= PESO_MAXIMO) return ultima;
+      }
+    }
+    return ultima!;
+  } finally {
+    imagen.close();
+  }
+}
+
+function dibujar(imagen: ImageBitmap, lado: number, completa: boolean) {
   const lienzo = document.createElement("canvas");
-  lienzo.width = salida;
-  lienzo.height = salida;
   const dibujo = lienzo.getContext("2d");
   if (!dibujo) throw new Error("sin canvas");
-  dibujo.drawImage(imagen, (imagen.width - lado) / 2, (imagen.height - lado) / 2, lado, lado, 0, 0, salida, salida);
-  imagen.close();
-  // Si queda pesada (fotos con mucho detalle), se baja la calidad hasta que quepa.
-  let ultima: Blob | null = null;
-  for (const calidad of [0.8, 0.65, 0.5]) {
-    const blob = await new Promise<Blob | null>((listo) => lienzo.toBlob(listo, "image/webp", calidad));
-    // Safari viejo no sabe hacer WEBP y devuelve PNG (pesado): en ese caso, JPG.
-    const final =
-      blob && blob.type === "image/webp"
-        ? blob
-        : await new Promise<Blob | null>((listo) => lienzo.toBlob(listo, "image/jpeg", calidad + 0.02));
-    if (!final) throw new Error("sin imagen");
-    ultima = final;
-    if (final.size <= PESO_MAXIMO) break;
+  if (completa) {
+    const e = Math.min(1, lado / Math.max(imagen.width, imagen.height));
+    lienzo.width = Math.max(1, Math.round(imagen.width * e));
+    lienzo.height = Math.max(1, Math.round(imagen.height * e));
+    dibujo.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+  } else {
+    const corte = Math.min(imagen.width, imagen.height);
+    lienzo.width = lado;
+    lienzo.height = lado;
+    dibujo.drawImage(imagen, (imagen.width - corte) / 2, (imagen.height - corte) / 2, corte, corte, 0, 0, lado, lado);
   }
-  return ultima!;
+  return lienzo;
+}
+
+async function aBlob(lienzo: HTMLCanvasElement, calidad: number): Promise<Blob> {
+  const blob = await new Promise<Blob | null>((listo) => lienzo.toBlob(listo, "image/webp", calidad));
+  // Safari (iPhone) no sabe hacer WEBP y devuelve PNG (pesado): en ese caso, JPG.
+  const final =
+    blob && blob.type === "image/webp"
+      ? blob
+      : await new Promise<Blob | null>((listo) => lienzo.toBlob(listo, "image/jpeg", calidad));
+  if (!final) throw new Error("sin imagen");
+  return final;
 }
