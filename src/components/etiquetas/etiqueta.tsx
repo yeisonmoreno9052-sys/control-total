@@ -78,8 +78,8 @@ export function Etiqueta({
         {talla && (
           <span
             className={cn(
-              "shrink-0 rounded-[1mm] bg-black px-[1.5mm] leading-snug font-bold text-white",
-              chica ? "text-[9pt]" : "text-[10pt]",
+              "-mt-[0.5mm] -mr-[0.5mm] shrink-0 rounded-[1mm] bg-black px-[1.5mm] py-[0.3mm] leading-none font-extrabold text-white",
+              chica ? "min-w-[9mm] text-center text-[17pt]" : "min-w-[11mm] text-center text-[20pt]",
             )}
           >
             {talla}
