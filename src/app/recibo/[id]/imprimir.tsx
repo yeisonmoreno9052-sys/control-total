@@ -9,16 +9,30 @@ import { Button } from "@/components/ui/button";
 export function BarraRecibo({ imprimir, volver }: { imprimir: boolean; volver: string }) {
   useEffect(() => {
     if (!imprimir) return;
-    // Espera a que cargue el logo para que salga en el papel.
-    const imagenes = Array.from(document.images).filter((i) => !i.complete);
-    const cargadas = imagenes.map(
-      (i) =>
-        new Promise((listo) => {
-          i.addEventListener("load", listo, { once: true });
-          i.addEventListener("error", listo, { once: true });
-        }),
-    );
-    Promise.all(cargadas).then(() => window.print());
+    let cancelado = false;
+    // Espera a que el logo esté convertido a blanco y negro (máximo 3 segundos) y cargado.
+    const inicio = Date.now();
+    const esperar = () => {
+      if (cancelado) return;
+      if (document.querySelector("[data-logo-pendiente]") && Date.now() - inicio < 3000) {
+        setTimeout(esperar, 50);
+        return;
+      }
+      const cargadas = Array.from(document.images)
+        .filter((i) => !i.complete)
+        .map(
+          (i) =>
+            new Promise((listo) => {
+              i.addEventListener("load", listo, { once: true });
+              i.addEventListener("error", listo, { once: true });
+            }),
+        );
+      Promise.all(cargadas).then(() => !cancelado && window.print());
+    };
+    esperar();
+    return () => {
+      cancelado = true;
+    };
   }, [imprimir]);
 
   return (

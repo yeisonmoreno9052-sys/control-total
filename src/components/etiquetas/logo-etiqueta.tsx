@@ -7,13 +7,11 @@ import { cn } from "@/lib/utils";
 // Una sola conversión por logo, aunque la hoja tenga muchas etiquetas.
 const convertidos = new Map<string, Promise<string | null>>();
 
-function convertir(url: string) {
+function convertir(url: string, lado: number) {
   return new Promise<string | null>((listo) => {
     const img = new Image();
     img.onload = () => {
       try {
-        // 9 mm a 203 ppp son unos 72 puntos: 160 alcanza para que salga nítido.
-        const lado = 160;
         const lienzo = document.createElement("canvas");
         lienzo.width = lienzo.height = lado;
         const c = lienzo.getContext("2d")!;
@@ -35,17 +33,21 @@ function convertir(url: string) {
 }
 
 /** Logo de la tienda en blanco y negro puro, como lo imprime la impresora térmica. */
-export function LogoEtiqueta({ url, className }: { url: string; className?: string }) {
+// `lado` es la resolución del lienzo: 9 mm a 203 ppp son unos 72 puntos, así que 160 alcanza para una
+// etiqueta; para el recibo, con el logo más grande, se usa más.
+export function LogoEtiqueta({ url, className, lado = 160 }: { url: string; className?: string; lado?: number }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let vivo = true;
-    if (!convertidos.has(url)) convertidos.set(url, convertir(url));
-    convertidos.get(url)!.then((s) => vivo && setSrc(s ?? url));
+    const clave = `${lado}|${url}`;
+    if (!convertidos.has(clave)) convertidos.set(clave, convertir(url, lado));
+    convertidos.get(clave)!.then((s) => vivo && setSrc(s ?? url));
     return () => {
       vivo = false;
     };
-  }, [url]);
-  if (!src) return <span className={cn("etiqueta-logo shrink-0", className)} />;
+  }, [url, lado]);
+  // data-logo-pendiente: el recibo espera a que desaparezca antes de abrir la impresión.
+  if (!src) return <span data-logo-pendiente className={cn("etiqueta-logo shrink-0", className)} />;
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt="" className={cn("etiqueta-logo shrink-0 object-contain", className)} />;
 }
