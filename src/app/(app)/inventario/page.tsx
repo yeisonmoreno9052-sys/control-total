@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, SearchX, Share2, Shirt, TriangleAlert } from "lucide-react";
+import { FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, Ruler, SearchX, Share2, Shirt, TriangleAlert } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Miniatura } from "@/components/inventario/miniatura";
@@ -70,6 +70,13 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
         acciones={
           <>
             {/* Las vendedoras también publican: no hace falta permiso de editar productos. */}
+            {preferencias.usaTallas && (
+              <Button asChild variant="outline">
+                <Link href="/inventario/tallas">
+                  <Ruler /> Tallas disponibles
+                </Link>
+              </Button>
+            )}
             {preferencias.usaTallas && (
               <Button asChild variant="outline">
                 <Link href="/inventario/estado/nuevos">

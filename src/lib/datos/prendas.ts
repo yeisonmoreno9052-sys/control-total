@@ -11,6 +11,7 @@ import {
   nombreVariante,
   normalizar,
 } from "@/lib/inventario/prendas";
+import { paraBuscar } from "@/lib/texto";
 import { Decimal } from "@/lib/inventario/cantidades";
 import { erroresPorCampo } from "@/lib/inventario/esquemas";
 import { exigirEdicionProductos, exigirGestion, puedeVerCostos } from "@/lib/permisos";
@@ -349,4 +350,68 @@ export async function cambiarPrecioPrenda(ctx: Contexto, prendaId: string, preci
     }
   });
   return { ok: true, id: filas[0].id };
+}
+
+export type DisponibilidadPrenda = {
+  prendaId: string;
+  nombre: string;
+  precios: number[];
+  tallas: string[];
+  colores: string[];
+  /** Solo las activas. */
+  variantes: { id: string; talla: string; color: string | null; stock: number }[];
+  unidades: number;
+};
+
+/**
+ * "¿Qué tallas hay de esta referencia?": busca prendas por nombre o código (también el de
+ * una etiqueta escaneada) y devuelve todas sus tallas y colores con lo que queda de cada una.
+ */
+export async function tallasDisponibles(ctx: Contexto, negocioId: string, texto: string): Promise<DisponibilidadPrenda[]> {
+  const q = texto.trim().slice(0, 100);
+  if (!q) return [];
+  const datos = datosDe(ctx);
+  const palabras = q.split(/\s+/).filter(Boolean).slice(0, 6);
+  const encontradas = await datos.producto.findMany({
+    where: {
+      negocioId,
+      activo: true,
+      prendaId: { not: null },
+      OR: [
+        { codigoBarras: q },
+        { codigo: { startsWith: q, mode: "insensitive" } },
+        { AND: palabras.map((p) => ({ nombreBusqueda: { contains: paraBuscar(p) } })) },
+      ],
+    },
+    select: { prendaId: true },
+    distinct: ["prendaId"],
+    orderBy: [{ prendaId: "asc" }],
+    take: 20,
+  });
+  const ids = encontradas.map((e) => e.prendaId!).filter(Boolean);
+  if (!ids.length) return [];
+
+  const filas = await datos.producto.findMany({
+    where: { negocioId, activo: true, prendaId: { in: ids } },
+    select: { id: true, prendaId: true, prenda: true, nombre: true, talla: true, color: true, precioVenta: true, stock: true },
+    orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
+  });
+
+  const porPrenda = new Map<string, DisponibilidadPrenda>();
+  for (const f of filas) {
+    const id = f.prendaId!;
+    let p = porPrenda.get(id);
+    if (!p) {
+      p = { prendaId: id, nombre: f.prenda ?? f.nombre, precios: [], tallas: [], colores: [], variantes: [], unidades: 0 };
+      porPrenda.set(id, p);
+    }
+    const talla = f.talla ?? "";
+    if (talla && !p.tallas.some((t) => normalizar(t) === normalizar(talla))) p.tallas.push(talla);
+    if (f.color && !p.colores.some((c) => normalizar(c) === normalizar(f.color!))) p.colores.push(f.color);
+    if (!p.precios.includes(f.precioVenta)) p.precios.push(f.precioVenta);
+    const stock = Math.max(0, Number(f.stock));
+    p.variantes.push({ id: f.id, talla, color: f.color, stock });
+    p.unidades += stock;
+  }
+  return [...porPrenda.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }

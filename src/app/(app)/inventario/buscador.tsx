@@ -10,7 +10,7 @@ import { irACodigo } from "./acciones";
  * Búsqueda instantánea. El lector de código de barras escribe como un teclado y
  * termina con Enter: si el código coincide exacto, abre ese producto.
  */
-export function Buscador() {
+export function Buscador({ abrirAlEscanear = true, placeholder }: { abrirAlEscanear?: boolean; placeholder?: string } = {}) {
   const router = useRouter();
   const ruta = usePathname();
   const params = useSearchParams();
@@ -43,7 +43,7 @@ export function Buscador() {
     clearTimeout(espera.current);
     const q = valor.trim();
     if (!q) return;
-    const id = await irACodigo(q);
+    const id = abrirAlEscanear ? await irACodigo(q) : null;
     if (id) {
       setValor("");
       router.push(`/inventario/${id}`);
@@ -66,7 +66,7 @@ export function Buscador() {
         value={valor}
         onChange={(e) => cambiar(e.target.value)}
         onKeyDown={alPresionarTecla}
-        placeholder="Buscar o escanear código…"
+        placeholder={placeholder ?? "Buscar o escanear código…"}
         aria-label="Buscar producto por nombre, código o código de barras"
         autoComplete="off"
         className="h-12 pr-10 pl-10 text-base"
