@@ -237,3 +237,17 @@ export async function guardarFotoPorArchivoAccion(formulario: FormData): Promise
   if (!r.ok) return { error: r.error };
   return { producto: r.producto };
 }
+
+/** "+ Nueva" junto a la lista de categorías: la crea y la devuelve para dejarla elegida. */
+export async function crearCategoriaRapidaAccion(
+  nombre: string,
+): Promise<{ ok: true; categoria: { id: string; nombre: string; margenSugerido: null } } | { ok: false; error: string }> {
+  const ctx = await contextoInventario();
+  if (!ctx.negocioActivoId) return { ok: false, error: "Elige un negocio primero." };
+  const limpio = z.string().trim().min(1).max(80).safeParse(nombre);
+  if (!limpio.success) return { ok: false, error: "Escribe el nombre de la categoría." };
+  const r = await guardarCategoria(ctx, ctx.negocioActivoId, { nombre: limpio.data, margenSugerido: null });
+  if (!r.ok) return { ok: false, error: r.error };
+  revalidatePath("/inventario/categorias");
+  return { ok: true, categoria: { id: r.id, nombre: limpio.data, margenSugerido: null } };
+}

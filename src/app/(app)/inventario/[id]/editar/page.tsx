@@ -6,7 +6,7 @@ import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
 import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { obtenerProducto } from "@/lib/datos/productos";
 import { exigirModulo } from "@/lib/modulos";
-import { puedeEditarProductos, puedeVerCostos } from "@/lib/permisos";
+import { puedeEditarProductos, puedeGestionar, puedeVerCostos } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { FormularioProducto } from "../../formulario-producto";
 import { FotoProducto } from "./foto-producto";
@@ -36,6 +36,7 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
         ivaPorDefecto={preferencias.ivaPorDefecto}
         usaBotonesRapidos={preferencias.botonesRapidos}
         verCostos={puedeVerCostos(ctx)}
+        crearCategorias={puedeGestionar(ctx)}
         valores={{
           id: producto.id,
           codigo: producto.codigo,

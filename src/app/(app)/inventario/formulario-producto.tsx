@@ -14,6 +14,7 @@ import type { Presentacion } from "@/lib/inventario/presentaciones";
 import { CONDICIONES, IVAS, UNIDADES } from "@/lib/inventario/unidades";
 import { guardarProducto, type EstadoFormulario } from "./acciones";
 import { SeccionPaquetes } from "./paquetes";
+import { NuevaCategoria } from "./nueva-categoria";
 
 export type ValoresProducto = {
   id?: string;
@@ -51,7 +52,8 @@ const pesosATexto = (n: number) => (n ? new Intl.NumberFormat("es-CO").format(n)
 
 export function FormularioProducto({
   valores,
-  categorias,
+  categorias: categoriasIniciales,
+  crearCategorias = false,
   margenNegocio,
   ivaPorDefecto,
   usaBotonesRapidos,
@@ -59,6 +61,8 @@ export function FormularioProducto({
 }: {
   valores?: ValoresProducto;
   categorias: { id: string; nombre: string; margenSugerido: number | null }[];
+  /** Quien gestiona puede crear una categoría desde aquí. */
+  crearCategorias?: boolean;
   margenNegocio: number;
   /** IVA con el que nace un producto nuevo en este negocio (0 si no cobra IVA). */
   ivaPorDefecto: number;
@@ -74,6 +78,7 @@ export function FormularioProducto({
   // Mientras la persona no escriba un precio a mano, el precio sigue al sugerido.
   const [precioManual, setPrecioManual] = useState(!!valores?.id);
   const [categoriaId, setCategoriaId] = useState(valores?.categoriaId ?? "");
+  const [categorias, setCategorias] = useState(categoriasIniciales);
   const [unidad, setUnidad] = useState<UnidadMedida>(valores?.unidad ?? "UNIDAD");
   const [fraccionado, setFraccionado] = useState(valores?.fraccionado ?? false);
   const [sinStock, setSinStock] = useState(valores ? !valores.controlaStock : false);
@@ -134,6 +139,14 @@ export function FormularioProducto({
               </option>
             ))}
           </NativeSelect>
+          {crearCategorias && (
+            <NuevaCategoria
+              onCreada={(c) => {
+                setCategorias((l) => [...l, c].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")));
+                setCategoriaId(c.id);
+              }}
+            />
+          )}
         </Campo>
         <Campo id="condicion" etiqueta="Condición" error={e.condicion}>
           <NativeSelect id="condicion" name="condicion" defaultValue={valores?.condicion ?? "NUEVO"}>

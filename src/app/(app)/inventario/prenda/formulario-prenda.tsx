@@ -14,17 +14,21 @@ import { TALLAS_RAPIDAS } from "@/lib/inventario/prendas";
 import { IVAS } from "@/lib/inventario/unidades";
 import { crearPrendaAccion } from "./acciones";
 import { CuadroCantidades, EditorOpciones, coloresRapidos } from "./componentes";
+import { NuevaCategoria } from "../nueva-categoria";
 
 const pesosATexto = (n: number) => (n ? new Intl.NumberFormat("es-CO").format(n) : "");
 
 export function FormularioPrenda({
-  categorias,
+  categorias: categoriasIniciales,
+  crearCategorias = false,
   margenNegocio,
   ivaPorDefecto,
   verCostos,
   coloresGuardados = [],
 }: {
   categorias: { id: string; nombre: string; margenSugerido: number | null }[];
+  /** Quien gestiona puede crear una categoría desde aquí. */
+  crearCategorias?: boolean;
   /** Colores que ya se han usado en el negocio: salen como botones rápidos. */
   coloresGuardados?: string[];
   margenNegocio: number;
@@ -37,6 +41,7 @@ export function FormularioPrenda({
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [nombre, setNombre] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
+  const [categorias, setCategorias] = useState(categoriasIniciales);
   const [descripcion, setDescripcion] = useState("");
   const [tallas, setTallas] = useState<string[]>([]);
   const [colores, setColores] = useState<string[]>([]);
@@ -124,6 +129,14 @@ export function FormularioPrenda({
               </option>
             ))}
           </NativeSelect>
+          {crearCategorias && (
+            <NuevaCategoria
+              onCreada={(c) => {
+                setCategorias((l) => [...l, c].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")));
+                setCategoriaId(c.id);
+              }}
+            />
+          )}
         </Campo>
         <Campo id="descripcion" etiqueta="Detalles (opcional)" error={campos.descripcion}>
           <Input id="descripcion" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Tela, marca, temporada…" />

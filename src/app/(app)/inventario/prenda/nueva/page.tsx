@@ -5,7 +5,7 @@ import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
 import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { coloresUsados } from "@/lib/datos/prendas";
 import { exigirModulo } from "@/lib/modulos";
-import { puedeEditarProductos, puedeVerCostos } from "@/lib/permisos";
+import { puedeEditarProductos, puedeGestionar, puedeVerCostos } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { FormularioPrenda } from "../formulario-prenda";
 
@@ -35,6 +35,7 @@ export default async function NuevaPrenda() {
         margenNegocio={margen}
         ivaPorDefecto={preferencias.ivaPorDefecto}
         verCostos={puedeVerCostos(ctx)}
+        crearCategorias={puedeGestionar(ctx)}
         coloresGuardados={colores}
       />
     </div>
