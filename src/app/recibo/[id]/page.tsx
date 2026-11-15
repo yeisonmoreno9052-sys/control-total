@@ -40,6 +40,8 @@ async function Recibo({ params, searchParams }: PageProps<"/recibo/[id]">) {
     const t = porTarifa.get(d.porcentajeIva) ?? { base: 0, iva: 0 };
     porTarifa.set(d.porcentajeIva, { base: t.base + d.base, iva: t.iva + d.iva });
   }
+  // "(sin IVA)" solo aclara algo cuando la venta mezcla productos con y sin IVA.
+  const conIva = venta.detalles.some((d) => d.porcentajeIva > 0);
   const anulada = venta.estado === "ANULADA";
   const fiada = venta.pagos.some((p) => p.medio === "CREDITO");
   const debe = fiada && venta.clienteId ? await saldoDeCliente(ctx, venta.negocioId, venta.clienteId) : null;
@@ -91,7 +93,7 @@ async function Recibo({ params, searchParams }: PageProps<"/recibo/[id]">) {
               <div className="flex justify-between gap-2 tabular-nums">
                 <span>
                   {textoCantidad(d)} × {formatearPesos(d.precioUnitario)}
-                  {d.porcentajeIva ? "" : " (sin IVA)"}
+                  {conIva && !d.porcentajeIva ? " (sin IVA)" : ""}
                 </span>
                 <span>{formatearPesos(d.subtotal)}</span>
               </div>

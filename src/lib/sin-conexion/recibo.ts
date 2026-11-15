@@ -50,7 +50,7 @@ ${r.cliente ? `<p>Cliente: ${escapar(r.cliente)}</p>` : ""}
 ${r.lineas
   .map(
     (l) =>
-      `<li><p>${escapar(l.nombre)}</p><div class="f"><span>${escapar(textoCantidad({ cantidad: l.cantidad, unidad: l.unidad, presentacion: l.presentacion?.nombre, porPresentacion: l.presentacion?.cantidad, paquetes: l.presentacion ? l.cantidad : null }))} × ${formatearPesos(l.precioUnitario)}${l.porcentajeIva ? "" : " (sin IVA)"}</span><span>${formatearPesos(l.subtotal)}</span></div>${l.descuento > 0 ? fila("Descuento", -l.descuento) : ""}</li>`,
+      `<li><p>${escapar(l.nombre)}</p><div class="f"><span>${escapar(textoCantidad({ cantidad: l.cantidad, unidad: l.unidad, presentacion: l.presentacion?.nombre, porPresentacion: l.presentacion?.cantidad, paquetes: l.presentacion ? l.cantidad : null }))} × ${formatearPesos(l.precioUnitario)}${r.lineas.some((x) => x.porcentajeIva > 0) && !l.porcentajeIva ? " (sin IVA)" : ""}</span><span>${formatearPesos(l.subtotal)}</span></div>${l.descuento > 0 ? fila("Descuento", -l.descuento) : ""}</li>`,
   )
   .join("")}
 </ul>
