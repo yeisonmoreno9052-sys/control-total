@@ -146,9 +146,10 @@ export async function buscarProductos(ctx: Contexto, negocioId: string, filtros:
     ...(q
       ? {
           OR: [
-            { codigo: { equals: q, mode: "insensitive" as const } },
-            { codigoBarras: q },
-            { codigo: { startsWith: q, mode: "insensitive" as const } },
+            // El lector con teclado en español escribe ' en vez de -: se busca también corregido.
+            ...[q, corregirLector(q)]
+              .filter((x): x is string => !!x)
+              .flatMap((x) => [{ codigoBarras: x }, { codigo: { startsWith: x, mode: "insensitive" as const } }]),
             { AND: palabras.map((p) => ({ nombreBusqueda: { contains: paraBuscar(p) } })) },
           ],
         }
