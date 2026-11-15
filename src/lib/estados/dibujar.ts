@@ -93,12 +93,12 @@ function rectRedondo(c: C, x: number, y: number, w: number, h: number, r: number
   c.roundRect(x, y, w, h, r);
 }
 
-/** Dibuja la imagen completa dentro del cuadro, centrada (como object-fit: contain). */
+/** Dibuja la imagen completa dentro del cuadro (como object-fit: contain), centrada a lo ancho y pegada abajo. */
 function dibujarCompleta(c: C, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
   const escala = Math.min(w / img.width, h / img.height);
   const dw = img.width * escala;
   const dh = img.height * escala;
-  c.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  c.drawImage(img, x + (w - dw) / 2, y + h - dh, dw, dh);
 }
 
 /** Dibuja la imagen cubriendo el cuadro (recorta lo que sobra, como object-fit: cover). */
@@ -241,59 +241,9 @@ function medirTallas(c: C, tallas: string[], f: Fuentes, k = 1) {
   throw new Error("inalcanzable");
 }
 
-/** Imagen de una sola prenda: foto grande, nombre, tallas, precio y teléfono. */
-export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null, r: Recursos, col: Colores, f: Fuentes) {
-  c.clearRect(0, 0, ANCHO, ALTO);
-  fondoOscuro(c, col);
+/** Etiquetas de arriba: "Nuevo", "Últimas unidades" y el círculo con el % de rebaja. */
+function etiquetasArriba(c: C, d: DisenoPieza, rebaja: number | null, col: Colores, f: Fuentes) {
   const centro = ANCHO / 2;
-  // Con foto el texto va más pequeño para que la prenda se vea completa.
-  const k = foto ? 0.75 : 1;
-  const n = (v: number) => Math.round(v * k);
-
-  const rebaja = d.oferta ? porcentajeRebaja(d.precio, d.oferta) : null;
-  // Bloque de texto: primero se mide y luego se dibuja.
-  const fuenteNombre = (px: number) => `700 ${px}px ${f.titulo}`;
-  const nombre = ajustarTexto(c, d.nombre.trim() || "Nombre de la prenda", fuenteNombre, 960, n(104), n(60), 2);
-  const altoNombre = nombre.lineas.length * nombre.px * 1.08;
-  const detalle = d.detalle.trim();
-  const tallas = d.tallas.length ? medirTallas(c, d.tallas, f, foto ? 0.85 : 1) : null;
-  const precioFinal = rebaja ? d.oferta! : d.precio;
-  const fuentePrecio = (px: number) => `700 ${px}px ${f.titulo}`;
-  const precio = ajustarTexto(c, formatearPesos(precioFinal), fuentePrecio, 960, n(150), n(90), 1);
-
-  const bloque =
-    altoNombre +
-    (detalle ? n(18) + n(46) : 0) +
-    (tallas ? n(34) + 2 + n(34) + n(34) + n(22) + tallas.filas.length * tallas.alto + (tallas.filas.length - 1) * n(18) : 0) +
-    (rebaja ? n(30) + n(64) : 0) +
-    n(26) +
-    precio.px * 1.1;
-  const finBloque = d.telefono.trim() ? 1650 : foto ? 1740 : 1780;
-  // Con foto el texto va pegado abajo (sube sobre la foto si es largo); sin foto, centrado.
-  const y0 = foto ? Math.max(640, finBloque - bloque) : Math.max(320, (330 + finBloque - bloque) / 2 + 30);
-
-  if (foto) {
-    // La prenda se ve completa (sin recortar) y con su brillo real, sin capas oscuras encima.
-    // Detrás, la misma foto ampliada y desenfocada llena lo que sobra y se funde con el fondo.
-    const altoFoto = y0 - 20;
-    c.save();
-    c.filter = "blur(40px) brightness(0.7)";
-    dibujarCubriendo(c, foto, -60, -60, ANCHO + 120, altoFoto + 120);
-    c.restore();
-    const fundido = 140;
-    const g = c.createLinearGradient(0, altoFoto - fundido, 0, altoFoto);
-    g.addColorStop(0, "rgba(0,0,0,0)");
-    g.addColorStop(1, col.fondo);
-    c.fillStyle = g;
-    c.fillRect(0, altoFoto - fundido, ANCHO, fundido + 1);
-    c.fillStyle = col.fondo;
-    c.fillRect(0, altoFoto, ANCHO, ALTO - altoFoto);
-    dibujarCompleta(c, foto, 0, 0, ANCHO, altoFoto);
-  }
-
-  logoArriba(c, r, col, f, foto ? 150 : 190);
-
-  // Etiquetas de arriba.
   if (d.etiqueta === "nuevo") {
     c.font = `800 34px ${f.texto}`;
     espaciado(c, 6);
@@ -352,6 +302,63 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
     c.textBaseline = "middle";
     c.fillText(`-${rebaja}%`, cx, cy + 4);
   }
+
+}
+
+/** Imagen de una sola prenda: foto grande, nombre, tallas, precio y teléfono. */
+export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null, r: Recursos, col: Colores, f: Fuentes) {
+  if (foto) return dibujarPiezaConFoto(c, d, foto, r, col, f);
+  c.clearRect(0, 0, ANCHO, ALTO);
+  fondoOscuro(c, col);
+  const centro = ANCHO / 2;
+  // Con foto el texto va más pequeño para que la prenda se vea completa.
+  const k = foto ? 0.75 : 1;
+  const n = (v: number) => Math.round(v * k);
+
+  const rebaja = d.oferta ? porcentajeRebaja(d.precio, d.oferta) : null;
+  // Bloque de texto: primero se mide y luego se dibuja.
+  const fuenteNombre = (px: number) => `700 ${px}px ${f.titulo}`;
+  const nombre = ajustarTexto(c, d.nombre.trim() || "Nombre de la prenda", fuenteNombre, 960, n(104), n(60), 2);
+  const altoNombre = nombre.lineas.length * nombre.px * 1.08;
+  const detalle = d.detalle.trim();
+  const tallas = d.tallas.length ? medirTallas(c, d.tallas, f, foto ? 0.85 : 1) : null;
+  const precioFinal = rebaja ? d.oferta! : d.precio;
+  const fuentePrecio = (px: number) => `700 ${px}px ${f.titulo}`;
+  const precio = ajustarTexto(c, formatearPesos(precioFinal), fuentePrecio, 960, n(150), n(90), 1);
+
+  const bloque =
+    altoNombre +
+    (detalle ? n(18) + n(46) : 0) +
+    (tallas ? n(34) + 2 + n(34) + n(34) + n(22) + tallas.filas.length * tallas.alto + (tallas.filas.length - 1) * n(18) : 0) +
+    (rebaja ? n(30) + n(64) : 0) +
+    n(26) +
+    precio.px * 1.1;
+  const finBloque = d.telefono.trim() ? 1650 : foto ? 1740 : 1780;
+  // Con foto el texto va pegado abajo (sube sobre la foto si es largo); sin foto, centrado.
+  const y0 = foto ? Math.max(640, finBloque - bloque) : Math.max(320, (330 + finBloque - bloque) / 2 + 30);
+
+  if (foto) {
+    // La prenda se ve completa (sin recortar) y con su brillo real, sin capas oscuras encima.
+    // Detrás, la misma foto ampliada y desenfocada llena lo que sobra y se funde con el fondo.
+    const altoFoto = y0 - 20;
+    c.save();
+    c.filter = "blur(40px) brightness(0.7)";
+    dibujarCubriendo(c, foto, -60, -60, ANCHO + 120, altoFoto + 120);
+    c.restore();
+    const fundido = 140;
+    const g = c.createLinearGradient(0, altoFoto - fundido, 0, altoFoto);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, col.fondo);
+    c.fillStyle = g;
+    c.fillRect(0, altoFoto - fundido, ANCHO, fundido + 1);
+    c.fillStyle = col.fondo;
+    c.fillRect(0, altoFoto, ANCHO, ALTO - altoFoto);
+    dibujarCompleta(c, foto, 0, 0, ANCHO, altoFoto);
+  }
+
+  logoArriba(c, r, col, f, foto ? 150 : 190);
+
+  etiquetasArriba(c, d, rebaja, col, f);
 
   let y = y0;
 
@@ -430,6 +437,127 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
   c.fillText(precio.lineas[0], centro, y);
 
   if (d.telefono.trim()) botonWhatsApp(c, d.telefono.trim(), f, 1690);
+  piePagina(c, r, col, f);
+}
+
+/**
+ * Con foto, la prenda es la protagonista: ocupa casi todo el Estado, completa y con su brillo real.
+ * Nombre, tallas y precio van en una franja pequeña abajo, por encima de los botones de WhatsApp.
+ */
+function dibujarPiezaConFoto(c: C, d: DisenoPieza, foto: HTMLImageElement, r: Recursos, col: Colores, f: Fuentes) {
+  const centro = ANCHO / 2;
+  const rebaja = d.oferta ? porcentajeRebaja(d.precio, d.oferta) : null;
+  const telefono = d.telefono.trim();
+  const margen = 40;
+  const anchoFranja = ANCHO - margen * 2;
+  const relleno = 28;
+  const util = anchoFranja - relleno * 2;
+
+  // 1. Se mide la franja.
+  const fuenteNombre = (px: number) => `700 ${px}px ${f.titulo}`;
+  const nombre = ajustarTexto(c, d.nombre.trim() || "Nombre de la prenda", fuenteNombre, util, 48, 32, 1);
+  const detalle = d.detalle.trim();
+  const tallas = d.tallas.length ? medirTallas(c, d.tallas, f, 0.6) : null;
+  const precioFinal = rebaja ? d.oferta! : d.precio;
+  const fuentePrecio = (px: number) => `700 ${px}px ${f.titulo}`;
+  const precio = ajustarTexto(c, formatearPesos(precioFinal), fuentePrecio, util, 72, 52, 1);
+  const altoFranja =
+    relleno +
+    nombre.px * 1.1 +
+    (detalle ? 6 + 34 : 0) +
+    (tallas ? 14 + tallas.filas.length * tallas.alto + (tallas.filas.length - 1) * 10 : 0) +
+    (rebaja ? 10 + 36 : 0) +
+    10 +
+    precio.px * 1.05 +
+    relleno;
+  // WhatsApp pone sus botones en el borde de abajo: la franja queda por encima.
+  const finFranja = telefono ? 1660 : 1730;
+  const inicioFranja = finFranja - altoFranja;
+
+  // 2. Fondo: la misma foto ampliada y desenfocada; encima, la foto completa y nítida.
+  c.clearRect(0, 0, ANCHO, ALTO);
+  c.fillStyle = col.fondo;
+  c.fillRect(0, 0, ANCHO, ALTO);
+  c.save();
+  c.filter = "blur(50px) brightness(0.55)";
+  dibujarCubriendo(c, foto, -80, -80, ANCHO + 160, ALTO + 160);
+  c.restore();
+  dibujarCompleta(c, foto, 0, 0, ANCHO, inicioFranja - 24);
+
+  logoArriba(c, r, col, f, 130, 50);
+  etiquetasArriba(c, d, rebaja, col, f);
+
+  // 3. La franja.
+  c.save();
+  c.shadowColor = "rgba(0,0,0,.45)";
+  c.shadowBlur = 40;
+  c.shadowOffsetY = 10;
+  rectRedondo(c, margen, inicioFranja, anchoFranja, altoFranja, 34);
+  c.globalAlpha = 0.9;
+  c.fillStyle = col.fondo;
+  c.fill();
+  c.restore();
+  c.lineWidth = 2;
+  c.strokeStyle = col.borde;
+  c.stroke();
+
+  let y = inicioFranja + relleno;
+  c.textAlign = "center";
+  c.textBaseline = "top";
+  c.font = fuenteNombre(nombre.px);
+  c.fillStyle = "#fff";
+  c.fillText(nombre.lineas[0], centro, y);
+  y += nombre.px * 1.1;
+
+  if (detalle) {
+    y += 6;
+    c.font = `400 30px ${f.texto}`;
+    c.fillStyle = col.suave;
+    c.fillText(recortarUnaLinea(c, detalle, util), centro, y);
+    y += 34;
+  }
+
+  if (tallas) {
+    y += 14;
+    c.font = `700 ${tallas.px}px ${f.texto}`;
+    c.textBaseline = "middle";
+    for (const fila of tallas.filas) {
+      const total = fila.reduce((a, i) => a + tallas.anchos[i], 0) + (fila.length - 1) * 13;
+      let x = centro - total / 2;
+      for (const i of fila) {
+        const w = tallas.anchos[i];
+        rectRedondo(c, x, y, w, tallas.alto, tallas.alto / 2);
+        c.lineWidth = 2;
+        c.strokeStyle = col.acento[1];
+        c.stroke();
+        c.fillStyle = col.acento[0];
+        c.fillText(d.tallas[i], x + w / 2, y + tallas.alto / 2 + 1);
+        x += w + 13;
+      }
+      y += tallas.alto + 10;
+    }
+    y -= 10;
+    c.textBaseline = "top";
+  }
+
+  if (rebaja) {
+    y += 10;
+    c.font = `500 32px ${f.texto}`;
+    const antes = formatearPesos(d.precio);
+    c.fillStyle = "#8d826b";
+    c.fillText(antes, centro, y);
+    const w = c.measureText(antes).width;
+    c.fillStyle = "#e0303d";
+    c.fillRect(centro - w / 2 - 6, y + 16, w + 12, 4);
+    y += 36;
+  }
+
+  y += 10;
+  c.font = fuentePrecio(precio.px);
+  c.fillStyle = degradadoAcento(c, col, y, precio.px);
+  c.fillText(precio.lineas[0], centro, y);
+
+  if (telefono) botonWhatsApp(c, telefono, f, 1690);
   piePagina(c, r, col, f);
 }
 
