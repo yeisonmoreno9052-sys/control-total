@@ -262,22 +262,18 @@ export function dibujarPieza(c: C, d: DisenoPieza, foto: HTMLImageElement | null
   const y0 = foto ? Math.max(640, finBloque - bloque) : Math.max(320, (330 + finBloque - bloque) / 2 + 30);
 
   if (foto) {
-    dibujarCubriendo(c, foto, 0, 0, ANCHO, ANCHO);
-    // La foto se funde con el fondo para que el texto se lea.
-    const finFundido = Math.min(ANCHO, y0 + 80);
-    const g = c.createLinearGradient(0, finFundido - 340, 0, finFundido);
+    // La foto ocupa todo el espacio de arriba del texto y se ve con su brillo real: nada de capas
+    // oscuras encima de la prenda. Solo el borde de abajo se funde con el fondo.
+    const altoFoto = y0 - 30;
+    dibujarCubriendo(c, foto, 0, 0, ANCHO, altoFoto);
+    const fundido = 110;
+    const g = c.createLinearGradient(0, altoFoto - fundido, 0, altoFoto);
     g.addColorStop(0, "rgba(0,0,0,0)");
     g.addColorStop(1, col.fondo);
     c.fillStyle = g;
-    c.fillRect(0, finFundido - 340, ANCHO, 341);
+    c.fillRect(0, altoFoto - fundido, ANCHO, fundido + 1);
     c.fillStyle = col.fondo;
-    c.fillRect(0, finFundido, ANCHO, ALTO - finFundido);
-    // Sombra suave arriba para que el logo resalte en fotos claras.
-    const s = c.createLinearGradient(0, 0, 0, 340);
-    s.addColorStop(0, "rgba(0,0,0,.28)");
-    s.addColorStop(1, "rgba(0,0,0,0)");
-    c.fillStyle = s;
-    c.fillRect(0, 0, ANCHO, 340);
+    c.fillRect(0, altoFoto, ANCHO, ALTO - altoFoto);
   }
 
   logoArriba(c, r, col, f, 190);

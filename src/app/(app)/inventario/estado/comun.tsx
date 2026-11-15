@@ -150,10 +150,11 @@ export function Acciones({
     setError(null);
     const f = preparado.current ?? (await archivo());
     if (!f) return setError("No pudimos armar la imagen. Intenta de nuevo.");
-    // Instagram no recibe el texto: queda copiado para pegarlo si se quiere.
+    // Solo la imagen: WhatsApp pone el texto encima del Estado y tapa las tallas y el precio,
+    // que ya van en la imagen. El texto queda copiado por si lo quieren pegar en un chat.
     navigator.clipboard?.writeText(texto).catch(() => {});
     try {
-      await navigator.share({ files: [f], text: texto });
+      await navigator.share({ files: [f] });
     } catch (e) {
       if ((e as Error)?.name !== "AbortError") setError("No se pudo compartir. Usa Descargar imagen.");
     }
