@@ -202,3 +202,16 @@ export const COLORES_RAPIDOS = [
   "Azul claro",
   "Azul rey",
 ].map((c) => ({ nombre: c, valores: [c] }));
+
+/**
+ * Los rápidos de siempre más los colores que ya se han escrito en este negocio,
+ * para que un color nuevo se escriba una sola vez.
+ */
+export function coloresRapidos(guardados: string[] = []) {
+  const lista = [...COLORES_RAPIDOS];
+  for (const c of guardados) {
+    const limpio = limpiarOpcion(c);
+    if (limpio && !lista.some((x) => normalizar(x.nombre) === normalizar(limpio))) lista.push({ nombre: limpio, valores: [limpio] });
+  }
+  return lista;
+}
