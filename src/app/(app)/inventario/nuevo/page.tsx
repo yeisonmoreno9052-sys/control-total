@@ -4,7 +4,7 @@ import { SinPermiso } from "@/components/layout/sin-permiso";
 import { listarCategorias, obtenerMargenNegocio } from "@/lib/datos/categorias";
 import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { exigirModulo } from "@/lib/modulos";
-import { puedeEditarProductos, puedeVerCostos } from "@/lib/permisos";
+import { puedeEditarProductos, puedeGestionar, puedeVerCostos } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { FormularioProducto } from "../formulario-producto";
 
@@ -36,6 +36,7 @@ export default async function NuevoProducto({ searchParams }: PageProps<"/invent
         ivaPorDefecto={preferencias.ivaPorDefecto}
         usaBotonesRapidos={preferencias.botonesRapidos}
         verCostos={puedeVerCostos(ctx)}
+        crearCategorias={puedeGestionar(ctx)}
       />
     </div>
   );
