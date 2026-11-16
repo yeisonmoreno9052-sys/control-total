@@ -38,7 +38,7 @@ export default async function MiCuenta() {
       <section className="space-y-4 rounded-2xl border border-primary/20 bg-accent/50 p-5 md:p-6">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/iconos/icono-192.png" alt="" className="size-14 shrink-0 rounded-2xl shadow-md shadow-indigo-500/30" />
+          <img src="/iconos/v2/icono-192.png" alt="" className="size-14 shrink-0 rounded-2xl shadow-md shadow-indigo-500/30" />
           <div className="space-y-1">
             <h2 className="text-lg font-semibold">Instalar Control Total</h2>
             <p className="text-sm text-muted-foreground">

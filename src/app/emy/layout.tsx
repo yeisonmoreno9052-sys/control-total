@@ -31,7 +31,7 @@ async function Encabezado() {
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 bg-menu px-4 text-white md:px-6 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
       <Link href="/emy" className="flex min-w-0 flex-1 items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/iconos/icono.svg" alt="" className="size-9 rounded-lg" />
+        <img src="/iconos/v2/icono.svg" alt="" className="size-9 rounded-lg" />
         <span className="min-w-0">
           <span className="block truncate font-semibold">Control Total</span>
           <span className="block truncate text-xs text-white/70">Panel de EMY TELECOM</span>
