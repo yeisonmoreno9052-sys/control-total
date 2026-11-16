@@ -491,34 +491,36 @@ function dibujarPiezaConFoto(c: C, d: DisenoPieza, foto: HTMLImageElement, r: Re
   const finFranja = telefono ? 1660 : 1730;
   const inicioFranja = finFranja - altoFranja;
 
-  // 2. Fondo liso y la foto una sola vez (sin copias ni desenfoque: el iPhone no
-  // desenfoca en el lienzo y la copia se veía repetida). La foto llena todo el ancho
-  // de arriba; si para llenarlo habría que recortar mucho, se muestra completa.
+  // 2. Fondo oscuro elegante y la foto COMPLETA (nunca se recorta: la prenda se ve
+  // entera), dentro de un marco con borde dorado, entre el logo y la franja.
+  // Sin copias ni desenfoque: el iPhone no desenfoca en el lienzo.
   c.clearRect(0, 0, ANCHO, ALTO);
-  c.fillStyle = col.fondo;
-  c.fillRect(0, 0, ANCHO, ALTO);
-  const finFoto = inicioFranja + 40;
-  const cubre = Math.max(ANCHO / foto.width, finFoto / foto.height);
-  const recorte = 1 - Math.min(ANCHO / (foto.width * cubre), finFoto / (foto.height * cubre));
-  if (recorte <= 0.22) dibujarCubriendo(c, foto, 0, 0, ANCHO, finFoto);
-  else {
-    const e = Math.min(ANCHO / foto.width, finFoto / foto.height);
-    const w = foto.width * e;
-    const h = foto.height * e;
-    // Pegada abajo, junto a la franja; arriba queda el fondo liso con el logo.
-    c.drawImage(foto, (ANCHO - w) / 2, finFoto - h, w, h);
-  }
-  // Arriba, una sombra suave para que el logo se lea; abajo, la foto se funde con el fondo.
-  const sombra = c.createLinearGradient(0, 0, 0, 280);
-  sombra.addColorStop(0, "rgba(0,0,0,.45)");
-  sombra.addColorStop(1, "rgba(0,0,0,0)");
-  c.fillStyle = sombra;
-  c.fillRect(0, 0, ANCHO, 280);
-  const fundido = c.createLinearGradient(0, finFoto - 220, 0, finFoto);
-  fundido.addColorStop(0, "rgba(0,0,0,0)");
-  fundido.addColorStop(1, col.fondo);
-  c.fillStyle = fundido;
-  c.fillRect(0, finFoto - 220, ANCHO, 221);
+  fondoOscuro(c, col);
+  const margenFoto = 48;
+  const topeFoto = 210;
+  const pisoFoto = inicioFranja - 28;
+  const fE = Math.min((ANCHO - margenFoto * 2) / foto.width, (pisoFoto - topeFoto) / foto.height);
+  const fW = Math.round(foto.width * fE);
+  const fH = Math.round(foto.height * fE);
+  const fX = Math.round((ANCHO - fW) / 2);
+  const fY = Math.round(topeFoto + (pisoFoto - topeFoto - fH) / 2);
+  c.save();
+  c.shadowColor = "rgba(0,0,0,.55)";
+  c.shadowBlur = 50;
+  c.shadowOffsetY = 16;
+  rectRedondo(c, fX, fY, fW, fH, 28);
+  c.fillStyle = col.tarjeta;
+  c.fill();
+  c.restore();
+  c.save();
+  rectRedondo(c, fX, fY, fW, fH, 28);
+  c.clip();
+  c.drawImage(foto, fX, fY, fW, fH);
+  c.restore();
+  rectRedondo(c, fX, fY, fW, fH, 28);
+  c.lineWidth = 3;
+  c.strokeStyle = col.acento[1];
+  c.stroke();
 
   logoArriba(c, r, col, f, 130, 50);
   etiquetasArriba(c, d, rebaja, col, f);
