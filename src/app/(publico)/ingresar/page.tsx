@@ -18,7 +18,7 @@ export default function PaginaIngreso() {
             Control{" "}
             <span className="bg-gradient-to-r from-indigo-300 to-violet-400 bg-clip-text font-extrabold text-transparent">Total</span>
           </h1>
-          <p className="text-indigo-200/80">Ventas, inventario y caja de tu negocio</p>
+          <p className="text-lg font-medium text-indigo-200/90">Tu negocio, bajo control</p>
         </div>
         <div className="rounded-2xl shadow-2xl shadow-black/40">
           <FormularioIngreso />
