@@ -3,6 +3,7 @@
 //
 // El cajero NUNCA recibe el costo: las consultas ni siquiera lo piden a la base.
 import { paraBuscar } from "@/lib/texto";
+import type { PromoCaja } from "@/lib/ventas/promociones";
 import { corregirLector } from "@/lib/inventario/lector";
 import { leerPresentaciones, type Presentacion } from "@/lib/inventario/presentaciones";
 import { ordenarConPrendas } from "@/lib/inventario/prendas";
@@ -284,18 +285,47 @@ export type ProductoCaja = {
   prenda?: string | null;
   talla?: string | null;
   color?: string | null;
+  /** Promoción con fecha; la caja revisa si hoy está vigente. Puede faltar en copias sin internet viejas. */
+  promo?: PromoCaja | null;
 };
 
 const CAMPOS_CAJA = {
   id: true, codigo: true, nombre: true, precioVenta: true, porcentajeIva: true, unidad: true, fraccionado: true, stock: true,
-  controlaStock: true, fotoEn: true, presentaciones: true, prendaId: true, prenda: true, talla: true, color: true,
+  controlaStock: true, fotoEn: true, presentaciones: true, prendaId: true, prenda: true, talla: true, color: true, promocionId: true,
 } as const;
 
-type FilaCaja = { id: string; stock: { toString(): string }; fotoEn: Date | null; presentaciones: unknown };
+type FilaCaja = { id: string; stock: { toString(): string }; fotoEn: Date | null; presentaciones: unknown; promocionId: string | null };
 
-/** Pasa una fila de la base a lo que recibe la caja: stock en texto, la dirección de la foto y los paquetes. */
-function aCaja<T extends FilaCaja>({ fotoEn, presentaciones, ...p }: T) {
-  return { ...p, stock: p.stock.toString(), fotoUrl: urlFoto(p.id, fotoEn), presentaciones: leerPresentaciones(presentaciones) };
+/** Promociones activas de esas filas, por id (la relación se consulta aparte, como pide la capa de datos). */
+async function promosDe(ctx: Contexto, filas: { promocionId: string | null }[]) {
+  const ids = [...new Set(filas.map((f) => f.promocionId).filter((id): id is string => !!id))];
+  const mapa = new Map<string, PromoCaja>();
+  if (!ids.length) return mapa;
+  const promos = await datosDe(ctx).promocion.findMany({
+    where: { id: { in: ids }, activa: true },
+    select: { id: true, nombre: true, tipo: true, valor: true, desde: true, hasta: true },
+  });
+  for (const p of promos) {
+    mapa.set(p.id, { nombre: p.nombre, tipo: p.tipo, valor: p.valor, desde: p.desde.toISOString().slice(0, 10), hasta: p.hasta.toISOString().slice(0, 10) });
+  }
+  return mapa;
+}
+
+/** Pasa una fila de la base a lo que recibe la caja: stock en texto, la dirección de la foto, los paquetes y la promoción. */
+function aCaja<T extends FilaCaja>({ fotoEn, presentaciones, promocionId, ...p }: T, promos: Map<string, PromoCaja>) {
+  return {
+    ...p,
+    stock: p.stock.toString(),
+    fotoUrl: urlFoto(p.id, fotoEn),
+    presentaciones: leerPresentaciones(presentaciones),
+    promo: (promocionId && promos.get(promocionId)) || null,
+  };
+}
+
+/** Igual que aCaja, para una lista, trayendo antes sus promociones. */
+async function aCajaTodas<T extends FilaCaja>(ctx: Contexto, filas: T[]) {
+  const promos = await promosDe(ctx, filas);
+  return filas.map((f) => aCaja(f, promos));
 }
 
 /**
@@ -311,7 +341,10 @@ export async function buscarParaVenta(ctx: Contexto, negocioId: string, texto: s
     where: { negocioId, activo: true, OR: [{ codigoBarras: q }, { codigo: { equals: q, mode: "insensitive" } }] },
     select: CAMPOS_CAJA,
   });
-  if (exacto) return { exacto: aCaja(exacto), resultados: [aCaja(exacto)] };
+  if (exacto) {
+    const [uno] = await aCajaTodas(ctx, [exacto]);
+    return { exacto: uno, resultados: [uno] };
+  }
 
   const palabras = q.split(/\s+/).filter(Boolean).slice(0, 6);
   const filas = await datos.producto.findMany({
@@ -329,7 +362,7 @@ export async function buscarParaVenta(ctx: Contexto, negocioId: string, texto: s
   });
   // Si sale una prenda con tallas y colores, se traen todas sus combinaciones para escoger.
   const prendas = [...new Set(filas.map((f) => f.prendaId).filter((id): id is string => !!id))];
-  if (!prendas.length) return { exacto: null, resultados: filas.map(aCaja) };
+  if (!prendas.length) return { exacto: null, resultados: await aCajaTodas(ctx, filas) };
   const variantes = await datos.producto.findMany({
     where: { negocioId, activo: true, prendaId: { in: prendas } },
     select: CAMPOS_CAJA,
@@ -337,7 +370,7 @@ export async function buscarParaVenta(ctx: Contexto, negocioId: string, texto: s
     take: 400,
   });
   const sueltos = filas.filter((f) => !f.prendaId);
-  return { exacto: null, resultados: ordenarConPrendas([...sueltos, ...variantes]).map(aCaja) };
+  return { exacto: null, resultados: await aCajaTodas(ctx, ordenarConPrendas([...sueltos, ...variantes])) };
 }
 
 /** Precios y stock actuales de los productos del carrito (al recargar la caja o si cambiaron). */
@@ -347,7 +380,7 @@ export async function productosParaVenta(ctx: Contexto, negocioId: string, ids: 
     where: { negocioId, activo: true, id: { in: ids.slice(0, 300) } },
     select: CAMPOS_CAJA,
   });
-  return filas.map(aCaja);
+  return aCajaTodas(ctx, filas);
 }
 
 export type BotonRapido = ProductoCaja & { categoriaId: string | null; categoria: string | null };
@@ -367,10 +400,10 @@ export async function botonesRapidos(ctx: Contexto, negocioId: string): Promise<
     orderBy: [{ nombre: "asc" }, { id: "asc" }],
     take: 200,
   });
-  const categorias = await nombresCategorias(ctx, filas.map((f) => f.categoriaId));
+  const [categorias, promos] = await Promise.all([nombresCategorias(ctx, filas.map((f) => f.categoriaId)), promosDe(ctx, filas)]);
   return filas
     .map((p) => ({
-      ...aCaja(p),
+      ...aCaja(p, promos),
       categoria: p.categoriaId ? (categorias.get(p.categoriaId) ?? null) : null,
     }))
     .sort((a, b) => (a.categoria ?? "~").localeCompare(b.categoria ?? "~", "es") || a.nombre.localeCompare(b.nombre, "es"));
@@ -393,6 +426,6 @@ export async function catalogoCaja(ctx: Contexto, negocioId: string, desde: Date
   return {
     hasta: hasta.toISOString(),
     completo: !desde,
-    productos: filas.map((p): ProductoCatalogo => aCaja(p)),
+    productos: (await aCajaTodas(ctx, filas)) satisfies ProductoCatalogo[],
   };
 }

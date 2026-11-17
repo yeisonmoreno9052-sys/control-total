@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Tecla } from "@/components/ui/dialogo";
 import type { ClienteVista } from "@/lib/datos/clientes";
 import type { BotonRapido, ProductoCaja } from "@/lib/datos/productos";
-import { formatearPesos } from "@/lib/formato";
+import { diaEnBogota, formatearPesos } from "@/lib/formato";
 import { Decimal, formatearCantidad } from "@/lib/inventario/cantidades";
 import { unidadesDe, type Presentacion } from "@/lib/inventario/presentaciones";
 import { UNIDADES } from "@/lib/inventario/unidades";
+import { aplicarPromociones } from "@/lib/ventas/promociones";
 import { calcularTotales, ErrorTotales, type Descuento, type TotalesVenta } from "@/lib/ventas/totales";
 import { buscarEnCopia } from "@/lib/sin-conexion/buscar";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,14 @@ import { DialogoDejarEnEspera, DialogoEnEspera, guardarEnEspera, leerEnEspera, t
 import { DialogoCancelar, DialogoCantidad, DialogoDescuento, DialogoPresentacion } from "./dialogos-linea";
 
 /** Con presentación (tubo completo), la cantidad es de paquetes y se cobra el precio del paquete. */
-export type Linea = { producto: ProductoCaja; cantidad: string; descuento: Descuento | null; presentacion?: Presentacion | null };
+export type Linea = {
+  producto: ProductoCaja;
+  cantidad: string;
+  descuento: Descuento | null;
+  presentacion?: Presentacion | null;
+  /** Nombre de la promoción con fecha que puso el descuento (se calcula, no se guarda). */
+  promo?: string | null;
+};
 /** nombreEspera: si la venta salió de "en espera", con qué nombre estaba, para volver a dejarla igual. */
 type Guardado = { lineas: Linea[]; descuentoGeneral: Descuento | null; cliente: ClienteVista | null; nombreEspera?: string | null };
 
@@ -307,7 +315,10 @@ export function Caja({
   };
 
   // ─── Totales ────────────────────────────────────────────────────────────
-  const totales = useMemo(() => totalesDe(lineas, descuentoGeneral), [lineas, descuentoGeneral]);
+  // Las promociones con fecha vigentes se ponen solas como descuento de la línea.
+  const hoy = diaEnBogota();
+  const lineasVenta = useMemo(() => aplicarPromociones(lineas, hoy), [lineas, hoy]);
+  const totales = useMemo(() => totalesDe(lineasVenta, descuentoGeneral), [lineasVenta, descuentoGeneral]);
   const errorTotales = typeof totales === "string" ? totales : null;
   const t = typeof totales === "object" ? totales : null;
   const unidades = lineas.reduce((a, l) => a.plus(l.cantidad), new Decimal(0));
@@ -437,7 +448,7 @@ export function Caja({
           </div>
         ) : (
           <ul className="divide-y rounded-xl border bg-card shadow-suave">
-            {lineas.map((l, i) => {
+            {lineasVenta.map((l, i) => {
               const calc = t?.lineas[i];
               const clave = claveLinea(l);
               const paquete = textoPresentacion(l);
@@ -466,7 +477,7 @@ export function Caja({
                     >
                       {l.descuento ? (
                         <>
-                          Descuento {textoDescuento(l.descuento)}
+                          {l.promo ? `Promo ${l.promo}` : `Descuento ${textoDescuento(l.descuento)}`}
                           {calc ? ` · − ${formatearPesos(calc.descuentoLinea)}` : ""}
                         </>
                       ) : (
@@ -538,7 +549,7 @@ export function Caja({
           {modoBotones && (
             <PedidoCompacto
               nombre={nombreEspera}
-              lineas={lineas}
+              lineas={lineasVenta}
               totales={t}
               resaltado={resaltado}
               alCambiar={cambiarEnUno}
@@ -749,7 +760,7 @@ export function Caja({
       <DialogoCobrar
         abierto={dialogo?.tipo === "cobrar"}
         negocioId={negocioId}
-        lineas={lineas}
+        lineas={lineasVenta}
         descuentoGeneral={descuentoGeneral}
         cliente={cliente}
         total={t?.total ?? 0}
@@ -934,7 +945,7 @@ function PedidoCompacto({
                     l.descuento ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {l.descuento ? `Descuento ${textoDescuento(l.descuento)}` : "Descuento"}
+                  {l.descuento ? (l.promo ? `Promo ${l.promo}` : `Descuento ${textoDescuento(l.descuento)}`) : "Descuento"}
                 </button>
               </div>
               <div className="flex h-11 shrink-0 items-center overflow-hidden rounded-lg border bg-muted/40">
