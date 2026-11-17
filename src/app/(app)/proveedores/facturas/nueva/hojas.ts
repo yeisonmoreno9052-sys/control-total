@@ -15,9 +15,12 @@ export async function prepararHoja(archivo: File, ladoMaximo = LADO_MAXIMO): Pro
   } catch {
     throw new Error("Foto:No pudimos abrir esa foto. Tómala de nuevo.");
   }
-  const escala = Math.min(1, ladoMaximo / Math.max(imagen.width, imagen.height));
-  const ancho = Math.round(imagen.width * escala);
-  const alto = Math.round(imagen.height * escala);
+  // Si llega un tamaño inválido (0, negativo o no numérico) se usa el normal, para no
+  // dibujar una foto de 0×0 píxeles.
+  const lado = Number.isFinite(ladoMaximo) && ladoMaximo >= 100 ? ladoMaximo : LADO_MAXIMO;
+  const escala = Math.min(1, lado / Math.max(imagen.width, imagen.height));
+  const ancho = Math.max(1, Math.round(imagen.width * escala));
+  const alto = Math.max(1, Math.round(imagen.height * escala));
   const lienzo = document.createElement("canvas");
   lienzo.width = ancho;
   lienzo.height = alto;

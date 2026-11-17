@@ -390,7 +390,7 @@ export function FormularioFactura({
     setError(null);
     setAviso(null);
     try {
-      const preparadas = await Promise.all(elegidos.map(prepararHoja));
+      const preparadas = await Promise.all(elegidos.map((archivo) => prepararHoja(archivo)));
       const f = new FormData();
       for (const h of preparadas) f.append("hoja", h);
       const r = await leerFacturaFotoAccion(f);
