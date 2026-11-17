@@ -151,7 +151,7 @@ describe("demo", () => {
     expect((await verificarCredenciales("demo", "demo2026")).ok).toBe(true);
     // Cajas de días pasados cerradas; la de hoy abierta.
     const cajas = await prisma.caja.findMany({ where: { empresaId: r.id }, orderBy: { fecha: "asc" } });
-    expect(cajas.filter((c) => !c.cerradaEn)).toHaveLength(2);
+    expect(cajas.filter((c) => !c.cerradaEn)).toHaveLength(4);
     expect(new Set(cajas.map((c) => c.fecha.toISOString())).size).toBeGreaterThan(2);
     // El stock de cada producto se explica por sus movimientos.
     const productos = await prisma.producto.findMany({ where: { empresaId: r.id }, select: { id: true, stock: true } });
@@ -162,6 +162,28 @@ describe("demo", () => {
     });
     const suma = new Map(movs.map((m) => [m.productoId, Number(m._sum.cantidad)]));
     for (const p of productos) expect(Number(p.stock)).toBeCloseTo(suma.get(p.id) ?? 0, 3);
+    // Cuatro tipos de negocio, cada uno con su usuario que solo ve su local.
+    const negocios = await prisma.negocio.findMany({ where: { empresaId: r.id, activo: true } });
+    expect(negocios.map((n) => n.nombre).sort()).toEqual(["Almacén de ropa", "Cafetería", "Ferretería", "Repuestos de moto"]);
+    for (const [usuario, local] of [
+      ["demo.motos", "Repuestos de moto"],
+      ["demo.ferreteria", "Ferretería"],
+      ["demo.cafe", "Cafetería"],
+      ["demo.ropa", "Almacén de ropa"],
+    ]) {
+      expect((await verificarCredenciales(usuario, "demo2026")).ok).toBe(true);
+      const u = await prisma.usuario.findUniqueOrThrow({ where: { usuario }, include: { negocios: { include: { negocio: true } } } });
+      expect(u.rol).toBe("SOCIO");
+      expect(u.negocios.map((x) => x.negocio.nombre)).toEqual([local]);
+    }
+    // La cafetería usa botones rápidos y productos que no se cuentan; la ropa, tallas y colores.
+    const cafe = negocios.find((n) => n.nombre === "Cafetería")!;
+    const ropa = negocios.find((n) => n.nombre === "Almacén de ropa")!;
+    expect(cafe.botonesRapidos).toBe(true);
+    expect(await prisma.producto.count({ where: { negocioId: cafe.id, controlaStock: false, botonRapido: true } })).toBeGreaterThan(5);
+    expect(ropa.usaTallas).toBe(true);
+    expect(await prisma.producto.count({ where: { negocioId: ropa.id, talla: { not: null } } })).toBeGreaterThan(50);
+    for (const n of negocios) expect(await prisma.venta.count({ where: { negocioId: n.id } })).toBeGreaterThan(0);
     // Reiniciar otra vez deja lo mismo, y Camila sigue intacta.
     const r2 = await reiniciarDemo(ce, { dias: 4, semilla: 7 });
     expect(r2.ok && r2.id).toBe(r.id);
