@@ -9,7 +9,15 @@
 // Reiniciar borra todo lo de la demo (y solo de la demo) y la vuelve a armar.
 import { CondicionProducto, type MedioPago, type UnidadMedida } from "@/generated/prisma/enums";
 import { diaEnBogota } from "@/lib/formato";
-import { CONTRASENA_DEMO, EMPRESA_DEMO, NEGOCIOS_DEMO, USUARIOS_DEMO, type ProductoDemo } from "@/lib/demo/catalogo";
+import {
+  CONTRASENA_DEMO,
+  EMPRESA_DEMO,
+  NEGOCIOS_DEMO,
+  USUARIOS_DEMO,
+  type NegocioDemo,
+  type ProductoDemo,
+} from "@/lib/demo/catalogo";
+import { claveVariante } from "@/lib/inventario/prendas";
 import { esquemaProducto } from "@/lib/inventario/esquemas";
 import { sumarDias } from "@/lib/reportes/periodos";
 import { calcularTotales, type FormaPago } from "@/lib/ventas/totales";
@@ -22,6 +30,7 @@ import type { Contexto } from "./contexto";
 import type { ContextoEmy } from "./emy";
 import { crearProducto, type Resultado } from "./inventario";
 import { registrarMovimientoCaja } from "./movimientos-caja";
+import { crearPrenda } from "./prendas";
 import { anularVenta, registrarVenta } from "./ventas";
 
 export { CONTRASENA_DEMO, USUARIOS_DEMO };
@@ -168,6 +177,10 @@ async function prepararEmpresa() {
         consecutivoVenta: 0,
         consecutivoDevolucion: 0,
         margenSugerido: n.margen,
+        ivaPorDefecto: n.ivaPorDefecto ?? 19,
+        botonesRapidos: n.botonesRapidos ?? false,
+        usaTallas: n.usaTallas ?? false,
+        aceptaTarjeta: n.aceptaTarjeta ?? false,
         activo: true,
       };
       const negocio = existente
@@ -226,9 +239,14 @@ async function prepararEmpresa() {
     });
     const [ua, uc] = USUARIOS_DEMO;
     await tx.usuarioNegocio.deleteMany({ where: { empresaId: empresa.id } });
-    await tx.usuarioNegocio.createMany({
-      data: ids.map((negocioId) => ({ empresaId: empresa.id, usuarioId: usuarios[uc.usuario], negocioId })),
-    });
+    // El cajero atiende en todos los locales; cada usuario por tipo de negocio ve solo el suyo.
+    const accesos = ids.map((negocioId) => ({ empresaId: empresa.id, usuarioId: usuarios[uc.usuario], negocioId }));
+    for (const u of USUARIOS_DEMO) {
+      if (!u.negocio) continue;
+      const negocio = negocios.find((n) => n.demo.nombre === u.negocio)!;
+      accesos.push({ empresaId: empresa.id, usuarioId: usuarios[u.usuario], negocioId: negocio.id });
+    }
+    await tx.usuarioNegocio.createMany({ data: accesos });
     return {
       empresaId: empresa.id,
       negocios,
@@ -308,6 +326,10 @@ async function armar(
     let n = 0;
     let s = 0;
     for (const p of demo.productos) {
+      if (p.tallas?.length) {
+        productos.push(...(await crearPrendaDemo(admin, negocioId, demo, p, categorias.get(p.categoria) ?? null, azar)));
+        continue;
+      }
       const unidad = p.unidad ?? "UNIDAD";
       const codigo = p.segunda ? `SEG-${String(++s).padStart(4, "0")}` : `${demo.prefijo}-${String(++n).padStart(3, "0")}`;
       const precio = precioConMargen(p.costo, p.segunda ? 60 : demo.margen);
@@ -325,9 +347,14 @@ async function armar(
         fraccionado: fraccionado(unidad),
         porcentajeIva: p.iva ?? 0,
         condicion: p.segunda ? CondicionProducto.DE_SEGUNDA : CondicionProducto.NUEVO,
+        controlaStock: !p.sinStock,
+        botonRapido: !!p.boton,
       });
-      const r = exigirOk(await crearProducto(admin, negocioId, entrada, String(stock)), `crear "${p.nombre}"`);
-      productos.push({ id: r.id, demo: p, unidad, precio, stock });
+      const r = exigirOk(
+        await crearProducto(admin, negocioId, entrada, p.sinStock ? "" : String(stock)),
+        `crear "${p.nombre}"`,
+      );
+      productos.push({ id: r.id, demo: p, unidad, precio, stock: p.sinStock ? Number.POSITIVE_INFINITY : stock });
     }
     catalogos.set(negocioId, productos);
     await correrFechas(admin.empresaId, negocioId, marca, inicio, 9);
@@ -354,7 +381,7 @@ async function armar(
       const desfase = Math.min(0, Math.max(c.dias, -(dias - 1)));
       const fecha = sumarDias(hoy, desfase);
       const marca = new Date();
-      const elegidos = productos.filter((p) => !p.demo.segunda && azar.numero() < 0.15).slice(0, 12);
+      const elegidos = productos.filter((p) => !p.demo.segunda && !p.demo.sinStock && azar.numero() < 0.15).slice(0, 12);
       const lineas = elegidos.map((p) => ({
         productoId: p.id,
         cantidad: String(Math.max(2, Math.ceil((p.demo.rotacion ?? 1) * 6))),
@@ -386,13 +413,13 @@ async function armar(
     const dia = sumarDias(hoy, -d);
     const semana = new Date(`${dia}T12:00:00Z`).getUTCDay(); // 0 = domingo
     for (const { id: negocioId, demo } of negocios) {
-      // La ferretería no abre el domingo (pero hoy siempre queda abierta para mostrarla).
-      if (semana === 0 && demo.prefijo === "FER" && d > 0) continue;
+      // Algunos locales no abren el domingo (pero hoy siempre quedan abiertos para mostrarlos).
+      if (semana === 0 && demo.cierraDomingo && d > 0) continue;
       const marca = new Date();
-      const caja = exigirOk(await abrirCaja(cajero, negocioId, demo.prefijo === "MOT" ? 100_000 : 150_000), "abrir la caja");
+      const caja = exigirOk(await abrirCaja(cajero, negocioId, demo.baseCaja), "abrir la caja");
       const productos = catalogos.get(negocioId)!;
       const factor = semana === 0 ? 0.4 : semana === 6 ? 1.3 : 1;
-      const cuantas = Math.max(2, Math.round((demo.prefijo === "MOT" ? 22 : 42) * factor * (0.7 + azar.numero() * 0.6)));
+      const cuantas = Math.max(2, Math.round(demo.ventasDia * factor * (0.7 + azar.numero() * 0.6)));
       // Hoy va a mitad de jornada: menos ventas y la caja queda abierta para seguir vendiendo.
       const ventasDelDia = d === 0 ? Math.ceil(cuantas / 2) : cuantas;
       const hechas: string[] = [];
@@ -411,7 +438,7 @@ async function armar(
           "anular",
         );
       }
-      await gastosDelDia(admin, negocioId, demo.prefijo, dia, azar);
+      await gastosDelDia(admin, negocioId, demo, dia, azar);
       if (d === 0) continue;
 
       const resumen = await prisma.$transaction((tx) => resumenDeCaja(tx, admin, caja.id));
@@ -420,6 +447,57 @@ async function armar(
       await moverDia(admin.empresaId, negocioId, caja.id, marca, dia);
     }
   }
+}
+
+/** Una prenda con todas sus tallas y colores, de 1 a 5 unidades por combinación. */
+async function crearPrendaDemo(
+  admin: Contexto,
+  negocioId: string,
+  demo: NegocioDemo,
+  p: ProductoDemo,
+  categoriaId: string | null,
+  azar: ReturnType<typeof generador>,
+): Promise<ProductoArmado[]> {
+  const tallas = p.tallas ?? [];
+  const colores = p.colores ?? [];
+  const combinaciones: [string, string | null][] = tallas.flatMap((t) =>
+    colores.length ? colores.map((c): [string, string | null] => [t, c]) : [[t, null]],
+  );
+  // Las tallas del medio se surten más.
+  const cantidades = Object.fromEntries(
+    combinaciones.map(([t, c]) => {
+      const medio = Math.abs(tallas.indexOf(t) - (tallas.length - 1) / 2) < 1;
+      return [claveVariante(t, c), String(medio ? azar.entero(10, 18) : azar.entero(5, 10))];
+    }),
+  );
+  const precioVenta = precioConMargen(p.costo, demo.margen);
+  const r = exigirOk(
+    await crearPrenda(admin, negocioId, {
+      nombre: p.nombre,
+      categoriaId,
+      costo: p.costo,
+      precioVenta,
+      porcentajeIva: p.iva ?? 19,
+      stockMinimo: "1",
+      tallas,
+      colores,
+      cantidades,
+    }),
+    `crear la prenda "${p.nombre}"`,
+  );
+  const variantes = await prisma.producto.findMany({
+    where: { negocioId, prendaId: r.prendaId },
+    select: { id: true, stock: true },
+  });
+  // La rotación de la prenda se reparte entre sus combinaciones.
+  const rotacion = (p.rotacion ?? 1) / Math.max(variantes.length, 1);
+  return variantes.map((v) => ({
+    id: v.id,
+    demo: { ...p, rotacion },
+    unidad: "UNIDAD" as UnidadMedida,
+    precio: precioVenta,
+    stock: Number(v.stock),
+  }));
 }
 
 /** Una venta de 1 a 3 productos, pagada como pagan los clientes de verdad. */
@@ -483,16 +561,16 @@ function cantidadVendida(p: ProductoArmado, azar: ReturnType<typeof generador>) 
 async function gastosDelDia(
   admin: Contexto,
   negocioId: string,
-  prefijo: string,
+  demo: NegocioDemo,
   dia: string,
   azar: ReturnType<typeof generador>,
 ) {
   const n = Number(dia.slice(8, 10));
   const gastos: { categoria: "NOMINA" | "ARRIENDO" | "SERVICIOS" | "TRANSPORTE"; valor: number; pagadoA: string }[] = [];
   if (n === 15 || n === 30) {
-    gastos.push({ categoria: "NOMINA", valor: prefijo === "MOT" ? 1_200_000 : 1_000_000, pagadoA: "Quincena empleados" });
+    gastos.push({ categoria: "NOMINA", valor: demo.nomina, pagadoA: "Quincena empleados" });
   }
-  if (n === 5) gastos.push({ categoria: "ARRIENDO", valor: prefijo === "MOT" ? 1_500_000 : 1_300_000, pagadoA: "Inmobiliaria" });
+  if (n === 5) gastos.push({ categoria: "ARRIENDO", valor: demo.arriendo, pagadoA: "Inmobiliaria" });
   if (n === 10) gastos.push({ categoria: "SERVICIOS", valor: azar.entero(180, 260) * 1_000, pagadoA: "EPM" });
   if (azar.numero() < 0.08) gastos.push({ categoria: "TRANSPORTE", valor: azar.entero(15, 45) * 1_000, pagadoA: "Domicilio" });
   for (const g of gastos) {

@@ -1,6 +1,8 @@
 // Productos, proveedores y gastos de ejemplo para la empresa de demostración.
-// Son inventados pero realistas para un almacén de repuestos de moto y una ferretería
-// de Colombia, con precios aproximados en pesos.
+// Son inventados pero realistas para cuatro tipos de comercio de Colombia (repuestos de
+// moto, ferretería, cafetería y almacén de ropa), con precios aproximados en pesos.
+// Cada local tiene su propio usuario de demostración que solo ve ese local, para
+// mostrarle a cada prospecto un negocio como el suyo.
 
 export type ProductoDemo = {
   nombre: string;
@@ -13,6 +15,13 @@ export type ProductoDemo = {
   segunda?: boolean;
   /** Cuántas se venden en un día normal (sirve para repartir las ventas). */
   rotacion?: number;
+  /** No se cuenta (tinto, jugos, lo que se prepara al momento): se vende siempre y no mueve stock. */
+  sinStock?: boolean;
+  /** Aparece como cuadro para tocar en la caja (cafetería). */
+  boton?: boolean;
+  /** Prenda con tallas y colores: se crea una variante por combinación. */
+  tallas?: string[];
+  colores?: string[];
 };
 
 export type NegocioDemo = {
@@ -24,6 +33,22 @@ export type NegocioDemo = {
   categorias: string[];
   productos: ProductoDemo[];
   proveedores: { nombre: string; nit: string; contacto: string; telefono: string }[];
+  /** Usuario de demostración que solo ve este local (rol socio). */
+  usuario: { usuario: string; nombre: string };
+  /** Ventas en un día normal. */
+  ventasDia: number;
+  /** Base con la que se abre la caja. */
+  baseCaja: number;
+  /** El local no abre el domingo (hoy siempre queda abierto para mostrarlo). */
+  cierraDomingo?: boolean;
+  /** Gastos fijos: nómina por quincena y arriendo mensual. */
+  nomina: number;
+  arriendo: number;
+  /** Configuración del local. */
+  ivaPorDefecto?: number;
+  botonesRapidos?: boolean;
+  usaTallas?: boolean;
+  aceptaTarjeta?: boolean;
 };
 
 /**
@@ -44,6 +69,11 @@ const MOTOS: NegocioDemo = {
   tipo: "Repuestos de moto",
   prefijo: "MOT",
   margen: 35,
+  usuario: { usuario: "demo.motos", nombre: "Andrés (dueño del almacén de motos)" },
+  ventasDia: 22,
+  baseCaja: 100_000,
+  nomina: 1_200_000,
+  arriendo: 1_500_000,
   categorias: ["Aceites y lubricantes", "Llantas", "Frenos", "Transmisión", "Eléctricos", "Filtros", "Accesorios", "Usados"],
   proveedores: [
     { nombre: "Distrimotos del Valle", nit: "900123456-1", contacto: "Carlos Ruiz", telefono: "3104567890" },
@@ -172,6 +202,12 @@ const FERRETERIA: NegocioDemo = {
   tipo: "Ferretería",
   prefijo: "FER",
   margen: 30,
+  usuario: { usuario: "demo.ferreteria", nombre: "Sandra (dueña de la ferretería)" },
+  ventasDia: 42,
+  baseCaja: 150_000,
+  cierraDomingo: true,
+  nomina: 1_000_000,
+  arriendo: 1_300_000,
   categorias: ["Tornillería", "Eléctricos", "Pinturas", "Herramientas", "Plomería", "Construcción"],
   proveedores: [
     { nombre: "Ferretería Mayorista El Tornillo", nit: "900765432-1", contacto: "Andrés López", telefono: "3001234567" },
@@ -297,7 +333,118 @@ const FERRETERIA: NegocioDemo = {
   ],
 };
 
-export const NEGOCIOS_DEMO = [MOTOS, FERRETERIA];
+const CAFETERIA: NegocioDemo = {
+  nombre: "Cafetería",
+  direccion: "Cra. 43A # 10-35, Medellín",
+  tipo: "Cafetería",
+  prefijo: "CAF",
+  margen: 150,
+  usuario: { usuario: "demo.cafe", nombre: "Valentina (dueña de la cafetería)" },
+  ventasDia: 45,
+  baseCaja: 80_000,
+  nomina: 900_000,
+  arriendo: 1_800_000,
+  ivaPorDefecto: 0,
+  botonesRapidos: true,
+  categorias: ["Bebidas calientes", "Bebidas frías", "Desayunos", "Panadería", "Postres", "Snacks y empacados"],
+  proveedores: [
+    { nombre: "Café de Origen Antioquia", nit: "901321654-1", contacto: "Julián Restrepo", telefono: "3105551234" },
+    { nombre: "Lácteos La Montaña", nit: "800321987-4", contacto: "Gloria Arango", telefono: "3115559876" },
+    { nombre: "Panadería Mayorista El Trigal", nit: "900654789-2", contacto: "Hernán Ospina", telefono: "3205554321" },
+    { nombre: "Distribuidora de Bebidas del Valle", nit: "901987321-7", contacto: "Camilo Vélez", telefono: "3135556789" },
+  ],
+  productos: [
+    { nombre: "Tinto", categoria: "Bebidas calientes", costo: 700, sinStock: true, boton: true, rotacion: 25 },
+    { nombre: "Café con leche", categoria: "Bebidas calientes", costo: 1300, sinStock: true, boton: true, rotacion: 12 },
+    { nombre: "Capuchino", categoria: "Bebidas calientes", costo: 2200, sinStock: true, boton: true, rotacion: 8 },
+    { nombre: "Latte", categoria: "Bebidas calientes", costo: 2400, sinStock: true, boton: true, rotacion: 5 },
+    { nombre: "Americano", categoria: "Bebidas calientes", costo: 1400, sinStock: true, boton: true, rotacion: 5 },
+    { nombre: "Mocaccino", categoria: "Bebidas calientes", costo: 2800, sinStock: true, boton: true, rotacion: 3 },
+    { nombre: "Aromática", categoria: "Bebidas calientes", costo: 600, sinStock: true, boton: true, rotacion: 5 },
+    { nombre: "Chocolate en leche", categoria: "Bebidas calientes", costo: 1800, sinStock: true, boton: true, rotacion: 6 },
+    { nombre: "Milo caliente", categoria: "Bebidas calientes", costo: 2000, sinStock: true, rotacion: 2 },
+    { nombre: "Jugo natural en agua", categoria: "Bebidas frías", costo: 1800, sinStock: true, boton: true, rotacion: 8 },
+    { nombre: "Jugo natural en leche", categoria: "Bebidas frías", costo: 2400, sinStock: true, boton: true, rotacion: 6 },
+    { nombre: "Limonada natural", categoria: "Bebidas frías", costo: 1600, sinStock: true, boton: true, rotacion: 6 },
+    { nombre: "Limonada de coco", categoria: "Bebidas frías", costo: 3200, sinStock: true, rotacion: 3 },
+    { nombre: "Frappé de café", categoria: "Bebidas frías", costo: 3600, sinStock: true, boton: true, rotacion: 4 },
+    { nombre: "Malteada de vainilla", categoria: "Bebidas frías", costo: 4000, sinStock: true, rotacion: 2 },
+    { nombre: "Gaseosa 400 ml", categoria: "Bebidas frías", costo: 1700, rotacion: 8 },
+    { nombre: "Agua sin gas 600 ml", categoria: "Bebidas frías", costo: 1100, rotacion: 6 },
+    { nombre: "Jugo Hit 500 ml", categoria: "Bebidas frías", costo: 1900, rotacion: 4 },
+    { nombre: "Té frío 400 ml", categoria: "Bebidas frías", costo: 1800, rotacion: 3 },
+    { nombre: "Cerveza Club Colombia", categoria: "Bebidas frías", costo: 2800, rotacion: 3 },
+    { nombre: "Desayuno tradicional (huevos, arepa y chocolate)", categoria: "Desayunos", costo: 5200, sinStock: true, boton: true, rotacion: 6 },
+    { nombre: "Calentado paisa", categoria: "Desayunos", costo: 6800, sinStock: true, boton: true, rotacion: 4 },
+    { nombre: "Huevos al gusto", categoria: "Desayunos", costo: 2800, sinStock: true, rotacion: 4 },
+    { nombre: "Arepa con queso", categoria: "Desayunos", costo: 1800, sinStock: true, boton: true, rotacion: 8 },
+    { nombre: "Sándwich de jamón y queso", categoria: "Desayunos", costo: 4000, sinStock: true, boton: true, rotacion: 5 },
+    { nombre: "Tostadas francesas", categoria: "Desayunos", costo: 4400, sinStock: true, rotacion: 2 },
+    { nombre: "Pandebono", categoria: "Panadería", costo: 800, boton: true, rotacion: 15 },
+    { nombre: "Buñuelo", categoria: "Panadería", costo: 700, boton: true, rotacion: 12 },
+    { nombre: "Empanada de carne", categoria: "Panadería", costo: 1000, boton: true, rotacion: 14 },
+    { nombre: "Croissant", categoria: "Panadería", costo: 1800, rotacion: 5 },
+    { nombre: "Pan de queso", categoria: "Panadería", costo: 900, rotacion: 6 },
+    { nombre: "Almojábana", categoria: "Panadería", costo: 900, rotacion: 6 },
+    { nombre: "Pastel de pollo", categoria: "Panadería", costo: 1600, rotacion: 6 },
+    { nombre: "Pan aliñado", categoria: "Panadería", costo: 1200, rotacion: 3 },
+    { nombre: "Torta de chocolate (porción)", categoria: "Postres", costo: 2600, boton: true, rotacion: 4 },
+    { nombre: "Cheesecake de frutos rojos", categoria: "Postres", costo: 3800, rotacion: 2 },
+    { nombre: "Brownie", categoria: "Postres", costo: 1600, rotacion: 4 },
+    { nombre: "Galleta de avena", categoria: "Postres", costo: 900, rotacion: 4 },
+    { nombre: "Tres leches", categoria: "Postres", costo: 2600, rotacion: 2 },
+    { nombre: "Arroz con leche", categoria: "Postres", costo: 1700, rotacion: 2 },
+    { nombre: "Papas fritas paquete", categoria: "Snacks y empacados", costo: 1700, rotacion: 4 },
+    { nombre: "Chocolatina Jet", categoria: "Snacks y empacados", costo: 900, rotacion: 5 },
+    { nombre: "Chicles Trident", categoria: "Snacks y empacados", costo: 1300, rotacion: 3 },
+    { nombre: "Galletas Festival", categoria: "Snacks y empacados", costo: 1100, rotacion: 3 },
+    { nombre: "Maní salado", categoria: "Snacks y empacados", costo: 1300, rotacion: 2 },
+    { nombre: "Café molido 500 g para llevar", categoria: "Snacks y empacados", costo: 14000, rotacion: 0.5 },
+  ],
+};
+
+const ROPA: NegocioDemo = {
+  nombre: "Almacén de ropa",
+  direccion: "Calle 50 # 49-20, Medellín",
+  tipo: "Almacén de ropa",
+  prefijo: "ROP",
+  margen: 80,
+  usuario: { usuario: "demo.ropa", nombre: "Paula (dueña del almacén de ropa)" },
+  ventasDia: 8,
+  baseCaja: 100_000,
+  cierraDomingo: true,
+  nomina: 1_100_000,
+  arriendo: 2_000_000,
+  usaTallas: true,
+  aceptaTarjeta: true,
+  categorias: ["Dama", "Caballero", "Jeans", "Calzado", "Accesorios"],
+  proveedores: [
+    { nombre: "Confecciones El Hueco", nit: "900111222-3", contacto: "Rubén Correa", telefono: "3006667788" },
+    { nombre: "Textiles Itagüí S.A.S.", nit: "901444555-6", contacto: "Natalia Giraldo", telefono: "3016668899" },
+    { nombre: "Calzado Bucaramanga", nit: "800777888-1", contacto: "Óscar Rueda", telefono: "3176661122" },
+  ],
+  productos: [
+    { nombre: "Blusa manga corta", categoria: "Dama", costo: 22000, iva: 19, rotacion: 2, tallas: ["S", "M", "L"], colores: ["Blanco", "Negro", "Rosado"] },
+    { nombre: "Blusa de tiras", categoria: "Dama", costo: 18000, iva: 19, rotacion: 1.5, tallas: ["S", "M", "L"], colores: ["Negro", "Beige"] },
+    { nombre: "Vestido casual", categoria: "Dama", costo: 42000, iva: 19, rotacion: 0.8, tallas: ["S", "M", "L"], colores: ["Azul", "Verde"] },
+    { nombre: "Falda plisada", categoria: "Dama", costo: 30000, iva: 19, rotacion: 0.5, tallas: ["S", "M", "L"], colores: ["Negro"] },
+    { nombre: "Leggins deportivos", categoria: "Dama", costo: 20000, iva: 19, rotacion: 1.2, tallas: ["S", "M", "L", "XL"], colores: ["Negro", "Gris"] },
+    { nombre: "Camiseta básica", categoria: "Caballero", costo: 16000, iva: 19, rotacion: 2.5, tallas: ["S", "M", "L", "XL"], colores: ["Blanco", "Negro", "Azul"] },
+    { nombre: "Camisa tipo polo", categoria: "Caballero", costo: 28000, iva: 19, rotacion: 1, tallas: ["M", "L", "XL"], colores: ["Azul", "Blanco"] },
+    { nombre: "Camisa manga larga", categoria: "Caballero", costo: 38000, iva: 19, rotacion: 0.6, tallas: ["M", "L", "XL"], colores: ["Blanco", "Azul"] },
+    { nombre: "Bermuda", categoria: "Caballero", costo: 26000, iva: 19, rotacion: 0.8, tallas: ["30", "32", "34"], colores: ["Beige", "Azul"] },
+    { nombre: "Jean dama tiro alto", categoria: "Jeans", costo: 48000, iva: 19, rotacion: 1.5, tallas: ["6", "8", "10", "12"], colores: ["Azul"] },
+    { nombre: "Jean caballero clásico", categoria: "Jeans", costo: 52000, iva: 19, rotacion: 1, tallas: ["30", "32", "34", "36"], colores: ["Azul", "Negro"] },
+    { nombre: "Tenis urbanos", categoria: "Calzado", costo: 68000, iva: 19, rotacion: 0.6, tallas: ["37", "38", "39", "40", "41"], colores: ["Blanco"] },
+    { nombre: "Sandalias", categoria: "Calzado", costo: 32000, iva: 19, rotacion: 0.6, tallas: ["36", "37", "38", "39"], colores: ["Negro", "Café"] },
+    { nombre: "Gorra", categoria: "Accesorios", costo: 12000, iva: 19, rotacion: 0.8, tallas: ["Única"], colores: ["Negro", "Blanco"] },
+    { nombre: "Correa de cuero", categoria: "Accesorios", costo: 18000, iva: 19, rotacion: 0.5, tallas: ["Única"], colores: ["Negro", "Café"] },
+    { nombre: "Medias tobilleras x3", categoria: "Accesorios", costo: 6000, iva: 19, rotacion: 2 },
+    { nombre: "Bolso de mano", categoria: "Accesorios", costo: 45000, iva: 19, rotacion: 0.3 },
+  ],
+};
+
+export const NEGOCIOS_DEMO = [MOTOS, FERRETERIA, CAFETERIA, ROPA];
 
 export const EMPRESA_DEMO = {
   nombre: "Demo Control Total",
@@ -307,8 +454,18 @@ export const EMPRESA_DEMO = {
 };
 
 /** Usuarios de la demo. La contraseña es conocida: se le da a quien ve la demostración. */
-export const USUARIOS_DEMO = [
-  { usuario: "demo", nombre: "Laura (administradora)", rol: "ADMINISTRADOR" as const },
-  { usuario: "demo.cajero", nombre: "Mateo (cajero)", rol: "CAJERO" as const },
+export type UsuarioDemo = {
+  usuario: string;
+  nombre: string;
+  rol: "ADMINISTRADOR" | "SOCIO" | "CAJERO";
+  /** Solo para los usuarios por tipo de negocio: el único local que ven. */
+  negocio?: string;
+};
+
+export const USUARIOS_DEMO: UsuarioDemo[] = [
+  { usuario: "demo", nombre: "Laura (administradora)", rol: "ADMINISTRADOR" },
+  { usuario: "demo.cajero", nombre: "Mateo (cajero)", rol: "CAJERO" },
+  // Uno por tipo de negocio: ve solo su local, como si fuera el dueño.
+  ...[MOTOS, FERRETERIA, CAFETERIA, ROPA].map((n): UsuarioDemo => ({ ...n.usuario, rol: "SOCIO", negocio: n.nombre })),
 ];
 export const CONTRASENA_DEMO = "demo2026";

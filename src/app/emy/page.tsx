@@ -75,11 +75,24 @@ export default async function PanelEmy() {
               <PlayCircle className="size-5 text-primary" /> Demo Control Total
             </p>
             <p className="text-sm text-muted-foreground">
-              Un almacén de repuestos de moto y una ferretería con un mes de ventas, compras, gastos y cierres de caja. Úsala para
-              mostrarle el sistema a un comercio nuevo. Si alguien la desordena, reiníciala.
+              Cuatro locales de ejemplo (repuestos de moto, ferretería, cafetería y almacén de ropa) con un mes de ventas,
+              compras, gastos y cierres de caja. Dale al prospecto el usuario de un negocio como el suyo: solo ve ese local. Si
+              alguien la desordena, reiníciala.
             </p>
+            <p className="text-sm font-medium">Por tipo de negocio</p>
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
-              {USUARIOS_DEMO.map((u) => (
+              {USUARIOS_DEMO.filter((u) => u.negocio).map((u) => (
+                <div key={u.usuario} className="rounded-xl bg-background p-3">
+                  <dt className="font-medium">{u.negocio}</dt>
+                  <dd className="font-mono">
+                    {u.usuario} · {CONTRASENA_DEMO}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-sm font-medium">Todos los locales</p>
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              {USUARIOS_DEMO.filter((u) => !u.negocio).map((u) => (
                 <div key={u.usuario} className="rounded-xl bg-background p-3">
                   <dt className="text-muted-foreground">{u.nombre}</dt>
                   <dd className="font-mono">
