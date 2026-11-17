@@ -6,7 +6,7 @@ export const MINUTOS_BLOQUEO = 15;
 
 export type ResultadoIngreso =
   | { ok: true; id: string; nombre: string; versionSesion: number }
-  | { ok: false; motivo: "incorrecto" | "bloqueado" | "suspendida" };
+  | { ok: false; motivo: "incorrecto" | "bloqueado" | "suspendida" | "demo_vencida" };
 
 /**
  * Verifica usuario y contraseña. Después de 5 intentos fallidos seguidos el
@@ -27,7 +27,7 @@ export async function verificarCredenciales(
       activo: true,
       empresaId: true,
       rol: true,
-      empresa: { select: { activo: true, estadoSuscripcion: true } },
+      empresa: { select: { activo: true, estadoSuscripcion: true, pruebaHasta: true } },
       intentosFallidos: true,
       bloqueadoHasta: true,
       versionSesion: true,
@@ -78,6 +78,10 @@ export async function verificarCredenciales(
   // Contraseña correcta, pero EMY TELECOM suspendió la empresa: se le dice para que sepa a quién llamar.
   if (usuario.empresa && (!usuario.empresa.activo || usuario.empresa.estadoSuscripcion !== "ACTIVA")) {
     return { ok: false, motivo: "suspendida" };
+  }
+  // Demo para un cliente que ya pasó sus días de prueba.
+  if (usuario.empresa?.pruebaHasta && usuario.empresa.pruebaHasta <= ahora) {
+    return { ok: false, motivo: "demo_vencida" };
   }
 
   if (usuario.intentosFallidos > 0 || usuario.bloqueadoHasta) {

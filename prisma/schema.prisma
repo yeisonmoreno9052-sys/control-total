@@ -55,6 +55,9 @@ model Empresa {
   notasEmy          String?
   /// Empresa de demostración: no cuenta como cliente y se puede reiniciar.
   esDemo            Boolean           @default(false)
+  /// Demo para un cliente (prospecto): hasta cuándo puede entrar. null = cliente normal o la demo general.
+  /// Al convertirlo en cliente se borran los datos de ejemplo y queda en null.
+  pruebaHasta       DateTime?
   /// Cuántas facturas puede leer con foto cada mes (módulo FACTURA_FOTO).
   limiteFotosMes    Int               @default(50)
   /// Colores de la app para esta empresa (ver src/lib/paletas.ts y src/styles/tema.css).

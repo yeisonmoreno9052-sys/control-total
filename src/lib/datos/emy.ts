@@ -91,6 +91,8 @@ export type ClienteFila = {
   telefono: string | null;
   activa: boolean;
   esDemo: boolean;
+  /** Demo para un cliente: hasta cuándo puede entrar. null = cliente normal. */
+  pruebaHasta: Date | null;
   mensualidad: number;
   proximoPago: Date | null;
   estadoPago: EstadoPago;
@@ -120,6 +122,7 @@ export async function listarClientes(ce: ContextoEmy, ahora = new Date()): Promi
         activo: true,
         estadoSuscripcion: true,
         esDemo: true,
+        pruebaHasta: true,
         mensualidad: true,
         proximoPago: true,
         creadoEn: true,
@@ -144,9 +147,10 @@ export async function listarClientes(ce: ContextoEmy, ahora = new Date()): Promi
     telefono: e.telefono,
     activa: e.activo && e.estadoSuscripcion === "ACTIVA",
     esDemo: e.esDemo,
+    pruebaHasta: e.pruebaHasta,
     mensualidad: e.mensualidad,
     proximoPago: e.proximoPago,
-    estadoPago: e.esDemo ? "sin_fecha" : estadoPago(e.proximoPago, hoy),
+    estadoPago: e.esDemo || e.pruebaHasta ? "sin_fecha" : estadoPago(e.proximoPago, hoy),
     locales: nLocales.get(e.id) ?? 0,
     usuarios: nUsuarios.get(e.id) ?? 0,
     productos: nProductos.get(e.id) ?? 0,
@@ -156,9 +160,12 @@ export async function listarClientes(ce: ContextoEmy, ahora = new Date()): Promi
   }));
 }
 
-/** Cifras para la cabecera del panel. La demo no cuenta como cliente. */
+/** Clientes que pagan: ni la demo general ni las demos para clientes. */
+export const esClienteReal = (c: Pick<ClienteFila, "esDemo" | "pruebaHasta">) => !c.esDemo && !c.pruebaHasta;
+
+/** Cifras para la cabecera del panel. Las demos no cuentan como cliente. */
 export function resumirClientes(clientes: ClienteFila[]) {
-  const reales = clientes.filter((c) => !c.esDemo);
+  const reales = clientes.filter(esClienteReal);
   const activos = reales.filter((c) => c.activa);
   return {
     activos: activos.length,
@@ -186,6 +193,7 @@ export async function obtenerCliente(ce: ContextoEmy, id: string) {
       proximoPago: true,
       notasEmy: true,
       esDemo: true,
+      pruebaHasta: true,
       limiteFotosMes: true,
       paleta: true,
       fondo: true,
@@ -595,35 +603,46 @@ export async function empezarDeCero(
         if (ventas > MAXIMO_VENTAS_PRUEBA) {
           throw new ErrorEmy(`Este cliente ya tiene ${ventas} ventas: eso no parece prueba. Pide ayuda a soporte.`);
         }
-        await tx.detalleDevolucion.deleteMany({ where: w });
-        await tx.devolucion.deleteMany({ where: w });
-        await tx.pagoVenta.deleteMany({ where: w });
-        await tx.detalleVenta.deleteMany({ where: w });
-        await tx.venta.deleteMany({ where: w });
-        await tx.abonoCredito.deleteMany({ where: w });
-        await tx.abonoFactura.deleteMany({ where: w });
-        await tx.adjuntoFactura.deleteMany({ where: w });
-        await tx.lecturaFactura.deleteMany({ where: w });
-        await tx.detalleFacturaCompra.deleteMany({ where: w });
-        await tx.facturaCompra.deleteMany({ where: w });
-        await tx.movimientoCaja.deleteMany({ where: w });
-        await tx.turnoCaja.deleteMany({ where: w });
-        await tx.caja.deleteMany({ where: w });
-        await tx.movimientoInventario.deleteMany({ where: w });
-        // El historial de usuarios y permisos se queda; el de productos y ventas de prueba no.
-        await tx.auditoria.deleteMany({ where: { ...w, entidad: { notIn: ["Usuario", "Negocio", "Empresa"] } } });
-        await tx.fotoProducto.deleteMany({ where: w });
-        const productos = await tx.producto.deleteMany({ where: w });
-        await tx.categoria.deleteMany({ where: w });
-        await tx.proveedor.deleteMany({ where: w });
-        await tx.cliente.deleteMany({ where: w });
-        await tx.negocio.updateMany({ where: w, data: { consecutivoVenta: 0, consecutivoDevolucion: 0 } });
-        await registrarAccion(tx, ce, id, "EMPEZAR_DE_CERO", { nombre: e.nombre, productos: productos.count, ventas });
-        return { ok: true as const, id, productos: productos.count, ventas };
+        const productos = await borrarDatosDePrueba(tx, id);
+        await registrarAccion(tx, ce, id, "EMPEZAR_DE_CERO", { nombre: e.nombre, productos, ventas });
+        return { ok: true as const, id, productos, ventas };
       },
       { timeout: 120_000 },
     ),
   );
+}
+
+/**
+ * Borra productos, ventas, cajas, compras y demás movimientos de una empresa y deja
+ * la empresa, sus locales y sus usuarios. Devuelve cuántos productos borró.
+ * Solo para datos de prueba: quien la llama decide si se puede.
+ */
+export async function borrarDatosDePrueba(tx: Tx, empresaId: string) {
+  const w = { empresaId };
+  await tx.detalleDevolucion.deleteMany({ where: w });
+  await tx.devolucion.deleteMany({ where: w });
+  await tx.pagoVenta.deleteMany({ where: w });
+  await tx.detalleVenta.deleteMany({ where: w });
+  await tx.venta.deleteMany({ where: w });
+  await tx.abonoCredito.deleteMany({ where: w });
+  await tx.abonoFactura.deleteMany({ where: w });
+  await tx.adjuntoFactura.deleteMany({ where: w });
+  await tx.lecturaFactura.deleteMany({ where: w });
+  await tx.detalleFacturaCompra.deleteMany({ where: w });
+  await tx.facturaCompra.deleteMany({ where: w });
+  await tx.movimientoCaja.deleteMany({ where: w });
+  await tx.turnoCaja.deleteMany({ where: w });
+  await tx.caja.deleteMany({ where: w });
+  await tx.movimientoInventario.deleteMany({ where: w });
+  // El historial de usuarios y permisos se queda; el de productos y ventas de prueba no.
+  await tx.auditoria.deleteMany({ where: { ...w, entidad: { notIn: ["Usuario", "Negocio", "Empresa"] } } });
+  await tx.fotoProducto.deleteMany({ where: w });
+  const productos = await tx.producto.deleteMany({ where: w });
+  await tx.categoria.deleteMany({ where: w });
+  await tx.proveedor.deleteMany({ where: w });
+  await tx.cliente.deleteMany({ where: w });
+  await tx.negocio.updateMany({ where: w, data: { consecutivoVenta: 0, consecutivoDevolucion: 0 } });
+  return productos.count;
 }
 
 export const NOMBRE_ACCION: Record<string, string> = {
@@ -640,5 +659,8 @@ export const NOMBRE_ACCION: Record<string, string> = {
   AGREGAR_LOCAL: "Agregó un local",
   RESTABLECER_CONTRASENA: "Restableció una contraseña",
   REINICIAR_DEMO: "Reinició la demo",
+  CREAR_DEMO_CLIENTE: "Creó la demo para el cliente",
+  EXTENDER_DEMO_CLIENTE: "Le dio más días a la demo",
+  CONVERTIR_DEMO_CLIENTE: "Convirtió la demo en cliente",
   BLOQUEO_INGRESO: "Bloqueo por intentos fallidos",
 };

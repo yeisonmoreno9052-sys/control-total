@@ -15,6 +15,7 @@ import {
   restablecerContrasenaCliente,
 } from "@/lib/datos/emy";
 import { reiniciarDemo } from "@/lib/datos/demo";
+import { convertirDemoEnCliente, crearDemoCliente, extenderDemoCliente } from "@/lib/datos/demo-cliente";
 import { obtenerSuperadmin } from "@/lib/sesion";
 
 export type EstadoEmy = {
@@ -23,6 +24,8 @@ export type EstadoEmy = {
   ok?: boolean;
   /** Se muestra una sola vez: no se guarda en ningún lado sin cifrar. */
   credenciales?: { id: string; usuario: string; contrasena: string };
+  /** Demo para un cliente: a quién y de qué negocio, para el mensaje de WhatsApp. */
+  demo?: { persona: string; negocio: string };
 };
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "");
@@ -151,5 +154,40 @@ export async function reiniciarDemoAccion(): Promise<EstadoEmy> {
   const r = await reiniciarDemo(ce);
   if (!r.ok) return { error: r.error };
   refrescar(r.id);
+  return { ok: true };
+}
+
+export async function crearDemoClienteAccion(_: EstadoEmy, f: FormData): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const datos = {
+    negocio: texto(f, "negocio"),
+    persona: texto(f, "persona"),
+    tipo: texto(f, "tipo"),
+    usuario: texto(f, "usuario"),
+    telefono: texto(f, "telefono"),
+  };
+  const r = await crearDemoCliente(ce, datos);
+  if (!r.ok) return { error: r.error, campos: r.campos };
+  refrescar(r.id);
+  return {
+    ok: true,
+    credenciales: { id: r.id, usuario: r.usuario, contrasena: r.contrasena },
+    demo: { persona: datos.persona.trim(), negocio: datos.negocio.trim() },
+  };
+}
+
+export async function extenderDemoClienteAccion(id: string): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const r = await extenderDemoCliente(ce, String(id));
+  if (!r.ok) return { error: r.error };
+  refrescar(id);
+  return { ok: true };
+}
+
+export async function convertirDemoAccion(id: string): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const r = await convertirDemoEnCliente(ce, String(id));
+  if (!r.ok) return { error: r.error };
+  refrescar(id);
   return { ok: true };
 }
