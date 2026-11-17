@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgePercent, FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, Ruler, SearchX, Share2, Shirt, TriangleAlert } from "lucide-react";
+import { BadgePercent, FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, Ruler, SearchX, Share2, Shirt, Sparkles, TriangleAlert } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Miniatura } from "@/components/inventario/miniatura";
@@ -12,8 +12,9 @@ import { buscarProductos, type ProductoVista } from "@/lib/datos/productos";
 import { formatearPesos } from "@/lib/formato";
 import { formatearCantidad } from "@/lib/inventario/cantidades";
 import { UNIDADES } from "@/lib/inventario/unidades";
-import { exigirModulo } from "@/lib/modulos";
+import { exigirModulo, tieneModulo } from "@/lib/modulos";
 import { puedeEditarProductos, puedeGestionar } from "@/lib/permisos";
+import { hayLector } from "@/lib/ia/lector";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 import { Buscador } from "./buscador";
@@ -49,6 +50,8 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
   const gestiona = puedeGestionar(ctx);
   // El cajero con permiso crea productos, pero no importa ni toca categorías.
   const crea = puedeEditarProductos(ctx);
+  // Cargar con fotos usa la misma lectura con IA (y el mismo límite) que las facturas con foto.
+  const conFotos = gestiona && tieneModulo(ctx, "FACTURA_FOTO") && hayLector();
 
   const [resultado, categorias, preferencias] = await Promise.all([
     buscarProductos(ctx, negocioId, {
@@ -116,6 +119,13 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
                       </Button>
                     )}
                   </>
+                )}
+                {conFotos && (
+                  <Button asChild variant="outline" className="border-primary/40 text-primary">
+                    <Link href="/inventario/con-fotos">
+                      <Sparkles /> Cargar con fotos
+                    </Link>
+                  </Button>
                 )}
                 <Button asChild variant="outline">
                   <Link href="/inventario/fotos">
@@ -192,6 +202,13 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
                       {preferencias.usaTallas ? <Shirt /> : <Plus />} {preferencias.usaTallas ? "Nueva prenda" : "Nuevo producto"}
                     </Link>
                   </Button>
+                  {conFotos && (
+                    <Button asChild variant="outline">
+                      <Link href="/inventario/con-fotos">
+                        <Sparkles /> Cargar con fotos
+                      </Link>
+                    </Button>
+                  )}
                   {gestiona && (
                     <Button asChild variant="outline">
                       <Link href="/inventario/importar">

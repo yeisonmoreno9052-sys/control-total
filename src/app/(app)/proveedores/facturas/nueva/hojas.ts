@@ -3,7 +3,7 @@
 const LADO_MAXIMO = 2000;
 const PDF_MAXIMO = 5 * 1024 * 1024;
 
-export async function prepararHoja(archivo: File): Promise<File> {
+export async function prepararHoja(archivo: File, ladoMaximo = LADO_MAXIMO): Promise<File> {
   if (archivo.type === "application/pdf") {
     if (archivo.size > PDF_MAXIMO) throw new Error("Foto:El PDF pesa más de 5 MB. Toma una foto de la factura en su lugar.");
     return archivo;
@@ -15,7 +15,7 @@ export async function prepararHoja(archivo: File): Promise<File> {
   } catch {
     throw new Error("Foto:No pudimos abrir esa foto. Tómala de nuevo.");
   }
-  const escala = Math.min(1, LADO_MAXIMO / Math.max(imagen.width, imagen.height));
+  const escala = Math.min(1, ladoMaximo / Math.max(imagen.width, imagen.height));
   const ancho = Math.round(imagen.width * escala);
   const alto = Math.round(imagen.height * escala);
   const lienzo = document.createElement("canvas");
