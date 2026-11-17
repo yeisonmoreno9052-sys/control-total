@@ -72,6 +72,7 @@ model Empresa {
   usuarios           Usuario[]
   usuarioNegocios    UsuarioNegocio[]
   categorias         Categoria[]
+  promociones        Promocion[]
   productos          Producto[]
   movimientos        MovimientoInventario[]
   auditorias         Auditoria[]
@@ -132,6 +133,7 @@ model Negocio {
   empresa            Empresa                @relation(fields: [empresaId], references: [id])
   usuarios           UsuarioNegocio[]
   categorias         Categoria[]
+  promociones        Promocion[]
   productos          Producto[]
   movimientos        MovimientoInventario[]
   auditorias         Auditoria[]
@@ -293,54 +295,57 @@ model Categoria {
 }
 
 model Producto {
-  id            String            @id @default(cuid())
-  empresaId     String
-  negocioId     String
-  categoriaId   String?
+  id             String            @id @default(cuid())
+  empresaId      String
+  negocioId      String
+  categoriaId    String?
   /// Código o referencia interna. Único dentro del negocio.
-  codigo        String
-  codigoBarras  String?
-  nombre        String
-  descripcion   String?
+  codigo         String
+  codigoBarras   String?
+  nombre         String
+  descripcion    String?
   /// Costo promedio ponderado, en pesos enteros.
-  costo         Int               @default(0)
+  costo          Int               @default(0)
   /// Precio de venta al público (IVA incluido), en pesos enteros.
-  precioVenta   Int
+  precioVenta    Int
   /// Cantidades con hasta 3 decimales (2,5 m · 0,350 kg).
-  stock         Decimal           @default(0) @db.Decimal(14, 3)
-  stockMinimo   Decimal           @default(0) @db.Decimal(14, 3)
-  unidad        UnidadMedida      @default(UNIDAD)
+  stock          Decimal           @default(0) @db.Decimal(14, 3)
+  stockMinimo    Decimal           @default(0) @db.Decimal(14, 3)
+  unidad         UnidadMedida      @default(UNIDAD)
   /// Si se puede vender en cantidades con decimales.
-  fraccionado   Boolean           @default(false)
+  fraccionado    Boolean           @default(false)
   /// Porcentaje de IVA: 0, 5 o 19.
-  porcentajeIva Int               @default(0)
-  condicion     CondicionProducto @default(NUEVO)
+  porcentajeIva  Int               @default(0)
+  condicion      CondicionProducto @default(NUEVO)
   /// false = no se cuenta (tinto, jugos, lo que se prepara al momento): se vende siempre y no mueve stock.
-  controlaStock Boolean           @default(true)
+  controlaStock  Boolean           @default(true)
   /// Aparece como cuadro para tocar en la caja (si el negocio usa botones rápidos).
-  botonRapido   Boolean           @default(false)
+  botonRapido    Boolean           @default(false)
   /// Otras formas de vender el mismo producto, con precio propio:
   /// [{ id, nombre: "Tubo completo", cantidad: "6", precio: 20000 }]. El stock sigue en la unidad del producto.
-  presentaciones Json             @default("[]")
+  presentaciones Json              @default("[]")
   /// Cuándo se puso la foto (null = sin foto). Va en la dirección de la imagen para que el navegador pida la nueva.
-  fotoEn        DateTime?
+  fotoEn         DateTime?
   /// Prendas con tallas y colores: cada talla y color es un producto con su stock y su código;
   /// los de la misma prenda comparten prendaId. null = producto suelto.
-  prendaId      String?
+  prendaId       String?
   /// Nombre de la prenda sin talla ni color ("Blusa Lina").
-  prenda        String?
-  talla         String?
-  color         String?
+  prenda         String?
+  talla          String?
+  color          String?
   /// El nombre en minúsculas y sin tildes, para buscar ("pantalon" encuentra "Pantalón").
   /// Lo llena la base de datos sola; no se escribe desde el código.
-  nombreBusqueda String           @default("")
-  activo        Boolean           @default(true)
-  creadoEn      DateTime          @default(now())
-  actualizadoEn DateTime          @updatedAt
+  nombreBusqueda String            @default("")
+  /// Promoción con fecha en la que está (una a la vez). La caja la aplica sola mientras esté vigente.
+  promocionId    String?
+  activo         Boolean           @default(true)
+  creadoEn       DateTime          @default(now())
+  actualizadoEn  DateTime          @updatedAt
 
   empresa            Empresa                @relation(fields: [empresaId], references: [id])
   negocio            Negocio                @relation(fields: [negocioId], references: [id])
   categoria          Categoria?             @relation(fields: [categoriaId], references: [id])
+  promocion          Promocion?             @relation(fields: [promocionId], references: [id], onDelete: SetNull)
   movimientos        MovimientoInventario[]
   detallesVenta      DetalleVenta[]
   detallesDevolucion DetalleDevolucion[]
@@ -353,6 +358,7 @@ model Producto {
   @@index([negocioId, nombre])
   @@index([categoriaId])
   @@index([negocioId, prendaId])
+  @@index([promocionId])
   // Búsqueda rápida por partes del nombre o del código ("tornillo 1/4").
   @@index([nombre(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_nombre_trgm_idx")
   @@index([codigo(ops: raw("gin_trgm_ops"))], type: Gin, map: "Producto_codigo_trgm_idx")
@@ -455,7 +461,7 @@ model Cliente {
   creadoEn        DateTime       @default(now())
   actualizadoEn   DateTime       @updatedAt
 
-  empresa Empresa @relation(fields: [empresaId], references: [id])
+  empresa Empresa        @relation(fields: [empresaId], references: [id])
   negocio Negocio        @relation(fields: [negocioId], references: [id])
   ventas  Venta[]
   abonos  AbonoCredito[]
@@ -963,4 +969,37 @@ model TurnoCaja {
 
   @@index([empresaId])
   @@index([cajaId])
+}
+
+enum TipoPromocion {
+  /// Porcentaje de descuento sobre el precio.
+  PORCENTAJE
+  /// Precio fijo de promoción por unidad.
+  PRECIO
+}
+
+/// Promoción con fecha ("20 % del 20 al 30 de noviembre"). La caja la aplica como un descuento
+/// normal de la línea, así la venta, la caja y la utilidad cuadran igual.
+model Promocion {
+  id            String        @id @default(cuid())
+  empresaId     String
+  negocioId     String
+  nombre        String
+  tipo          TipoPromocion
+  /// Porcentaje (1–99) o precio en pesos.
+  valor         Int
+  desde         DateTime      @db.Date
+  hasta         DateTime      @db.Date
+  activa        Boolean       @default(true)
+  /// Cuántos productos entraron al crearla (se guarda para mostrarlo aunque ya terminó).
+  incluidos     Int           @default(0)
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
+
+  empresa   Empresa    @relation(fields: [empresaId], references: [id])
+  negocio   Negocio    @relation(fields: [negocioId], references: [id])
+  productos Producto[]
+
+  @@index([empresaId])
+  @@index([negocioId, hasta])
 }
