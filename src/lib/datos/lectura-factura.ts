@@ -102,7 +102,29 @@ export async function leerFacturaConFoto(
   }
 
   // 1. Reservar la lectura dentro del límite del mes.
-  const reserva = await prisma.$transaction(async (tx) => {
+  const reserva = await reservarLectura(ctx, negocioId, hojas.length, lector.modelo);
+  if (!reserva) {
+    return { ok: false, error: "Ya se usaron las lecturas con foto de este mes. Puedes registrar la factura a mano." };
+  }
+
+  // 2. Leer con la IA y anotar lo que costó.
+  const r = await lector.leer(hojas);
+  const legible = r.ok && r.factura.legible;
+  const error = !r.ok ? r.error : !legible ? "No parece una factura o no se alcanza a leer. Toma la foto de nuevo, con buena luz." : null;
+  await anotarLectura(reserva.id, r.uso, error);
+  if (error || !r.ok) return { ok: false, error: error ?? "No pudimos leer la factura." };
+
+  // 3. Reconocer proveedor y productos.
+  return { ok: true, factura: await revisarFactura(ctx, negocioId, r.factura) };
+}
+
+/**
+ * Reserva una lectura con foto dentro del límite del mes (facturas y productos
+ * comparten el límite). null si ya se acabaron. La transacción bloquea por empresa,
+ * así dos lecturas al tiempo no se pasan del límite.
+ */
+export async function reservarLectura(ctx: Contexto, negocioId: string, paginas: number, modelo: string) {
+  return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`lectura-factura:${ctx.empresaId}`}))`;
     const empresa = await tx.empresa.findUniqueOrThrow({ where: { id: ctx.empresaId }, select: { limiteFotosMes: true } });
     const usadas = await tx.lecturaFactura.count({
@@ -110,34 +132,29 @@ export async function leerFacturaConFoto(
     });
     if (usadas >= empresa.limiteFotosMes) return null;
     return tx.lecturaFactura.create({
-      data: { empresaId: ctx.empresaId, negocioId, usuarioId: ctx.usuarioId, paginas: hojas.length, modelo: lector.modelo },
+      data: { empresaId: ctx.empresaId, negocioId, usuarioId: ctx.usuarioId, paginas, modelo },
       select: { id: true },
     });
   });
-  if (!reserva) {
-    return { ok: false, error: "Ya se usaron las lecturas con foto de este mes. Puedes registrar la factura a mano." };
-  }
+}
 
-  // 2. Leer con la IA y anotar lo que costó.
-  const r = await lector.leer(hojas);
-  const costoPesos = costoEnPesos(r.uso.modelo, r.uso.tokensEntrada, r.uso.tokensSalida);
-  const legible = r.ok && r.factura.legible;
-  const error = !r.ok ? r.error : !legible ? "No parece una factura o no se alcanza a leer. Toma la foto de nuevo, con buena luz." : null;
+/** Anota cómo salió una lectura y lo que costó. */
+export async function anotarLectura(
+  id: string,
+  uso: { modelo: string; tokensEntrada: number; tokensSalida: number },
+  error: string | null,
+) {
   await prisma.lecturaFactura.update({
-    where: { id: reserva.id },
+    where: { id },
     data: {
       exito: !error,
       error: error ?? undefined,
-      modelo: r.uso.modelo,
-      tokensEntrada: r.uso.tokensEntrada,
-      tokensSalida: r.uso.tokensSalida,
-      costoPesos,
+      modelo: uso.modelo,
+      tokensEntrada: uso.tokensEntrada,
+      tokensSalida: uso.tokensSalida,
+      costoPesos: costoEnPesos(uso.modelo, uso.tokensEntrada, uso.tokensSalida),
     },
   });
-  if (error || !r.ok) return { ok: false, error: error ?? "No pudimos leer la factura." };
-
-  // 3. Reconocer proveedor y productos.
-  return { ok: true, factura: await revisarFactura(ctx, negocioId, r.factura) };
 }
 
 /** Une lo leído con el inventario y los proveedores del negocio. */
