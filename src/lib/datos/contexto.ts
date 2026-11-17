@@ -23,7 +23,7 @@ export type Contexto = {
 /**
  * Arma el contexto de un usuario a partir de la base de datos.
  * Devuelve null si el usuario no existe, está inactivo, no tiene empresa
- * o su empresa está inactiva o suspendida.
+ * o su empresa está inactiva, suspendida o es una demo que ya venció.
  */
 export async function cargarContexto(usuarioId: string): Promise<Contexto | null> {
   const usuario = await prisma.usuario.findUnique({
@@ -36,6 +36,8 @@ export async function cargarContexto(usuarioId: string): Promise<Contexto | null
 
   if (!usuario || !usuario.activo || !usuario.empresa || !usuario.empresaId) return null;
   if (!usuario.empresa.activo || usuario.empresa.estadoSuscripcion !== "ACTIVA") return null;
+  // Demo para un cliente: al terminar sus días de prueba se cierra la sesión.
+  if (usuario.empresa.pruebaHasta && usuario.empresa.pruebaHasta <= new Date()) return null;
 
   let negociosPermitidos: string[];
   if (usuario.rol === "ADMINISTRADOR") {

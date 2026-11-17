@@ -8,6 +8,7 @@ import { obtenerSuperadmin } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
 import {
   AgregarLocal,
+  BotonesDemoCliente,
   BotonesEstado,
   FormularioEditarCliente,
   ElegirFondo,
@@ -38,6 +39,8 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
           <span className="flex flex-wrap items-center gap-2">
             {c.esDemo ? (
               <Badge>Demostración</Badge>
+            ) : c.pruebaHasta ? (
+              <Badge variant={c.pruebaHasta <= ahora ? "destructive" : "aviso"}>Demo para cliente</Badge>
             ) : c.activa ? (
               <Badge variant={pago === "vencido" ? "destructive" : pago === "vence_pronto" ? "aviso" : "secondary"}>
                 {TEXTO_PAGO[pago]}
@@ -45,11 +48,27 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
             ) : (
               <Badge variant="destructive">Suspendido</Badge>
             )}
-            <span>Cliente desde {formatearFecha(c.creadoEn)}</span>
+            <span>{c.pruebaHasta ? "Demo creada el" : "Cliente desde"} {formatearFecha(c.creadoEn)}</span>
           </span>
         }
       />
 
+      {c.pruebaHasta ? (
+        <section className="grid gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="text-sm text-muted-foreground">Demo para cliente</p>
+            <p className="text-2xl font-bold">
+              {c.pruebaHasta <= ahora ? `Terminó el ${formatearFecha(c.pruebaHasta)}` : `Hasta el ${formatearFecha(c.pruebaHasta)}`}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {c.pruebaHasta <= ahora
+                ? "Ya no puede entrar. Si quiere seguir probando, dale más días."
+                : "Tiene productos y ventas de ejemplo. Si compra, conviértela en cliente."}
+            </p>
+          </div>
+          <BotonesDemoCliente id={c.id} nombre={c.nombre} vencida={c.pruebaHasta <= ahora} />
+        </section>
+      ) : (
       <section className="grid gap-4 rounded-2xl border p-5 md:grid-cols-[1fr_auto] md:items-center bg-card shadow-suave">
         <div>
           <p className="text-sm text-muted-foreground">Mensualidad</p>
@@ -60,6 +79,7 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         </div>
         <BotonesEstado id={c.id} activa={c.activa} esDemo={c.esDemo} />
       </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
@@ -161,7 +181,7 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         />
       </section>
 
-      {!c.esDemo && (
+      {!c.esDemo && !c.pruebaHasta && (
         <section className="space-y-3 rounded-2xl border border-destructive/30 p-5 bg-card shadow-suave">
           <h2 className="font-semibold">Empezar de cero</h2>
           <p className="text-sm text-muted-foreground">

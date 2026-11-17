@@ -19,6 +19,11 @@ class EmpresaSuspendida extends CredentialsSignin {
   code = "suspendida";
 }
 
+/** La demo del cliente ya pasó sus días de prueba. */
+class DemoVencida extends CredentialsSignin {
+  code = "demo_vencida";
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   logger: {
@@ -37,6 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!r.ok) {
           if (r.motivo === "bloqueado") throw new UsuarioBloqueado();
           if (r.motivo === "suspendida") throw new EmpresaSuspendida();
+          if (r.motivo === "demo_vencida") throw new DemoVencida();
           return null;
         }
         return { id: r.id, name: r.nombre, versionSesion: r.versionSesion };

@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, KeyRound, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { BadgeCheck, CalendarPlus, Check, Copy, KeyRound, Plus, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
@@ -24,14 +24,28 @@ import {
   registrarPagoAccion,
   reiniciarDemoAccion,
   restablecerContrasenaAccion,
+  convertirDemoAccion,
+  crearDemoClienteAccion,
+  extenderDemoClienteAccion,
   type EstadoEmy,
 } from "./acciones";
 
 // ─── Credenciales: se muestran una sola vez ─────────────────────────────────
 
-export function Credenciales({ usuario, contrasena, titulo }: { usuario: string; contrasena: string; titulo: string }) {
+export function Credenciales({
+  usuario,
+  contrasena,
+  titulo,
+  mensaje,
+}: {
+  usuario: string;
+  contrasena: string;
+  titulo: string;
+  /** Texto propio para WhatsApp; si no viene, el de siempre. */
+  mensaje?: string;
+}) {
   const [copiado, setCopiado] = useState(false);
-  const texto = `Control Total\nhttps://app.controltotalpos.com\nUsuario: ${usuario}\nContraseña temporal: ${contrasena}\n(Al entrar, el sistema te pide crear tu propia contraseña.)`;
+  const texto = mensaje ?? `Control Total\nhttps://app.controltotalpos.com\nUsuario: ${usuario}\nContraseña temporal: ${contrasena}\n(Al entrar, el sistema te pide crear tu propia contraseña.)`;
   return (
     <div className="space-y-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5" role="status">
       <p className="font-semibold">{titulo}</p>
@@ -633,6 +647,124 @@ export function BotonReiniciarDemo({ existe }: { existe: boolean }) {
           </Button>
           <Button onClick={reiniciar} disabled={pendiente}>
             {pendiente ? "Reiniciando…" : "Sí, reiniciar"}
+          </Button>
+        </div>
+      </Dialogo>
+    </div>
+  );
+}
+
+// ─── Demo para un cliente ───────────────────────────────────────────────────
+
+/** Mensaje para mandarle al prospecto por WhatsApp con sus datos de entrada. */
+function mensajeDemo(persona: string, negocio: string, usuario: string, contrasena: string, dias: number) {
+  const nombre = persona.split(" ")[0];
+  return [
+    `Hola, ${nombre}. Te preparé una demostración de Control Total para ${negocio}, con productos y ventas de ejemplo para que la pruebes como si ya fuera tuya.`,
+    "",
+    "Entra aquí: https://app.controltotalpos.com",
+    `Usuario: ${usuario}`,
+    `Contraseña temporal: ${contrasena}`,
+    "",
+    `Al entrar, el sistema te pide crear tu propia contraseña. La demostración dura ${dias} días.`,
+  ].join("\n");
+}
+
+export function FormularioDemoCliente({ tipos, dias }: { tipos: { clave: string; nombre: string }[]; dias: number }) {
+  const [estado, accion, guardando] = useActionState<EstadoEmy, FormData>(crearDemoClienteAccion, {});
+  const router = useRouter();
+  const e = estado.campos ?? {};
+
+  if (estado.credenciales && estado.demo) {
+    const { usuario, contrasena, id } = estado.credenciales;
+    return (
+      <div className="max-w-2xl space-y-4">
+        <Credenciales
+          titulo={`Demo de ${estado.demo.negocio} lista. Estos son los datos para entrar:`}
+          usuario={usuario}
+          contrasena={contrasena}
+          mensaje={mensajeDemo(estado.demo.persona, estado.demo.negocio, usuario, contrasena, dias)}
+        />
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => router.push(`/emy/${id}`)}>Ver la ficha</Button>
+          <Button variant="outline" onClick={() => router.push("/emy")}>
+            Volver a clientes
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form action={accion} className="max-w-2xl space-y-6">
+      <fieldset className="space-y-3">
+        <legend className="mb-2 font-medium">¿Qué tipo de negocio tiene?</legend>
+        <div className="grid grid-cols-2 gap-3">
+          {tipos.map((t, i) => (
+            <label
+              key={t.clave}
+              className="flex min-h-16 cursor-pointer items-center justify-center rounded-2xl border-2 border-border bg-card p-4 text-center font-medium transition has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-primary"
+            >
+              <input type="radio" name="tipo" value={t.clave} defaultChecked={i === 0} className="sr-only" />
+              {t.nombre}
+            </label>
+          ))}
+        </div>
+        {e.tipo && <p className="text-sm text-destructive">{e.tipo}</p>}
+      </fieldset>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Campo id="negocio" etiqueta="Nombre del negocio" error={e.negocio} className="sm:col-span-2" ayuda="Así aparece arriba en su app.">
+          <Input id="negocio" name="negocio" required maxLength={80} placeholder="Ej.: Ferretería Don Pedro" />
+        </Campo>
+        <Campo id="persona" etiqueta="Nombre de la persona" error={e.persona} ayuda="La app lo saluda por su nombre.">
+          <Input id="persona" name="persona" required maxLength={60} placeholder="Ej.: Pedro Gómez" />
+        </Campo>
+        <Campo id="usuario" etiqueta="Su usuario" error={e.usuario} ayuda="Sin espacios ni tildes. Ej.: pedro">
+          <Input id="usuario" name="usuario" required maxLength={40} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+        </Campo>
+        <Campo id="telefono" etiqueta="Teléfono / WhatsApp (opcional)" error={e.telefono}>
+          <Input id="telefono" name="telefono" maxLength={30} inputMode="tel" />
+        </Campo>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Se crea su propia empresa con productos y un mes de ventas de ejemplo. Dura {dias} días y no cuenta como cliente hasta
+        que la conviertas.
+      </p>
+      <AvisoError mensaje={estado.error} />
+      <Button type="submit" size="lg" disabled={guardando} className="w-full sm:w-auto">
+        <Sparkles className={cn(guardando && "animate-pulse")} />
+        {guardando ? "Armando su demo… (alrededor de un minuto)" : "Crear su demo"}
+      </Button>
+    </form>
+  );
+}
+
+export function BotonesDemoCliente({ id, nombre, vencida }: { id: string; nombre: string; vencida: boolean }) {
+  const { pendiente, error, correr } = useAccion();
+  const [confirmar, setConfirmar] = useState(false);
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setConfirmar(true)} disabled={pendiente}>
+          <BadgeCheck /> Convertir en cliente
+        </Button>
+        <Button variant="outline" onClick={() => correr(() => extenderDemoClienteAccion(id))} disabled={pendiente}>
+          <CalendarPlus /> {vencida ? "Abrirla otros 15 días" : "Darle 15 días más"}
+        </Button>
+      </div>
+      <AvisoError mensaje={error} />
+      <Dialogo abierto={confirmar} onCerrar={() => !pendiente && setConfirmar(false)} titulo={`¿${nombre} compró?`}>
+        <p className="text-muted-foreground">
+          Se borran los productos, ventas, compras y cierres de ejemplo. Quedan su empresa, su local y su usuario con la
+          contraseña que ya creó, listos para cargar su inventario real.
+        </p>
+        <p className="mt-3 text-muted-foreground">Después, en Editar datos, ponle la mensualidad y el día de pago.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setConfirmar(false)} disabled={pendiente}>
+            Cancelar
+          </Button>
+          <Button disabled={pendiente} onClick={() => correr(() => convertirDemoAccion(id), () => setConfirmar(false))}>
+            {pendiente ? "Convirtiendo…" : "Sí, convertir en cliente"}
           </Button>
         </div>
       </Dialogo>

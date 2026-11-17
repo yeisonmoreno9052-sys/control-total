@@ -1,10 +1,20 @@
 import Link from "next/link";
-import { Building2, CalendarClock, ChevronRight, CircleDollarSign, Plus, PlayCircle, Store, UserX } from "lucide-react";
+import {
+  Building2,
+  CalendarClock,
+  ChevronRight,
+  CircleDollarSign,
+  Plus,
+  PlayCircle,
+  Sparkles,
+  Store,
+  UserX,
+} from "lucide-react";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CONTRASENA_DEMO, obtenerDemo, USUARIOS_DEMO } from "@/lib/datos/demo";
-import { listarClientes, resumirClientes, type ClienteFila } from "@/lib/datos/emy";
+import { esClienteReal, listarClientes, resumirClientes, type ClienteFila } from "@/lib/datos/emy";
 import { formatearDia, formatearFecha, formatearPesos } from "@/lib/formato";
 import { obtenerSuperadmin } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
@@ -13,7 +23,11 @@ import { BotonReiniciarDemo } from "./componentes";
 export default async function PanelEmy() {
   const ce = await obtenerSuperadmin();
   const [clientes, demo] = await Promise.all([listarClientes(ce), obtenerDemo(ce)]);
-  const reales = clientes.filter((c) => !c.esDemo);
+  const reales = clientes.filter(esClienteReal);
+  const ahora = new Date();
+  const demosClientes = clientes
+    .filter((c) => c.pruebaHasta)
+    .sort((a, b) => b.creadoEn.getTime() - a.creadoEn.getTime());
   const r = resumirClientes(clientes);
 
   return (
@@ -23,11 +37,18 @@ export default async function PanelEmy() {
           <p className="text-sm text-muted-foreground">{formatearFecha(new Date())}</p>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Clientes de Control Total</h1>
         </div>
-        <Button asChild size="lg" className="h-12">
-          <Link href="/emy/nuevo">
-            <Plus /> Nuevo cliente
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="lg" variant="outline" className="h-12">
+            <Link href="/emy/demo-cliente">
+              <Sparkles /> Demo para un cliente
+            </Link>
+          </Button>
+          <Button asChild size="lg" className="h-12">
+            <Link href="/emy/nuevo">
+              <Plus /> Nuevo cliente
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -68,7 +89,31 @@ export default async function PanelEmy() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Demostración</h2>
+        <h2 className="text-lg font-semibold">Demos de clientes</h2>
+        {demosClientes.length === 0 ? (
+          <EstadoVacio
+            icono={Sparkles}
+            titulo="Ninguna demo para clientes"
+            descripcion="Crea una con el nombre del negocio del prospecto: entra y la ve como suya desde el primer día."
+            accion={
+              <Button asChild>
+                <Link href="/emy/demo-cliente">Crear demo para un cliente</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <ul className="grid gap-3 md:grid-cols-2">
+            {demosClientes.map((c) => (
+              <li key={c.id}>
+                <TarjetaDemoCliente c={c} ahora={ahora} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Demostración general</h2>
         <div className="grid gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 md:grid-cols-[1fr_auto]">
           <div className="space-y-3">
             <p className="flex items-center gap-2 font-semibold">
@@ -184,6 +229,46 @@ function TarjetaCliente({ c }: { c: ClienteFila }) {
       </dl>
       <p className="text-xs text-muted-foreground">
         {c.ultimaVenta ? `Última venta: ${formatearFecha(c.ultimaVenta)}` : "Aún no ha vendido"}
+      </p>
+    </Link>
+  );
+}
+
+/** Días que le quedan a una demo de cliente (0 = vence hoy, negativo = ya venció). */
+function diasQueQuedan(hasta: Date, ahora: Date) {
+  return Math.ceil((hasta.getTime() - ahora.getTime()) / 86_400_000);
+}
+
+function TarjetaDemoCliente({ c, ahora }: { c: ClienteFila; ahora: Date }) {
+  const quedan = diasQueQuedan(c.pruebaHasta!, ahora);
+  const vencida = c.pruebaHasta! <= ahora;
+  return (
+    <Link
+      href={`/emy/${c.id}`}
+      className={cn("flex h-full flex-col gap-3 rounded-2xl border p-5 hover:bg-muted/40 bg-card shadow-suave", vencida && "opacity-70")}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{c.nombre}</p>
+          <p className="truncate text-sm text-muted-foreground">{c.telefono || "Sin teléfono"}</p>
+        </div>
+        <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {vencida ? (
+          <Badge variant="destructive">Terminó el {formatearFecha(c.pruebaHasta!)}</Badge>
+        ) : (
+          <Badge variant={quedan <= 3 ? "aviso" : "secondary"}>
+            {quedan <= 1 ? "Último día" : `Le quedan ${quedan} días`}
+          </Badge>
+        )}
+        <Badge variant="outline">Creada el {formatearFecha(c.creadoEn)}</Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {/* Las ventas de ejemplo se arman en el primer minuto: lo que venga después lo vendió el cliente. */}
+        {c.ultimaVenta && c.ultimaVenta.getTime() > c.creadoEn.getTime() + 30 * 60_000
+          ? `La ha usado: última venta ${formatearFecha(c.ultimaVenta)}`
+          : "Todavía no ha vendido en la demo"}
       </p>
     </Link>
   );

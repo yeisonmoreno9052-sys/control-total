@@ -299,10 +299,14 @@ function exigirOk<T>(r: Resultado<T>, que: string): T & { ok: true } {
 
 type ProductoArmado = { id: string; demo: ProductoDemo; unidad: UnidadMedida; precio: number; stock: number };
 
-async function armar(
+/**
+ * Llena los locales con productos, proveedores, compras, gastos y `dias` días de ventas y
+ * cierres de caja. Sirve para la demo general y para las demos de cada cliente.
+ */
+export async function armar(
   admin: Contexto,
   cajero: Contexto,
-  negocios: { id: string; demo: (typeof NEGOCIOS_DEMO)[number] }[],
+  negocios: { id: string; demo: NegocioDemo }[],
   dias: number,
   semilla: number,
 ) {
