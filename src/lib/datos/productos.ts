@@ -127,6 +127,8 @@ export type FiltrosProductos = {
   q?: string;
   categoriaId?: string;
   stockBajo?: boolean;
+  /** "sin": los que todavía no tienen foto; "con": los que ya tienen. */
+  foto?: "sin" | "con";
   pagina?: number;
 };
 
@@ -144,6 +146,7 @@ export async function buscarProductos(ctx: Contexto, negocioId: string, filtros:
     ...(filtros.stockBajo
       ? { stockMinimo: { gt: 0 }, stock: { lte: datos.producto.fields.stockMinimo } }
       : {}),
+    ...(filtros.foto ? { fotoEn: filtros.foto === "sin" ? null : { not: null } } : {}),
     ...(q
       ? {
           OR: [
@@ -179,6 +182,16 @@ export async function buscarProductos(ctx: Contexto, negocioId: string, filtros:
 }
 
 /** Para el lector de código de barras: coincidencia exacta de código o código de barras. */
+/** Cuántos productos activos del negocio tienen foto y cuántos no (pantalla "Poner fotos"). */
+export async function contarFotos(ctx: Contexto, negocioId: string) {
+  const datos = datosDe(ctx);
+  const [sin, con] = await Promise.all([
+    datos.producto.count({ where: { negocioId, activo: true, fotoEn: null } }),
+    datos.producto.count({ where: { negocioId, activo: true, fotoEn: { not: null } } }),
+  ]);
+  return { sin, con };
+}
+
 export async function buscarPorCodigoExacto(ctx: Contexto, negocioId: string, codigo: string) {
   const c = codigo.trim();
   if (!c) return null;

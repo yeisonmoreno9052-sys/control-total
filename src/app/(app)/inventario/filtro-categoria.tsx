@@ -3,7 +3,13 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { NativeSelect } from "@/components/ui/native-select";
 
-export function FiltroCategoria({ categorias }: { categorias: { id: string; nombre: string }[] }) {
+export function FiltroCategoria({
+  categorias,
+  className = "h-12 w-44 md:w-52",
+}: {
+  categorias: { id: string; nombre: string }[];
+  className?: string;
+}) {
   const router = useRouter();
   const ruta = usePathname();
   const params = useSearchParams();
@@ -13,7 +19,7 @@ export function FiltroCategoria({ categorias }: { categorias: { id: string; nomb
   return (
     <NativeSelect
       aria-label="Filtrar por categoría"
-      className="h-12 w-44 md:w-52"
+      className={className}
       value={params.get("categoria") ?? ""}
       onChange={(e) => {
         const nuevos = new URLSearchParams(params);
