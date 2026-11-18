@@ -4,7 +4,7 @@ import { prisma } from "@/lib/datos/cliente";
 import { guardarFotoPorArchivo, guardarFotoProducto, obtenerFotoProducto } from "@/lib/datos/fotos-producto";
 import { crearProducto } from "@/lib/datos/inventario";
 import { guardarPreferenciasVenta } from "@/lib/datos/negocios";
-import { botonesRapidos, catalogoCaja, obtenerProducto } from "@/lib/datos/productos";
+import { botonesRapidos, buscarProductos, catalogoCaja, contarFotos, obtenerProducto } from "@/lib/datos/productos";
 import { esquemaProducto } from "@/lib/inventario/esquemas";
 import { crearEscenario, type Escenario } from "./escenario";
 
@@ -125,5 +125,29 @@ describe("fotos de productos", () => {
     await expect(guardarFotoPorArchivo(e.ctx.socio, e.motos.id, "TINTO.jpg", WEBP)).rejects.toThrow();
     await expect(guardarFotoPorArchivo(e.ctx.cajero, e.motos.id, "TINTO.jpg", WEBP)).rejects.toThrow();
     expect(await prisma.fotoProducto.count()).toBe(0);
+  });
+});
+
+describe("poner fotos (lista sin foto primero)", () => {
+  it("separa los que tienen foto de los que no, solo en el negocio pedido", async () => {
+    const conFoto = await tinto();
+    await guardarFotoProducto(e.ctx.admin, conFoto, WEBP);
+    const r = await crearProducto(
+      e.ctx.admin,
+      e.motos.id,
+      esquemaProducto.parse({
+        codigo: "AGUA", nombre: "Agua", costo: "500", precioVenta: "2000", stockMinimo: "0",
+        unidad: "UNIDAD", fraccionado: false, porcentajeIva: 0, condicion: "NUEVO", controlaStock: false, botonRapido: false,
+      }),
+      "0",
+    );
+    if (!r.ok) throw new Error(r.error);
+    await tinto(e.ferreteria.id);
+
+    expect(await contarFotos(e.ctx.admin, e.motos.id)).toEqual({ sin: 1, con: 1 });
+    const sin = await buscarProductos(e.ctx.admin, e.motos.id, { foto: "sin" });
+    expect(sin.productos.map((p) => p.id)).toEqual([r.id]);
+    const con = await buscarProductos(e.ctx.admin, e.motos.id, { foto: "con" });
+    expect(con.productos.map((p) => p.id)).toEqual([conFoto]);
   });
 });

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgePercent, FileSpreadsheet, FolderInput, FolderTree, Images, Package, Plus, Recycle, Ruler, SearchX, Share2, Shirt, Sparkles, TriangleAlert } from "lucide-react";
+import { BadgePercent, Camera, FileSpreadsheet, FolderInput, FolderTree, Package, Plus, Recycle, Ruler, SearchX, Share2, Shirt, Sparkles, TriangleAlert } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Miniatura } from "@/components/inventario/miniatura";
@@ -128,8 +128,8 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
                   </Button>
                 )}
                 <Button asChild variant="outline">
-                  <Link href="/inventario/fotos">
-                    <Images /> Subir fotos
+                  <Link href="/inventario/poner-fotos">
+                    <Camera /> Poner fotos
                   </Link>
                 </Button>
 
