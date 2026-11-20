@@ -115,4 +115,13 @@ describe("Promociones guardadas", () => {
     const alReves = await crearPromocion(e.ctx.admin, e.motos.id, { ...base, prendaIds: [a.prendaId], desde: "2026-12-10", hasta: "2026-12-01" });
     expect(alReves.ok).toBe(false);
   });
+  it("toda la tienda pone en promoción todo lo activo", async () => {
+    await prenda("Blusa Lina");
+    await prenda("Jean Cello");
+    const r = await crearPromocion(e.ctx.admin, e.motos.id, { ...base, todaLaTienda: true });
+    if (!r.ok) throw new Error(r.error);
+    const activos = await prisma.producto.count({ where: { negocioId: e.motos.id, activo: true } });
+    expect(r.productos).toBe(activos);
+    expect(await prisma.producto.count({ where: { negocioId: e.motos.id, promocionId: r.id } })).toBe(activos);
+  });
 });

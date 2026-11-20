@@ -208,3 +208,16 @@ export function ordenarConPrendas<T extends { nombre: string; prendaId?: string 
   orden.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   return orden.flatMap((o) => grupos.get(o.clave)!);
 }
+
+/**
+ * Código de barras corto, solo números, para la etiqueta de cada talla/color de una prenda:
+ * "29" + número de la prenda (5) + consecutivo dentro de la prenda (3). Ej.: PR-0163, la 1ª → 2900163001.
+ * Los códigos largos (PR-0163-VARI-VAR) dejan las barras tan delgadas que el lector no los lee
+ * en una etiqueta de 50 mm; con solo números las barras salen más del doble de gruesas.
+ * null si la base no es PR-número o se pasa de los límites.
+ */
+export function barrasDePrenda(base: string, consecutivo: number): string | null {
+  const n = /^PR-(\d{1,5})$/.exec(base)?.[1];
+  if (!n || consecutivo < 1 || consecutivo > 999) return null;
+  return `29${n.padStart(5, "0")}${String(consecutivo).padStart(3, "0")}`;
+}

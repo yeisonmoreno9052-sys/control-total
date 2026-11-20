@@ -74,6 +74,21 @@ async function vender(ctx: Contexto, negocioId: string, entrada: EntradaVenta) {
   return r;
 }
 
+describe("buscar una venta por la prenda (para cambios)", () => {
+  it("encuentra la venta por el código escaneado, aunque el lector cambie - por ', o por el nombre", async () => {
+    const id = await crear(e.motos.id, { codigo: "PR-0001-M-NEG", nombre: "Blusa Lina - M - Negro" });
+    const otro = await crear(e.motos.id, { codigo: "CAB", nombre: "Cable" });
+    await abrir(e.ctx.cajero, e.motos.id);
+    await vender(e.ctx.cajero, e.motos.id, venta([{ productoId: id, cantidad: "1" }], 1000));
+    await vender(e.ctx.cajero, e.motos.id, venta([{ productoId: otro, cantidad: "1" }], 1000));
+    for (const q of ["PR-0001-M-NEG", "pr'0001'm'neg", "blusa negro"]) {
+      const r = await listarVentas(e.ctx.cajero, e.motos.id, { producto: q });
+      expect(r.total).toBe(1);
+    }
+    expect((await listarVentas(e.ctx.cajero, e.motos.id, { producto: "nada" })).total).toBe(0);
+  });
+});
+
 describe("cobrar", () => {
   it("sin caja abierta no se puede vender", async () => {
     const id = await crear(e.motos.id);

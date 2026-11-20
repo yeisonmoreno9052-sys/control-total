@@ -10,6 +10,7 @@ import {
   esquemaPrenda,
   nombreVariante,
   normalizar,
+  barrasDePrenda,
 } from "@/lib/inventario/prendas";
 import { corregirLector } from "@/lib/inventario/lector";
 import { paraBuscar } from "@/lib/texto";
@@ -64,13 +65,25 @@ async function crearVariantes(
   variantes: Variante[],
 ) {
   const codigo = codigosVariantes(prenda.base, prenda.tallas, prenda.colores);
+  // Consecutivo del código de barras corto dentro de la prenda (sigue después del último usado).
+  const prefijo = barrasDePrenda(prenda.base, 1)?.slice(0, 7);
+  let consecutivo = 0;
+  if (prefijo) {
+    const filas = await tx.$queryRaw<{ n: number | null }[]>`
+      SELECT MAX(CAST(SUBSTRING("codigoBarras" FROM 8 FOR 3) AS INTEGER))::int AS n
+      FROM "Producto" WHERE "negocioId" = ${negocioId} AND "codigoBarras" ~ ${`^${prefijo}[0-9]{3}$`}`;
+    consecutivo = filas[0]?.n ?? 0;
+  }
   const ids: string[] = [];
   for (const v of variantes) {
+    let barras = barrasDePrenda(prenda.base, ++consecutivo);
+    if (barras && (await tx.producto.findFirst({ where: { negocioId, codigoBarras: barras }, select: { id: true } }))) barras = null;
     const producto = await tx.producto.create({
       data: {
         empresaId: ctx.empresaId,
         negocioId,
         codigo: codigo(v.talla, v.color),
+        codigoBarras: barras,
         nombre: nombreVariante(prenda.nombre, v.talla, v.color),
         descripcion: prenda.descripcion,
         categoriaId: prenda.categoriaId,
