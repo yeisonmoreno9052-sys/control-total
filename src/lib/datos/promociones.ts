@@ -22,11 +22,13 @@ export const esquemaPromocion = z
     prendaIds: z.array(z.string().max(40)).max(500).default([]),
     productoIds: z.array(z.string().max(40)).max(500).default([]),
     categoriaIds: z.array(z.string().max(40)).max(100).default([]),
+    /** Todo lo que el negocio tiene activo hoy. */
+    todaLaTienda: z.boolean().default(false),
   })
   .superRefine((p, ctx) => {
     if (p.tipo === "PORCENTAJE" && p.valor >= 100) ctx.addIssue({ code: "custom", path: ["valor"], message: "El porcentaje debe ser menor que 100." });
     if (p.hasta < p.desde) ctx.addIssue({ code: "custom", path: ["hasta"], message: "La fecha final va después de la inicial." });
-    if (!p.prendaIds.length && !p.productoIds.length && !p.categoriaIds.length) {
+    if (!p.todaLaTienda && !p.prendaIds.length && !p.productoIds.length && !p.categoriaIds.length) {
       ctx.addIssue({ code: "custom", path: ["prendas"], message: "Escoge al menos una prenda o una categoría." });
     }
   });
@@ -76,14 +78,18 @@ export async function crearPromocion(ctx: Contexto, negocioId: string, entrada: 
     where: {
       negocioId,
       activo: true,
-      OR: [
-        ...(p.prendaIds.length ? [{ prendaId: { in: p.prendaIds } }] : []),
-        ...(p.productoIds.length ? [{ id: { in: p.productoIds } }] : []),
-        ...(p.categoriaIds.length ? [{ categoriaId: { in: p.categoriaIds } }] : []),
-      ],
+      ...(p.todaLaTienda
+        ? {}
+        : {
+            OR: [
+              ...(p.prendaIds.length ? [{ prendaId: { in: p.prendaIds } }] : []),
+              ...(p.productoIds.length ? [{ id: { in: p.productoIds } }] : []),
+              ...(p.categoriaIds.length ? [{ categoriaId: { in: p.categoriaIds } }] : []),
+            ],
+          }),
     },
     select: { id: true, precioVenta: true },
-    take: 20000,
+    take: 60000,
   });
   if (!productos.length) return { ok: false, error: "No encontramos productos activos en lo que escogiste." };
   if (p.tipo === "PRECIO" && productos.every((x) => x.precioVenta <= p.valor)) {
@@ -113,7 +119,7 @@ export async function crearPromocion(ctx: Contexto, negocioId: string, entrada: 
       accion: "PROMOCION",
       entidad: "Promocion",
       entidadId: promo.id,
-      detalle: { nombre: p.nombre, descuento: textoPromo(p, formatearPesos), desde: p.desde, hasta: p.hasta, productos: productos.length },
+      detalle: { nombre: p.nombre, descuento: textoPromo(p, formatearPesos), desde: p.desde, hasta: p.hasta, todaLaTienda: p.todaLaTienda, productos: productos.length },
     });
     return promo.id;
   });

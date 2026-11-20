@@ -17,6 +17,7 @@ import {
   nombreVariante,
   sinRepetidas,
 } from "@/lib/inventario/prendas";
+import { barrasDePrenda } from "@/lib/inventario/prendas";
 import { crearEscenario, type Escenario } from "./escenario";
 
 let e: Escenario;
@@ -147,6 +148,8 @@ describe("Prenda existente", () => {
     const xl = await prisma.producto.findFirstOrThrow({ where: { prendaId: r.prendaId, talla: "XL", color: "Negro" } });
     expect(xl).toMatchObject({ codigo: "PR-0001-XL-NEG", precioVenta: 45000, costo: 24000 });
     expect(xl.stock.toString()).toBe("4");
+    // El código de barras corto sigue la numeración de la prenda (6 combinaciones antes).
+    expect(xl.codigoBarras).toMatch(/^2900001(007|008)$/);
     const repetida = await agregarVariantes(e.ctx.admin, r.prendaId, { tallas: ["m"], colores: ["negro"] });
     expect(repetida.ok).toBe(false);
   });
@@ -203,5 +206,15 @@ describe("Caja", () => {
     expect(v.ok).toBe(true);
     const p = await prisma.producto.findUniqueOrThrow({ where: { id: r.exacto!.id } });
     expect(p.stock.toString()).toBe("2");
+  });
+
+  it("cada talla/color trae un código de barras corto de solo números que la caja encuentra", async () => {
+    await crear();
+    const todos = await prisma.producto.findMany({ where: { negocioId: e.motos.id }, select: { codigoBarras: true }, orderBy: { codigoBarras: "asc" } });
+    expect(todos.map((p) => p.codigoBarras)).toEqual(["2900001001", "2900001002", "2900001003", "2900001004", "2900001005", "2900001006"]);
+    const r = await buscarParaVenta(e.ctx.cajero, e.motos.id, "2900001003");
+    expect(r.exacto?.prendaId).toBeTruthy();
+    expect(barrasDePrenda("PR-0163", 1)).toBe("2900163001");
+    expect(barrasDePrenda("ABC-1", 1)).toBeNull();
   });
 });
