@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LectorGlobal } from "@/components/lector-global";
 import Link from "next/link";
 import { Receipt, SearchX } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
@@ -75,6 +76,7 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
         }
       />
 
+      <LectorGlobal idEntrada="q" />
       <form className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[repeat(4,minmax(0,1fr))_auto] md:items-end">
         <div className="col-span-2 space-y-1.5 md:col-span-5">
           <Label htmlFor="q">Prenda o código</Label>
