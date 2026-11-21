@@ -243,7 +243,7 @@ export function SubirFoto({
     setGuardando(true);
     try {
       // Más grande que la de la caja y sin recortar: en el Estado la prenda se ve completa.
-      const blob = await achicarFoto(archivo, 1200, { completa: true });
+      const blob = await achicarFoto(archivo, 1200);
       onFoto(URL.createObjectURL(blob));
       const formulario = new FormData();
       formulario.set("foto", new File([blob], "foto", { type: blob.type }));
