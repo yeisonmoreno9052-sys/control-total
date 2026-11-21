@@ -10,8 +10,38 @@ import { cn } from "@/lib/utils";
 const FORMATOS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "qr_code"];
 
 type Detector = {
-  detect(fuente: HTMLVideoElement): Promise<{ rawValue: string }[]>;
+  detect(fuente: CanvasImageSource): Promise<{ rawValue: string }[]>;
 };
+type LectorZxing = { decodeFromCanvas(lienzo: HTMLCanvasElement): { getText(): string } };
+
+/** ZXing (lector en JavaScript) para iPhone y por si el del celular no lee. Se descarga solo cuando hace falta. */
+async function crearZxing(): Promise<LectorZxing | null> {
+  try {
+    const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
+      import("@zxing/browser"),
+      import("@zxing/library"),
+    ]);
+    const pistas = new Map<unknown, unknown>([
+      [
+        DecodeHintType.POSSIBLE_FORMATS,
+        [
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.ITF,
+          BarcodeFormat.QR_CODE,
+        ],
+      ],
+      [DecodeHintType.TRY_HARDER, true],
+    ]);
+    return new BrowserMultiFormatReader(pistas as Map<never, never>);
+  } catch {
+    return null;
+  }
+}
 type DetectorNativo = {
   new (opciones: { formats: string[] }): Detector;
   getSupportedFormats(): Promise<string[]>;
@@ -97,7 +127,6 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
   useEffect(() => {
     let activo = true;
     let flujo: MediaStream | null = null;
-    let detenerZxing: (() => void) | null = null;
     let espera: ReturnType<typeof setTimeout> | undefined;
 
     function listo(codigo: string) {
@@ -121,38 +150,66 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
         });
         if (!activo || !video.current) return;
         const v = video.current;
+        // iPhone solo reproduce la cámara en la página si el video está en silencio y "en línea".
+        v.muted = true;
+        v.setAttribute("muted", "");
+        v.setAttribute("playsinline", "");
         v.srcObject = flujo;
         await v.play().catch(() => {});
         const pista = flujo.getVideoTracks()[0];
         if (pista) await ajustarCamara(pista, setControles);
         pistaRef.current = pista ?? null;
 
+        // Se lee cuadro por cuadro desde un lienzo propio (no desde el video directo): así
+        // funciona igual en iPhone, donde el lector esperaba a la cámara y nunca empezaba.
+        const lienzo = document.createElement("canvas");
+        const pincel = lienzo.getContext("2d", { willReadFrequently: true });
         const nativo = await lectorNativo();
-        if (nativo) {
-          const buscar = async () => {
-            if (!activo) return;
-            try {
-              const [hallado] = v.readyState >= 2 ? await nativo.detect(v) : [];
-              if (hallado?.rawValue) return listo(hallado.rawValue);
-            } catch {
-              // Un cuadro que no se pudo leer: se intenta con el siguiente.
-            }
-            espera = setTimeout(buscar, 80);
-          };
-          buscar();
-        } else {
-          // Se descarga solo cuando hace falta (iPhone), para no hacer más pesada la app.
-          const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        let zxing: LectorZxing | null = null;
+        let pidiendoZxing = false;
+        const pedirZxing = () => {
+          if (pidiendoZxing) return;
+          pidiendoZxing = true;
+          void crearZxing().then((l) => (zxing = l));
+        };
+        if (!nativo) pedirZxing();
+        const inicio = Date.now();
+        let vuelta = 0;
+
+        const buscar = async () => {
           if (!activo) return;
-          const lector = new BrowserMultiFormatReader(undefined, {
-            delayBetweenScanAttempts: 120,
-          });
-          const controles = await lector.decodeFromStream(flujo, v, (resultado) => {
-            if (resultado) listo(resultado.getText());
-          });
-          detenerZxing = () => controles.stop();
-          if (!activo) detenerZxing();
-        }
+          const ancho = v.videoWidth;
+          const alto = v.videoHeight;
+          if (ancho && alto && pincel) {
+            // Una vuelta solo el centro (el recuadro: el código se ve más grande) y otra la imagen completa.
+            const centro = vuelta++ % 2 === 0;
+            const sw = centro ? ancho * 0.9 : ancho;
+            const sh = centro ? Math.min(alto * 0.5, sw * 0.75) : alto;
+            const escala = Math.min(1, 1280 / sw);
+            lienzo.width = Math.round(sw * escala);
+            lienzo.height = Math.round(sh * escala);
+            pincel.drawImage(v, (ancho - sw) / 2, (alto - sh) / 2, sw, sh, 0, 0, lienzo.width, lienzo.height);
+            if (nativo) {
+              try {
+                const [hallado] = await nativo.detect(lienzo);
+                if (hallado?.rawValue) return listo(hallado.rawValue);
+              } catch {
+                // Si el lector del celular falla, ZXing sigue intentando.
+              }
+              // Si en 3 segundos el del celular no ha leído nada, se suma ZXing.
+              if (Date.now() - inicio > 3000) pedirZxing();
+            }
+            if (zxing) {
+              try {
+                return listo(zxing.decodeFromCanvas(lienzo).getText());
+              } catch {
+                // Este cuadro no tenía un código legible: se intenta con el siguiente.
+              }
+            }
+          }
+          espera = setTimeout(buscar, 100);
+        };
+        void buscar();
       } catch (e) {
         if (activo) setError(mensajeDeError(e));
       }
@@ -161,7 +218,6 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
     return () => {
       activo = false;
       clearTimeout(espera);
-      detenerZxing?.();
       flujo?.getTracks().forEach((t) => t.stop());
     };
   }, []);
@@ -207,7 +263,7 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
       aria-label="Escanear código de barras"
       className="fixed inset-0 z-[100] bg-black"
     >
-      <video ref={video} playsInline muted className="absolute inset-0 size-full object-cover" />
+      <video ref={video} autoPlay playsInline muted className="absolute inset-0 size-full object-cover" />
 
       {!error && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
