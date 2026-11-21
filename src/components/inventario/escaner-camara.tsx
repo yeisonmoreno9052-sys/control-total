@@ -176,20 +176,31 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
         const inicio = Date.now();
         let vuelta = 0;
 
+        /** Dibuja un pedazo del video en el lienzo con el ancho pedido. */
+        const dibujar = (sx: number, sy: number, sw: number, sh: number, anchoMax: number) => {
+          const escala = Math.min(1, anchoMax / sw);
+          lienzo.width = Math.round(sw * escala);
+          lienzo.height = Math.round(sh * escala);
+          pincel!.drawImage(v, sx, sy, sw, sh, 0, 0, lienzo.width, lienzo.height);
+        };
+        const conZxing = () => {
+          try {
+            return zxing ? zxing.decodeFromCanvas(lienzo).getText() : null;
+          } catch {
+            return null; // este tamaño no sirvió: se prueba el siguiente
+          }
+        };
+
         const buscar = async () => {
           if (!activo) return;
           const ancho = v.videoWidth;
           const alto = v.videoHeight;
           if (ancho && alto && pincel) {
-            // Una vuelta solo el centro (el recuadro: el código se ve más grande) y otra la imagen completa.
-            const centro = vuelta++ % 2 === 0;
-            const sw = centro ? ancho * 0.9 : ancho;
-            const sh = centro ? Math.min(alto * 0.5, sw * 0.75) : alto;
-            const escala = Math.min(1, 1280 / sw);
-            lienzo.width = Math.round(sw * escala);
-            lienzo.height = Math.round(sh * escala);
-            pincel.drawImage(v, (ancho - sw) / 2, (alto - sh) / 2, sw, sh, 0, 0, lienzo.width, lienzo.height);
+            // La franja del centro, de lado a lado (donde está el recuadro): ahí queda el código.
+            const sh = Math.min(alto * 0.35, ancho * 0.6);
+            const sy = (alto - sh) / 2;
             if (nativo) {
+              dibujar(0, sy, ancho, sh, 1280);
               try {
                 const [hallado] = await nativo.detect(lienzo);
                 if (hallado?.rawValue) return listo(hallado.rawValue);
@@ -200,14 +211,22 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
               if (Date.now() - inicio > 3000) pedirZxing();
             }
             if (zxing) {
-              try {
-                return listo(zxing.decodeFromCanvas(lienzo).getText());
-              } catch {
-                // Este cuadro no tenía un código legible: se intenta con el siguiente.
+              // ZXing lee o no según el tamaño de las barras: se prueba la misma imagen
+              // en varios tamaños (las etiquetas de ropa traen barras muy finas).
+              for (const anchoMax of [1280, 1000, 800, 640, 480]) {
+                dibujar(0, sy, ancho, sh, anchoMax);
+                const texto = conZxing();
+                if (texto) return listo(texto);
+              }
+              // De vez en cuando, la imagen completa (por si el código no está en el centro).
+              if (vuelta++ % 3 === 0) {
+                dibujar(0, 0, ancho, alto, 800);
+                const texto = conZxing();
+                if (texto) return listo(texto);
               }
             }
           }
-          espera = setTimeout(buscar, 100);
+          espera = setTimeout(buscar, 60);
         };
         void buscar();
       } catch (e) {
