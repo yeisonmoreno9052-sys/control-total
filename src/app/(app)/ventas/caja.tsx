@@ -16,6 +16,7 @@ import { aplicarPromociones } from "@/lib/ventas/promociones";
 import { calcularTotales, ErrorTotales, type Descuento, type TotalesVenta } from "@/lib/ventas/totales";
 import { buscarEnCopia } from "@/lib/sin-conexion/buscar";
 import { cn } from "@/lib/utils";
+import { BotonEscanear, useTactil } from "@/components/inventario/escaner-camara";
 import { Miniatura } from "@/components/inventario/miniatura";
 import type { UnidadMedida } from "@/generated/prisma/enums";
 import { buscarProductoCaja, refrescarCarrito } from "./acciones";
@@ -1007,6 +1008,7 @@ function Buscador({
   alAvisar: (mensaje: string | null) => void;
   onEscapeVacio: () => void;
 }) {
+  const tactil = useTactil();
   const [texto, setTexto] = useState("");
   const [resultados, setResultados] = useState<ProductoCaja[]>([]);
   const [buscado, setBuscado] = useState("");
@@ -1084,28 +1086,33 @@ function Buscador({
         elegir(opciones[Math.min(indice, opciones.length - 1)]);
         return;
       }
+      await resolver(q);
+    }
+  }
+
+  /** Busca un código completo (lector USB con Enter o la cámara) y, si existe, lo agrega directo. */
+  async function resolver(q: string) {
+    conEnter.current = true;
+    let r = await buscar(q).finally(() => (conEnter.current = false));
+    if (!r) return;
+    // Si con la comilla hubo resultados pero ninguno exacto, se prueba el código con guion.
+    const corregido = corregirLector(q);
+    if (!r.exacto && corregido) {
       conEnter.current = true;
-      let r = await buscar(q).finally(() => (conEnter.current = false));
-      if (!r) return;
-      // Si con la comilla hubo resultados pero ninguno exacto, se prueba el código con guion.
-      const corregido = corregirLector(q);
-      if (!r.exacto && corregido) {
-        conEnter.current = true;
-        const otro = await buscar(corregido).finally(() => (conEnter.current = false));
-        if (otro?.exacto) r = otro;
-      }
-      const grupos = agruparPrendas(r.resultados);
-      if (r.exacto) elegir({ tipo: "producto", clave: r.exacto.id, producto: r.exacto });
-      else if (grupos.length === 1) elegir(grupos[0]);
-      else if (r.resultados.length) {
-        setResultados(r.resultados);
-        setBuscado(q);
-        setIndice(0);
-        setAbierto(true);
-      } else {
-        alAvisar(`No encontramos "${q}". Revisa el código o busca por nombre.`);
-        setTexto("");
-      }
+      const otro = await buscar(corregido).finally(() => (conEnter.current = false));
+      if (otro?.exacto) r = otro;
+    }
+    const grupos = agruparPrendas(r.resultados);
+    if (r.exacto) elegir({ tipo: "producto", clave: r.exacto.id, producto: r.exacto });
+    else if (grupos.length === 1) elegir(grupos[0]);
+    else if (r.resultados.length) {
+      setResultados(r.resultados);
+      setBuscado(q);
+      setIndice(0);
+      setAbierto(true);
+    } else {
+      alAvisar(`No encontramos "${q}". Revisa el código o busca por nombre.`);
+      setTexto("");
     }
   }
 
@@ -1132,11 +1139,26 @@ function Buscador({
         aria-expanded={!!mostrar}
         aria-controls="resultados-caja"
         aria-label="Buscar producto"
-        className="h-14 w-full rounded-xl border-2 border-primary/70 bg-card pr-14 shadow-suave pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20"
+        className={cn(
+          "h-14 w-full rounded-xl border-2 border-primary/70 bg-card shadow-suave pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20",
+          tactil ? "pr-36" : "pr-14",
+        )}
       />
-      <span className="absolute top-1/2 right-4 -translate-y-1/2">
-        <Tecla>F2</Tecla>
-      </span>
+      {tactil ? (
+        // Celular y tablet: la cámara lee el código de barras y lo agrega como el lector USB.
+        <BotonEscanear
+          className="absolute top-1/2 right-2 h-10 -translate-y-1/2"
+          alLeer={(codigo) => {
+            setTexto(codigo);
+            alAvisar(null);
+            void resolver(codigo);
+          }}
+        />
+      ) : (
+        <span className="absolute top-1/2 right-4 -translate-y-1/2">
+          <Tecla>F2</Tecla>
+        </span>
+      )}
       {mostrar && (
         <ul
           id="resultados-caja"

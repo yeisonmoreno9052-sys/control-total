@@ -3,14 +3,19 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ScanBarcode, Search } from "lucide-react";
+import { BotonEscanear } from "@/components/inventario/escaner-camara";
 import { Input } from "@/components/ui/input";
 import { irACodigo } from "./acciones";
 
 /**
  * Búsqueda instantánea. El lector de código de barras escribe como un teclado y
  * termina con Enter: si el código coincide exacto, abre ese producto.
+ * En celular y tablet aparece "Escanear": la cámara lee el código y hace lo mismo.
  */
-export function Buscador({ abrirAlEscanear = true, placeholder }: { abrirAlEscanear?: boolean; placeholder?: string } = {}) {
+export function Buscador({
+  abrirAlEscanear = true,
+  placeholder,
+}: { abrirAlEscanear?: boolean; placeholder?: string } = {}) {
   const router = useRouter();
   const ruta = usePathname();
   const params = useSearchParams();
@@ -40,9 +45,14 @@ export function Buscador({ abrirAlEscanear = true, placeholder }: { abrirAlEscan
     }
     if (e.key !== "Enter") return;
     e.preventDefault();
+    await buscarCodigo(valor);
+  }
+
+  async function buscarCodigo(texto: string) {
     clearTimeout(espera.current);
-    const q = valor.trim();
+    const q = texto.trim();
     if (!q) return;
+    setValor(q);
     const id = abrirAlEscanear ? await irACodigo(q) : null;
     if (id) {
       setValor("");
@@ -58,22 +68,25 @@ export function Buscador({ abrirAlEscanear = true, placeholder }: { abrirAlEscan
   }, []);
 
   return (
-    <div className="relative flex-1">
-      <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        ref={entrada}
-        type="search"
-        value={valor}
-        onChange={(e) => cambiar(e.target.value)}
-        onKeyDown={alPresionarTecla}
-        placeholder={placeholder ?? "Buscar o escanear código…"}
-        aria-label="Buscar producto por nombre, código o código de barras"
-        autoComplete="off"
-        className="h-12 pr-10 pl-10 text-base"
-      />
-      <span className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground">
-        {buscando ? <Loader2 className="size-5 animate-spin" /> : <ScanBarcode className="size-5" />}
-      </span>
+    <div className="flex flex-1 gap-2">
+      <div className="relative min-w-0 flex-1">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          ref={entrada}
+          type="search"
+          value={valor}
+          onChange={(e) => cambiar(e.target.value)}
+          onKeyDown={alPresionarTecla}
+          placeholder={placeholder ?? "Buscar o escanear código…"}
+          aria-label="Buscar producto por nombre, código o código de barras"
+          autoComplete="off"
+          className="h-12 pr-10 pl-10 text-base"
+        />
+        <span className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground">
+          {buscando ? <Loader2 className="size-5 animate-spin" /> : <ScanBarcode className="size-5" />}
+        </span>
+      </div>
+      <BotonEscanear alLeer={(codigo) => void buscarCodigo(codigo)} />
     </div>
   );
 }
