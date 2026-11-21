@@ -49,7 +49,8 @@ export default async function PonerFotosPagina({ searchParams }: PageProps<"/inv
     buscarProductos(ctx, negocioId, {
       q: parametros.q,
       categoriaId: parametros.categoria,
-      foto: modo,
+      // Al buscar o escanear un producto se muestra aunque ya tenga foto (para cambiarla).
+      foto: parametros.q ? undefined : modo,
       // Sin foto siempre se arranca por la primera página: las que se van llenando salen de la lista.
       pagina: modo === "con" ? Number(parametros.pagina) || 1 : 1,
     }),

@@ -18,6 +18,7 @@ import {
   TrendingUp,
   UserPlus,
 } from "lucide-react";
+import { BotonEscanear, useTactil } from "@/components/inventario/escaner-camara";
 import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
@@ -1199,6 +1200,7 @@ function Buscador({
   alElegir: (p: ProductoCompra) => void;
   alAvisar: (mensaje: string | null) => void;
 }) {
+  const tactil = useTactil();
   const [texto, setTexto] = useState("");
   const [resultados, setResultados] = useState<ProductoCompra[]>([]);
   const [buscado, setBuscado] = useState("");
@@ -1254,18 +1256,23 @@ function Buscador({
       const q = texto.trim();
       if (!q) return;
       if (q === buscado && resultados.length) return elegir(resultados[Math.min(indice, resultados.length - 1)]);
-      const r = await buscar(q);
-      if (!r) return;
-      if (r.exacto) elegir(r.exacto);
-      else if (r.resultados.length === 1) elegir(r.resultados[0]);
-      else if (r.resultados.length) {
-        setResultados(r.resultados);
-        setBuscado(q);
-        setIndice(0);
-        setAbierto(true);
-      } else {
-        alAvisar(`No encontramos "${q}". Búscalo por nombre o créalo con "Producto nuevo".`);
-      }
+      await resolver(q);
+    }
+  }
+
+  /** Un código completo (lector USB o cámara): si existe, entra directo a la factura. */
+  async function resolver(q: string) {
+    const r = await buscar(q);
+    if (!r) return;
+    if (r.exacto) elegir(r.exacto);
+    else if (r.resultados.length === 1) elegir(r.resultados[0]);
+    else if (r.resultados.length) {
+      setResultados(r.resultados);
+      setBuscado(q);
+      setIndice(0);
+      setAbierto(true);
+    } else {
+      alAvisar(`No encontramos "${q}". Búscalo por nombre o créalo con "Producto nuevo".`);
     }
   }
 
@@ -1291,7 +1298,19 @@ function Buscador({
         aria-expanded={!!mostrar}
         aria-controls="resultados-factura"
         aria-label="Buscar producto"
-        className="h-14 w-full rounded-xl border-2 border-primary/70 bg-card pr-4 shadow-suave pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20"
+        className={cn(
+          "h-14 w-full rounded-xl border-2 border-primary/70 bg-card shadow-suave pl-12 text-lg outline-none focus:border-primary focus:ring-4 focus:ring-ring/20",
+          tactil ? "pr-36" : "pr-4",
+        )}
+      />
+      {/* Celular y tablet: la cámara lee el código de barras. */}
+      <BotonEscanear
+        className="absolute top-1/2 right-2 h-10 -translate-y-1/2"
+        alLeer={(codigo) => {
+          setTexto(codigo);
+          alAvisar(null);
+          void resolver(codigo);
+        }}
       />
       {mostrar && (
         <ul
