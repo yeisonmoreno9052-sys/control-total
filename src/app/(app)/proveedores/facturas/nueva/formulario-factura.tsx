@@ -19,6 +19,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { BotonEscanear, useTactil } from "@/components/inventario/escaner-camara";
+import { useLectorGlobal } from "@/components/lector-global";
 import { AvisoError, Campo } from "@/components/layout/campo";
 import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
@@ -1201,6 +1202,9 @@ function Buscador({
   alAvisar: (mensaje: string | null) => void;
 }) {
   const tactil = useTactil();
+  // Solo el buscador principal de la factura recibe lo que escriba el lector sin hacer clic.
+  const sinRef = useRef<HTMLInputElement | null>(null);
+  useLectorGlobal(refInput ?? sinRef);
   const [texto, setTexto] = useState("");
   const [resultados, setResultados] = useState<ProductoCompra[]>([]);
   const [buscado, setBuscado] = useState("");

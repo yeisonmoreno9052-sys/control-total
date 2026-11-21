@@ -17,6 +17,7 @@ import { calcularTotales, ErrorTotales, type Descuento, type TotalesVenta } from
 import { buscarEnCopia } from "@/lib/sin-conexion/buscar";
 import { cn } from "@/lib/utils";
 import { BotonEscanear, useTactil } from "@/components/inventario/escaner-camara";
+import { useLectorGlobal } from "@/components/lector-global";
 import { Miniatura } from "@/components/inventario/miniatura";
 import type { UnidadMedida } from "@/generated/prisma/enums";
 import { buscarProductoCaja, refrescarCarrito } from "./acciones";
@@ -1008,6 +1009,7 @@ function Buscador({
   alAvisar: (mensaje: string | null) => void;
   onEscapeVacio: () => void;
 }) {
+  useLectorGlobal(refInput);
   const tactil = useTactil();
   const [texto, setTexto] = useState("");
   const [resultados, setResultados] = useState<ProductoCaja[]>([]);

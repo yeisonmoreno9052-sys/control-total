@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ScanBarcode, Search } from "lucide-react";
 import { BotonEscanear } from "@/components/inventario/escaner-camara";
+import { useLectorGlobal } from "@/components/lector-global";
 import { Input } from "@/components/ui/input";
 import { irACodigo } from "./acciones";
 
@@ -61,6 +62,8 @@ export function Buscador({
       aplicar(q);
     }
   }
+
+  useLectorGlobal(entrada);
 
   // En computador el buscador queda listo para escanear apenas carga la página.
   useEffect(() => {
