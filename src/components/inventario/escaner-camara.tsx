@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ScanBarcode, X } from "lucide-react";
+import { Flashlight, FlashlightOff, ScanBarcode, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +40,46 @@ function mensajeDeError(e: unknown) {
   return "No pudimos abrir la cámara. Vuelve a intentar.";
 }
 
+type Rango = { min: number; max: number; step?: number };
+type Capacidades = MediaTrackCapabilities & { zoom?: Rango; torch?: boolean; focusMode?: string[] };
+type Controles = { zoom: number | null; zooms: number[]; linterna: boolean | null };
+
+const CLAVE_ZOOM = "escaner-zoom";
+
+/**
+ * Deja la cámara lista para códigos de barras (en los celulares que lo permiten):
+ * - Enfoque automático continuo, para que enfoque solo al mover el celular.
+ * - Zoom de 2x: el celular se puede tener a un palmo y el código se ve grande y nítido.
+ *   (De muy cerca la cámara no alcanza a enfocar; con zoom ya no hace falta acercarla.)
+ * - Linterna si la cámara tiene.
+ */
+async function ajustarCamara(pista: MediaStreamTrack, avisar: (c: Controles) => void) {
+  const capacidades = (pista.getCapabilities?.() ?? {}) as Capacidades;
+  const ajustes: Record<string, unknown> = {};
+  if (capacidades.focusMode?.includes("continuous")) ajustes.focusMode = "continuous";
+
+  let zoom: number | null = null;
+  let zooms: number[] = [];
+  const rango = capacidades.zoom;
+  if (rango && rango.max > rango.min) {
+    zooms = [1, 2, 3].filter((z) => z >= rango.min && z <= rango.max);
+    let guardado = NaN;
+    try {
+      guardado = Number(localStorage.getItem(CLAVE_ZOOM));
+    } catch {
+      // Sin almacenamiento: se usa el zoom de siempre.
+    }
+    zoom = zooms.includes(guardado) ? guardado : Math.min(2, rango.max);
+    ajustes.zoom = zoom;
+  }
+  if (Object.keys(ajustes).length) {
+    await pista.applyConstraints({ advanced: [ajustes as MediaTrackConstraintSet] }).catch(() => {
+      zoom = zooms.length ? 1 : null;
+    });
+  }
+  avisar({ zoom, zooms, linterna: capacidades.torch ? false : null });
+}
+
 /**
  * Pantalla completa con la cámara trasera: apuntas al código de barras y lo lee solo.
  * Al leerlo vibra, se cierra y entrega el código.
@@ -47,6 +87,8 @@ function mensajeDeError(e: unknown) {
 export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) => void; alCerrar: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [controles, setControles] = useState<Controles | null>(null);
+  const pistaRef = useRef<MediaStreamTrack | null>(null);
   const leer = useRef(alLeer);
   useEffect(() => {
     leer.current = alLeer;
@@ -71,8 +113,9 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
         flujo = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            // Más resolución: el código se lee desde más lejos, sin tener que acercar tanto.
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           },
           audio: false,
         });
@@ -80,6 +123,9 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
         const v = video.current;
         v.srcObject = flujo;
         await v.play().catch(() => {});
+        const pista = flujo.getVideoTracks()[0];
+        if (pista) await ajustarCamara(pista, setControles);
+        pistaRef.current = pista ?? null;
 
         const nativo = await lectorNativo();
         if (nativo) {
@@ -91,7 +137,7 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
             } catch {
               // Un cuadro que no se pudo leer: se intenta con el siguiente.
             }
-            espera = setTimeout(buscar, 120);
+            espera = setTimeout(buscar, 80);
           };
           buscar();
         } else {
@@ -120,6 +166,32 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
     };
   }, []);
 
+  function cambiarZoom(z: number) {
+    const pista = pistaRef.current;
+    if (!pista) return;
+    pista
+      .applyConstraints({ advanced: [{ zoom: z } as MediaTrackConstraintSet] })
+      .then(() => {
+        setControles((c) => (c ? { ...c, zoom: z } : c));
+        try {
+          localStorage.setItem(CLAVE_ZOOM, String(z));
+        } catch {
+          // No importa si no se guarda.
+        }
+      })
+      .catch(() => {});
+  }
+
+  function cambiarLinterna() {
+    const pista = pistaRef.current;
+    if (!pista || !controles || controles.linterna === null) return;
+    const prender = !controles.linterna;
+    pista
+      .applyConstraints({ advanced: [{ torch: prender } as MediaTrackConstraintSet] })
+      .then(() => setControles((c) => (c ? { ...c, linterna: prender } : c)))
+      .catch(() => {});
+  }
+
   // Atrás en el celular o Escape en el teclado cierran sin leer.
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => e.key === "Escape" && alCerrar();
@@ -139,7 +211,7 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
 
       {!error && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="relative h-40 w-[min(80vw,26rem)] rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]">
+          <div className="relative h-48 w-[min(88vw,30rem)] rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]">
             <div className="absolute inset-0 rounded-2xl border-4 border-white/90" />
             <div className="absolute inset-x-4 top-1/2 h-0.5 animate-pulse bg-red-500" />
           </div>
@@ -171,7 +243,45 @@ export function EscanerCamara({ alLeer, alCerrar }: { alLeer: (codigo: string) =
             </Button>
           </div>
         ) : (
-          <p className="text-white/85">Lo lee solo. Acerca o aleja el celular hasta que se vea nítido.</p>
+          <div className="space-y-4">
+            {controles && (controles.zooms.length > 1 || controles.linterna !== null) && (
+              <div className="flex items-center justify-center gap-3">
+                {controles.zooms.length > 1 &&
+                  controles.zooms.map((z) => (
+                    <button
+                      key={z}
+                      type="button"
+                      onClick={() => cambiarZoom(z)}
+                      aria-pressed={controles.zoom === z}
+                      className={cn(
+                        "size-14 rounded-full text-lg font-semibold backdrop-blur",
+                        controles.zoom === z ? "bg-white text-black" : "bg-black/50 text-white",
+                      )}
+                    >
+                      {z}x
+                    </button>
+                  ))}
+                {controles.linterna !== null && (
+                  <button
+                    type="button"
+                    onClick={cambiarLinterna}
+                    aria-pressed={controles.linterna}
+                    aria-label={controles.linterna ? "Apagar linterna" : "Prender linterna"}
+                    className={cn(
+                      "flex size-14 items-center justify-center rounded-full backdrop-blur",
+                      controles.linterna ? "bg-amber-300 text-black" : "bg-black/50 text-white",
+                    )}
+                  >
+                    {controles.linterna ? <Flashlight className="size-6" /> : <FlashlightOff className="size-6" />}
+                  </button>
+                )}
+              </div>
+            )}
+            <p className="text-white/85">
+              Lo lee solo. Ponlo a un palmo del código
+              {controles?.zooms.length ? "; si queda borroso, cambia el zoom" : ""}.
+            </p>
+          </div>
         )}
       </div>
     </div>,
