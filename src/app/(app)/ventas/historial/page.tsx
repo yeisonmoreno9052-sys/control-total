@@ -18,7 +18,7 @@ import { EstadoVenta } from "../estado-venta";
 
 export const metadata: Metadata = { title: "Historial de ventas · Control Total" };
 
-type Parametros = { desde?: string; hasta?: string; cajero?: string; medio?: string; pagina?: string };
+type Parametros = { q?: string; desde?: string; hasta?: string; cajero?: string; medio?: string; pagina?: string };
 const esDia = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
 function enlace(p: Parametros, cambios: Partial<Parametros>) {
@@ -35,8 +35,12 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
   const negocioId = ctx.negocioActivoId;
   const sp = await searchParams;
   const hoy = diaEnBogota();
+  const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
+  // Buscando una prenda (por ejemplo para un cambio) se miran los últimos 60 días si no escogen fechas.
+  const hace60 = new Date(new Date(`${hoy}T12:00:00Z`).getTime() - 60 * 86_400_000).toISOString().slice(0, 10);
   const p: Parametros = {
-    desde: esDia(sp.desde) ? sp.desde : hoy,
+    q: q || undefined,
+    desde: esDia(sp.desde) ? sp.desde : q ? hace60 : hoy,
     hasta: esDia(sp.hasta) ? sp.hasta : esDia(sp.desde) ? sp.desde : hoy,
     cajero: typeof sp.cajero === "string" ? sp.cajero : undefined,
     medio: typeof sp.medio === "string" && sp.medio in NOMBRE_MEDIO ? sp.medio : undefined,
@@ -49,6 +53,7 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
       desde: rangoDelDia(desde).inicio,
       hasta: rangoDelDia(hasta).fin,
       usuarioId: p.cajero,
+      producto: q || undefined,
       medio: p.medio as keyof typeof NOMBRE_MEDIO | undefined,
       pagina: Number(p.pagina) || 1,
     }),
@@ -71,6 +76,17 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
       />
 
       <form className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-[repeat(4,minmax(0,1fr))_auto] md:items-end">
+        <div className="col-span-2 space-y-1.5 md:col-span-5">
+          <Label htmlFor="q">Prenda o código</Label>
+          <Input
+            id="q"
+            name="q"
+            defaultValue={q}
+            placeholder="Escanea la etiqueta o escribe el nombre (para un cambio o devolución)"
+            className="h-12 text-base"
+            autoComplete="off"
+          />
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor="desde">Desde</Label>
           <Input id="desde" name="desde" type="date" defaultValue={desde} max={hoy} />
@@ -109,8 +125,8 @@ export default async function Historial({ searchParams }: PageProps<"/ventas/his
       {resultado.ventas.length === 0 ? (
         <EstadoVacio
           icono={SearchX}
-          titulo="No hay ventas en esas fechas"
-          descripcion="Cambia las fechas o los filtros."
+          titulo={q ? "No encontramos ventas con esa prenda" : "No hay ventas en esas fechas"}
+          descripcion={q ? "Revisa el código o amplía las fechas (Desde)." : "Cambia las fechas o los filtros."}
           accion={
             <Button asChild variant="outline">
               <Link href="/ventas">Ir a la caja</Link>

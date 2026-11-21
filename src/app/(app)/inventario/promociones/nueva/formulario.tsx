@@ -19,6 +19,7 @@ export function FormularioPromocion({ categorias, hoy, semana }: { categorias: C
   const [valor, setValor] = useState("");
   const [desde, setDesde] = useState(hoy);
   const [hasta, setHasta] = useState(semana);
+  const [toda, setToda] = useState(false);
   const [cats, setCats] = useState<string[]>([]);
   const [elegidas, setElegidas] = useState<OpcionPromocion[]>([]);
   const [texto, setTexto] = useState("");
@@ -56,9 +57,10 @@ export function FormularioPromocion({ categorias, hoy, semana }: { categorias: C
       valor: Number(valor.replace(/\D/g, "")),
       desde,
       hasta,
-      categoriaIds: cats,
-      prendaIds: elegidas.filter((e) => e.clave.startsWith("p:")).map((e) => e.clave.slice(2)),
-      productoIds: elegidas.filter((e) => e.clave.startsWith("s:")).map((e) => e.clave.slice(2)),
+      todaLaTienda: toda,
+      categoriaIds: toda ? [] : cats,
+      prendaIds: toda ? [] : elegidas.filter((e) => e.clave.startsWith("p:")).map((e) => e.clave.slice(2)),
+      productoIds: toda ? [] : elegidas.filter((e) => e.clave.startsWith("s:")).map((e) => e.clave.slice(2)),
     };
     iniciar(async () => {
       const r = await crearPromocionAccion(datos);
@@ -121,7 +123,32 @@ export function FormularioPromocion({ categorias, hoy, semana }: { categorias: C
         </div>
       </div>
 
-      {categorias.length > 0 && (
+      <div className="space-y-2">
+        <Label>¿Qué entra en la promoción?</Label>
+        <div className="flex gap-2">
+          {(
+            [
+              [true, "Toda la tienda"],
+              [false, "Algunas prendas"],
+            ] as const
+          ).map(([v, t]) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setToda(v)}
+              className={cn(
+                "h-12 flex-1 rounded-lg border text-base font-medium transition-colors",
+                toda === v ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        {toda && <p className="text-sm text-muted-foreground">Entra todo lo que hay hoy en el inventario.</p>}
+      </div>
+
+      {!toda && categorias.length > 0 && (
         <div className="space-y-2">
           <Label>Categorías completas</Label>
           <p className="text-sm text-muted-foreground">Toca una categoría para poner en promoción todo lo que tiene.</p>
@@ -146,8 +173,9 @@ export function FormularioPromocion({ categorias, hoy, semana }: { categorias: C
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="buscar">Prendas sueltas</Label>
+      {!toda && (
+        <div className="space-y-2">
+          <Label htmlFor="buscar">Prendas sueltas</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -183,7 +211,8 @@ export function FormularioPromocion({ categorias, hoy, semana }: { categorias: C
             ))}
           </ul>
         )}
-      </div>
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive">

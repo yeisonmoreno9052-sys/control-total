@@ -3,6 +3,7 @@
 // Una venta registrada nunca se edita ni se borra. Si hay un error se anula
 // (queda la venta original y un rastro de quién, cuándo y por qué) o se hace
 // una devolución, que es un documento aparte ligado a la venta.
+import { corregirLector } from "@/lib/inventario/lector";
 import type { MedioPago } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
 import { Decimal, MENSAJES_CANTIDAD, formatearCantidad, leerCantidad, validarCantidad } from "@/lib/inventario/cantidades";
@@ -492,10 +493,25 @@ export type FiltroVentas = {
   hasta?: Date;
   usuarioId?: string;
   medio?: MedioPago;
+  /** Código (escaneado de la etiqueta) o nombre de un producto que tenga la venta. */
+  producto?: string;
   pagina?: number;
 };
 
 export const VENTAS_POR_PAGINA = 50;
+
+/** Para buscar una venta por la prenda: el código exacto de la etiqueta (aunque el lector cambie - por ') o palabras del nombre. */
+function filtroProducto(texto: string): Prisma.DetalleVentaWhereInput {
+  const q = texto.trim().slice(0, 100);
+  const codigos = [q, corregirLector(q)].filter((c): c is string => !!c);
+  const palabras = q.split(/\s+/).filter(Boolean).slice(0, 6);
+  return {
+    OR: [
+      ...codigos.map((c) => ({ codigo: { equals: c, mode: "insensitive" as const } })),
+      { AND: palabras.map((p) => ({ nombre: { contains: p, mode: "insensitive" as const } })) },
+    ],
+  };
+}
 
 export async function listarVentas(ctx: Contexto, negocioId: string, filtro: FiltroVentas = {}) {
   exigirNegocioPermitido(ctx, negocioId);
@@ -507,6 +523,7 @@ export async function listarVentas(ctx: Contexto, negocioId: string, filtro: Fil
       : {}),
     ...(filtro.usuarioId ? { usuarioId: filtro.usuarioId } : {}),
     ...(filtro.medio ? { pagos: { some: { medio: filtro.medio } } } : {}),
+    ...(filtro.producto?.trim() ? { detalles: { some: filtroProducto(filtro.producto) } } : {}),
   };
   const pagina = Math.max(1, filtro.pagina ?? 1);
   const [ventas, total, suma] = await Promise.all([
