@@ -67,8 +67,12 @@ describe("toda entrada al servidor lee la sesión", () => {
   it("las rutas de /api y demás route.ts", () => {
     // Públicas a propósito: el inicio de sesión, salir y el aviso de "hay internet".
     const publicas = ["api/auth/[...nextauth]/route.ts", "salir/route.ts", "api/caja/estado/route.ts"];
+    // El catálogo en línea (c/[slug]/...) es público, pero siempre entra por el link de una
+    // tienda con el catálogo prendido (tiendaDe), nunca por un id suelto.
+    const catalogo = todos.filter((f) => f.endsWith("route.ts") && path.relative(raiz, f).startsWith("c/[slug]/"));
+    expect(catalogo.filter((f) => !/tiendaDe\(/.test(readFileSync(f, "utf8")))).toEqual([]);
     const sinSesion = todos
-      .filter((f) => f.endsWith("route.ts") && !publicas.includes(path.relative(raiz, f)))
+      .filter((f) => f.endsWith("route.ts") && !publicas.includes(path.relative(raiz, f)) && !catalogo.includes(f))
       .filter((f) => !/obtenerContexto/.test(readFileSync(f, "utf8")))
       .map((f) => path.relative(raiz, f));
     expect(sinSesion).toEqual([]);

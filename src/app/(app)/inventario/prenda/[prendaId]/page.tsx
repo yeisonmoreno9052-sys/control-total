@@ -12,6 +12,7 @@ import { exigirModulo } from "@/lib/modulos";
 import { puedeEditarProductos, puedeGestionar } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
 import { cn } from "@/lib/utils";
+import { ClientesEsperando } from "../../../configuracion/catalogo/esperando";
 import { AgregarTallas, CambiarPrecio } from "./formularios";
 
 export const metadata: Metadata = { title: "Prenda · Control Total" };
@@ -68,6 +69,8 @@ export default async function DetallePrenda({ params, searchParams }: PageProps<
           {sp.creada ? "Prenda creada con todas sus tallas y colores." : "Listo, quedaron agregadas."}
         </p>
       )}
+
+      <ClientesEsperando ctx={ctx} negocioId={prenda.negocioId} prendaId={prendaId} />
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Cuántas hay de cada una</h2>

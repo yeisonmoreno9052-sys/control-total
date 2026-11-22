@@ -94,46 +94,58 @@ model Empresa {
   movimientosCaja    MovimientoCaja[]
   accionesEmy        AccionEmy[]
   lecturasFactura    LecturaFactura[]
+  avisosTalla        AvisoTalla[]
+  vistasCatalogo     VistaCatalogo[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
 model Negocio {
-  id                    String   @id @default(cuid())
-  empresaId             String
-  nombre                String
-  direccion             String?
-  tipo                  String?
+  id                      String   @id @default(cuid())
+  empresaId               String
+  nombre                  String
+  direccion               String?
+  tipo                    String?
   // Datos fiscales, preparados para facturación electrónica (DIAN).
-  nit                   String?
-  razonSocial           String?
-  regimen               String?
-  telefono              String?
+  nit                     String?
+  razonSocial             String?
+  regimen                 String?
+  telefono                String?
   /// Texto al pie del recibo ("Gracias por su compra").
-  mensajeRecibo         String?
+  mensajeRecibo           String?
   /// Último consecutivo usado. Se incrementa dentro de la misma transacción de la venta.
-  consecutivoVenta      Int      @default(0)
-  consecutivoDevolucion Int      @default(0)
+  consecutivoVenta        Int      @default(0)
+  consecutivoDevolucion   Int      @default(0)
   /// Margen sugerido por defecto, en % sobre el costo. Las categorías pueden tener el suyo.
-  margenSugerido        Decimal  @default(30) @db.Decimal(6, 2)
+  margenSugerido          Decimal  @default(30) @db.Decimal(6, 2)
   /// IVA con el que nacen los productos nuevos (formulario e importación). 0 si el local no cobra IVA.
-  ivaPorDefecto         Int      @default(19)
+  ivaPorDefecto           Int      @default(19)
   /// Si la caja muestra cuadros para tocar los productos marcados como botón rápido (cafeterías).
-  botonesRapidos        Boolean  @default(false)
+  botonesRapidos          Boolean  @default(false)
   /// Si se puede fiar (vender a crédito) y recibir abonos de los clientes.
-  permiteCredito        Boolean  @default(false)
+  permiteCredito          Boolean  @default(false)
   /// Si los productos se crean por prenda con tallas y colores (almacenes de ropa y calzado).
-  usaTallas             Boolean  @default(false)
+  usaTallas               Boolean  @default(false)
   /// Formas de pago que no son efectivo ni transferencia. Aparecen al cobrar solo si están activas.
-  aceptaTarjeta         Boolean  @default(false)
-  aceptaSistecredito    Boolean  @default(false)
-  activo                Boolean  @default(true)
-  creadoEn              DateTime @default(now())
-  actualizadoEn         DateTime @updatedAt
+  aceptaTarjeta           Boolean  @default(false)
+  aceptaSistecredito      Boolean  @default(false)
+  /// Catálogo en línea: página pública con lo que hay en inventario (sin costos ni ventas).
+  catalogoActivo          Boolean  @default(false)
+  /// La parte del link: app.controltotalpos.com/c/<catalogoSlug>. Única en todo el sistema.
+  catalogoSlug            String?  @unique
+  /// Número de WhatsApp que recibe los pedidos del catálogo. Vacío = el teléfono del negocio.
+  catalogoWhatsapp        String?
+  /// Mostrar "quedan 3" en vez de solo "disponible".
+  catalogoMostrarCantidad Boolean  @default(false)
+  activo                  Boolean  @default(true)
+  creadoEn                DateTime @default(now())
+  actualizadoEn           DateTime @updatedAt
 
   empresa            Empresa                @relation(fields: [empresaId], references: [id])
   usuarios           UsuarioNegocio[]
   categorias         Categoria[]
   promociones        Promocion[]
+  avisosTalla        AvisoTalla[]
+  vistasCatalogo     VistaCatalogo[]
   productos          Producto[]
   movimientos        MovimientoInventario[]
   auditorias         Auditoria[]
@@ -1002,4 +1014,50 @@ model Promocion {
 
   @@index([empresaId])
   @@index([negocioId, hasta])
+}
+
+/// "Avísame cuando llegue mi talla": un cliente del catálogo en línea deja su WhatsApp para una
+/// talla o color agotado. Al registrar "Llegó mercancía" de esa prenda, el negocio ve la lista.
+model AvisoTalla {
+  id         String    @id @default(cuid())
+  empresaId  String
+  negocioId  String
+  /// Prenda (o producto suelto) que espera.
+  prendaId   String?
+  productoId String?
+  nombre     String
+  talla      String?
+  color      String?
+  cliente    String?
+  telefono   String
+  creadoEn   DateTime  @default(now())
+  /// Cuándo se le escribió al cliente (null = pendiente).
+  avisadoEn  DateTime?
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+
+  @@index([empresaId])
+  @@index([negocioId, prendaId])
+  @@index([negocioId, avisadoEn])
+}
+
+/// Cuántas veces se vio cada prenda del catálogo en línea y cuántas veces la pidieron por
+/// WhatsApp, por día. "clave" es el prendaId o, en productos sueltos, el productoId.
+model VistaCatalogo {
+  id        String   @id @default(cuid())
+  empresaId String
+  negocioId String
+  clave     String
+  nombre    String
+  dia       DateTime @db.Date
+  vistas    Int      @default(0)
+  pedidos   Int      @default(0)
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+
+  @@unique([negocioId, clave, dia])
+  @@index([empresaId])
+  @@index([negocioId, dia])
 }

@@ -4,11 +4,13 @@ import { Shirt } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Button } from "@/components/ui/button";
+import { slugCatalogo } from "@/lib/datos/catalogo";
 import { obtenerEmpresa } from "@/lib/datos/empresa";
 import { listarNovedades } from "@/lib/datos/estados";
 import { obtenerDatosNegocio } from "@/lib/datos/negocios";
 import { exigirModulo } from "@/lib/modulos";
 import { obtenerContexto } from "@/lib/sesion";
+import { urlPublica } from "@/lib/url-publica";
 import { EditorCollage } from "./editor-collage";
 
 export const metadata: Metadata = { title: "Mercancía nueva · Control Total" };
@@ -20,6 +22,8 @@ export default async function EstadoNovedades() {
   const [empresa, negocio, piezas] = negocioId
     ? await Promise.all([obtenerEmpresa(ctx), obtenerDatosNegocio(ctx, negocioId), listarNovedades(ctx, negocioId)])
     : [null, null, []];
+  const slug = negocioId ? await slugCatalogo(ctx, negocioId) : null;
+  const catalogo = slug ? `${await urlPublica()}/c/${slug}?f=nuevo` : null;
 
   return (
     <div>
@@ -46,6 +50,7 @@ export default async function EstadoNovedades() {
           logoUrl={empresa?.logoUrl ?? null}
           paleta={empresa?.paleta ?? "indigo"}
           telefono={negocio?.telefono ?? null}
+          catalogo={catalogo}
         />
       )}
     </div>
