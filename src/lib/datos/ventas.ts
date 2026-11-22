@@ -500,7 +500,7 @@ export type FiltroVentas = {
 
 export const VENTAS_POR_PAGINA = 50;
 
-/** Para buscar una venta por la prenda: el código exacto de la etiqueta (aunque el lector cambie - por ') o palabras del nombre. */
+/** Para buscar una venta por la prenda: el código o el código de barras de la etiqueta (aunque el lector cambie - por ') o palabras del nombre. */
 function filtroProducto(texto: string): Prisma.DetalleVentaWhereInput {
   const q = texto.trim().slice(0, 100);
   const codigos = [q, corregirLector(q)].filter((c): c is string => !!c);
@@ -508,6 +508,8 @@ function filtroProducto(texto: string): Prisma.DetalleVentaWhereInput {
   return {
     OR: [
       ...codigos.map((c) => ({ codigo: { equals: c, mode: "insensitive" as const } })),
+      // Las etiquetas nuevas traen el código de barras corto (29…), no el código del producto.
+      { producto: { codigoBarras: { in: codigos } } },
       { AND: palabras.map((p) => ({ nombre: { contains: p, mode: "insensitive" as const } })) },
     ],
   };

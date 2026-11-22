@@ -87,6 +87,15 @@ describe("buscar una venta por la prenda (para cambios)", () => {
     }
     expect((await listarVentas(e.ctx.cajero, e.motos.id, { producto: "nada" })).total).toBe(0);
   });
+
+  it("encuentra la venta escaneando la etiqueta nueva (código de barras corto)", async () => {
+    const id = await crear(e.motos.id, { codigo: "PR-0002-S-ROS", codigoBarras: "2900020001", nombre: "Blusa Galita - S - Rosado" });
+    await abrir(e.ctx.cajero, e.motos.id);
+    await vender(e.ctx.cajero, e.motos.id, venta([{ productoId: id, cantidad: "1" }], 1000));
+    expect((await listarVentas(e.ctx.cajero, e.motos.id, { producto: "2900020001" })).total).toBe(1);
+    // Otro negocio no ve esa venta aunque escanee el mismo código.
+    expect((await listarVentas(e.ctx.admin, e.ferreteria.id, { producto: "2900020001" })).total).toBe(0);
+  });
 });
 
 describe("cobrar", () => {
