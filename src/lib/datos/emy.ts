@@ -636,6 +636,8 @@ export async function borrarDatosDePrueba(tx: Tx, empresaId: string) {
   await tx.movimientoInventario.deleteMany({ where: w });
   // El historial de usuarios y permisos se queda; el de productos y ventas de prueba no.
   await tx.auditoria.deleteMany({ where: { ...w, entidad: { notIn: ["Usuario", "Negocio", "Empresa"] } } });
+  await tx.avisoTalla.deleteMany({ where: w });
+  await tx.vistaCatalogo.deleteMany({ where: w });
   await tx.fotoProducto.deleteMany({ where: w });
   const productos = await tx.producto.deleteMany({ where: w });
   await tx.categoria.deleteMany({ where: w });

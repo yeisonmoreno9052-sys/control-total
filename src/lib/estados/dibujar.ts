@@ -56,7 +56,12 @@ export const COLORES: Record<Paleta, Colores> = {
 
 export type Fuentes = { titulo: string; texto: string };
 
-export type Recursos = { logo: HTMLImageElement | null; marca: string };
+export type Recursos = {
+  logo: HTMLImageElement | null;
+  marca: string;
+  /** Link corto del catálogo en línea ("app.controltotalpos.com/c/dbshop"), si la tienda lo tiene prendido. */
+  catalogo?: string | null;
+};
 
 const VERDE_WHATSAPP = "#1f9d55";
 const ICONO_WHATSAPP =
@@ -211,6 +216,16 @@ function botonWhatsApp(c: C, telefono: string, f: Fuentes, y: number) {
 }
 
 function piePagina(c: C, r: Recursos, col: Colores, f: Fuentes) {
+  if (r.catalogo) {
+    // Con catálogo en línea, el pie invita a verlo (así el Estado lleva a la tienda).
+    c.font = `600 30px ${f.texto}`;
+    espaciado(c, 0);
+    c.fillStyle = col.acento[0];
+    c.textAlign = "center";
+    c.textBaseline = "alphabetic";
+    c.fillText(recortarUnaLinea(c, `🛍️ Catálogo: ${r.catalogo}`, 1000), ANCHO / 2, ALTO - 44);
+    return;
+  }
   c.font = `600 26px ${f.texto}`;
   espaciado(c, 6);
   c.fillStyle = col.tenue;
@@ -743,7 +758,8 @@ export function dibujarCollage(
     c.fillText(recortarUnaLinea(c, nota, 960), centro, abajo + 30);
   }
   if (conTelefono) botonWhatsApp(c, d.telefono.trim(), f, 1715);
-  else piePagina(c, r, col, f);
+  // El link del catálogo cabe debajo del botón; el nombre de la tienda no (ya está el logo).
+  if (!conTelefono || r.catalogo) piePagina(c, r, col, f);
 }
 
 /** Pasa el canvas a un archivo PNG para compartir o descargar. */

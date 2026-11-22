@@ -8,6 +8,8 @@ import { authConfig } from "./auth.config";
 const { auth } = NextAuth(authConfig);
 
 export const proxy = auth((req) => {
+  // Catálogo en línea: es público, lo abre cualquier cliente con el link.
+  if (req.nextUrl.pathname.startsWith("/c/")) return NextResponse.next();
   const conSesion = !!req.auth;
   const enIngreso = req.nextUrl.pathname.startsWith("/ingresar");
 

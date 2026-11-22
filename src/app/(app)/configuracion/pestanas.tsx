@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 const PESTANAS = [
   { href: "/configuracion", titulo: "Negocio", soloAdmin: false },
+  { href: "/configuracion/catalogo", titulo: "Catálogo en línea", soloAdmin: false },
   { href: "/configuracion/usuarios", titulo: "Usuarios", soloAdmin: true },
   { href: "/configuracion/historial", titulo: "Historial de cambios", soloAdmin: false },
 ] as const;

@@ -19,7 +19,7 @@ import {
 } from "@/lib/estados/piezas";
 import { formatearPesos } from "@/lib/formato";
 import type { Paleta } from "@/lib/paletas";
-import { Acciones, Lienzo, SubirFoto, useFuentes, useImagenes, useTelefono } from "../comun";
+import { Acciones, Lienzo, LinkCatalogoEstado, corto, SubirFoto, useFuentes, useImagenes, useTelefono } from "../comun";
 
 export function EditorPieza({
   pieza,
@@ -28,7 +28,10 @@ export function EditorPieza({
   paleta,
   telefono: telefonoNegocio,
   puedeFoto,
+  catalogo = null,
 }: {
+  /** Link de la prenda en el catálogo en línea (null si la tienda no lo tiene prendido). */
+  catalogo?: string | null;
   pieza: PiezaEstado;
   marca: string;
   logoUrl: string | null;
@@ -69,8 +72,8 @@ export function EditorPieza({
   useEffect(() => {
     const c = lienzo.current?.getContext("2d");
     if (!c || !fuentes) return;
-    dibujarPieza(c, diseno, foto ?? null, { logo: logo ?? null, marca }, COLORES[paleta], fuentes);
-  }, [diseno, foto, logo, fuentes, marca, paleta]);
+    dibujarPieza(c, diseno, foto ?? null, { logo: logo ?? null, marca, catalogo: corto(catalogo) }, COLORES[paleta], fuentes);
+  }, [diseno, foto, logo, fuentes, marca, paleta, catalogo]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[22rem_1fr] lg:items-start">
@@ -166,6 +169,8 @@ export function EditorPieza({
             </p>
           )}
         </section>
+
+        <LinkCatalogoEstado link={catalogo} />
 
         <Acciones
           lienzo={lienzo}

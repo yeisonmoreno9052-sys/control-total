@@ -19,7 +19,7 @@ import { formatearPesos } from "@/lib/formato";
 import type { Paleta } from "@/lib/paletas";
 import { cn } from "@/lib/utils";
 import { buscarPiezasAccion } from "../acciones";
-import { Acciones, Lienzo, useFuentes, useImagenes, useTelefono } from "../comun";
+import { Acciones, corto, Lienzo, LinkCatalogoEstado, useFuentes, useImagenes, useTelefono } from "../comun";
 
 /** Para empezar: las más nuevas que tienen foto (si no hay ninguna con foto, las más nuevas). */
 function primeras(piezas: PiezaEstado[]) {
@@ -36,7 +36,9 @@ export function EditorCollage({
   logoUrl,
   paleta,
   telefono: telefonoNegocio,
+  catalogo = null,
 }: {
+  catalogo?: string | null;
   piezas: PiezaEstado[];
   marca: string;
   logoUrl: string | null;
@@ -105,8 +107,8 @@ export function EditorCollage({
     // Mientras cargan las fotos nuevas, se dibuja con las que ya estén.
     const fotos = seleccion.map((p) => (p.fotoUrl ? (imagenes.get(p.fotoUrl) ?? null) : null));
     const logo = logoUrl ? (imagenes.get(logoUrl) ?? null) : null;
-    dibujarCollage(c, diseno, fotos, { logo, marca }, COLORES[paleta], fuentes);
-  }, [diseno, seleccion, imagenes, fuentes, logoUrl, marca, paleta]);
+    dibujarCollage(c, diseno, fotos, { logo, marca, catalogo: corto(catalogo) }, COLORES[paleta], fuentes);
+  }, [diseno, seleccion, imagenes, fuentes, logoUrl, marca, paleta, catalogo]);
 
   function buscar(texto: string) {
     setBusqueda(texto);
@@ -310,6 +312,8 @@ export function EditorCollage({
             />
           </Campo>
         </section>
+
+        <LinkCatalogoEstado link={catalogo} />
 
         <Acciones
           lienzo={lienzo}

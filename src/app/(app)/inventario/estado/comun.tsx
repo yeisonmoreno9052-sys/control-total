@@ -298,3 +298,47 @@ export function SubirFoto({
     </div>
   );
 }
+
+/**
+ * Link del catálogo en línea para pegarlo como texto en el Estado o como sticker de enlace en
+ * Instagram: en el celular no se puede escanear un QR que está en la misma pantalla.
+ */
+export function LinkCatalogoEstado({ link }: { link: string | null }) {
+  const [copiado, setCopiado] = useState(false);
+  if (!link) return null;
+  return (
+    <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-suave md:p-5">
+      <h2 className="font-semibold">Link para que pidan</h2>
+      <p className="text-sm text-muted-foreground">
+        La imagen ya lleva el link del catálogo abajo. Para que puedan tocarlo, cópialo y pégalo como texto en el Estado, o como
+        sticker de enlace en la historia de Instagram.
+      </p>
+      <div className="flex items-center gap-2 rounded-xl bg-muted/60 p-2.5">
+        <span className="min-w-0 flex-1 truncate font-mono text-sm">{link}</span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(link);
+              setCopiado(true);
+              setTimeout(() => setCopiado(false), 2000);
+            } catch {
+              window.prompt("Copia el link:", link);
+            }
+          }}
+        >
+          {copiado ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copiado ? "Copiado" : "Copiar link"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/** "https://app.controltotalpos.com/c/dbshop/p/x" → "app.controltotalpos.com/c/dbshop" (lo que cabe en la imagen). */
+export function corto(link: string | null) {
+  if (!link) return null;
+  return link.replace(/^https?:\/\//, "").replace(/\/p\/.*$/, "").replace(/\?.*$/, "");
+}

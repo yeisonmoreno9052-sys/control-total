@@ -7,6 +7,7 @@ import { formatearCantidad } from "@/lib/inventario/cantidades";
 import { exigirModulo } from "@/lib/modulos";
 import { puedeEditarProductos } from "@/lib/permisos";
 import { obtenerContexto } from "@/lib/sesion";
+import { ClientesEsperando } from "../../../../configuracion/catalogo/esperando";
 import { FormularioLlegada } from "./formulario";
 
 export const metadata: Metadata = { title: "Llegó mercancía · Control Total" };
@@ -30,6 +31,9 @@ export default async function LlegadaPrenda({ params, searchParams }: PageProps<
         subtitulo={`${prenda.nombre}: escribe cuántas llegaron de cada talla. Si llegó una talla o un color nuevo, agrégalo abajo.`}
         volver={{ href: volver, texto: "Volver" }}
       />
+      <div className="mb-6">
+        <ClientesEsperando ctx={ctx} negocioId={prenda.negocioId} prendaId={prendaId} />
+      </div>
       <FormularioLlegada
         prendaId={prendaId}
         tallas={prenda.tallas}
