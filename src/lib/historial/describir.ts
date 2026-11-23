@@ -9,7 +9,7 @@ export const GRUPOS_HISTORIAL: Record<GrupoHistorial, { nombre: string; acciones
   ventas: { nombre: "Ventas", acciones: ["ANULACION_VENTA", "DEVOLUCION_VENTA", "VENTA_SIN_CONEXION", "ABONO_CREDITO", "ANULACION_ABONO_CREDITO"] },
   inventario: { nombre: "Inventario y precios", acciones: ["CREACION_PRODUCTO", "AJUSTE_STOCK", "CAMBIO_PRECIO", "IMPORTACION"] },
   compras: { nombre: "Compras", acciones: ["REGISTRO_COMPRA", "ANULACION_COMPRA", "ANULACION_ABONO"] },
-  caja: { nombre: "Caja", acciones: ["REABRIR_CAJA", "ANULACION_MOVIMIENTO_CAJA", "CAMBIO_TURNO"] },
+  caja: { nombre: "Caja", acciones: ["REABRIR_CAJA", "ANULACION_MOVIMIENTO_CAJA", "CAMBIO_TURNO", "ANULACION_OPERACION_PAC"] },
   usuarios: {
     nombre: "Usuarios y contraseñas",
     acciones: [
@@ -38,6 +38,7 @@ const NOMBRES_CAMPO: Record<string, string> = {
   ivaPorDefecto: "IVA por defecto",
   botonesRapidos: "botones rápidos en la caja",
   permiteCredito: "ventas a crédito",
+  usaPac: "PAC (recargas y retiros)",
 };
 
 const CATEGORIAS: Record<string, string> = {
@@ -162,6 +163,11 @@ export function describirAuditoria(
     case "ANULACION_MOVIMIENTO_CAJA":
       return {
         frase: `anuló un registro de ${CATEGORIAS[texto(d.categoria)] ?? "caja"} por ${pesos(d.valor)}`,
+        detalle: motivo(d.motivo),
+      };
+    case "ANULACION_OPERACION_PAC":
+      return {
+        frase: `anuló ${texto(d.tipo) === "RETIRO" ? "un retiro" : "una recarga"} del PAC por ${pesos(d.valor)}`,
         detalle: motivo(d.motivo),
       };
     case "CREACION_USUARIO":

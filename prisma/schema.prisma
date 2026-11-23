@@ -96,6 +96,7 @@ model Empresa {
   lecturasFactura    LecturaFactura[]
   avisosTalla        AvisoTalla[]
   vistasCatalogo     VistaCatalogo[]
+  operacionesPac     OperacionPac[]
 }
 
 /// Cada local dentro de la empresa (ej. "Repuestos de moto", "Ferretería").
@@ -136,6 +137,8 @@ model Negocio {
   catalogoWhatsapp        String?
   /// Mostrar "quedan 3" en vez de solo "disponible".
   catalogoMostrarCantidad Boolean  @default(false)
+  /// PAC (corresponsal): recargas y retiros que hace el local y le dejan una comisión. Aparte de las ventas.
+  usaPac                  Boolean  @default(false)
   activo                  Boolean  @default(true)
   creadoEn                DateTime @default(now())
   actualizadoEn           DateTime @updatedAt
@@ -166,6 +169,7 @@ model Negocio {
   fotosProducto      FotoProducto[]
   movimientosCaja    MovimientoCaja[]
   lecturasFactura    LecturaFactura[]
+  operacionesPac     OperacionPac[]
 
   @@index([empresaId])
 }
@@ -215,6 +219,8 @@ model Usuario {
   adjuntosFactura         AdjuntoFactura[]
   accionesEmy             AccionEmy[]
   lecturasFactura         LecturaFactura[]
+  operacionesPac          OperacionPac[]         @relation("OperacionPacRegistro")
+  operacionesPacAnuladas  OperacionPac[]         @relation("OperacionPacAnulador")
 
   @@index([empresaId])
 }
@@ -502,17 +508,18 @@ model Caja {
   diferencia   Int?
   nota         String?
 
-  empresa       Empresa          @relation(fields: [empresaId], references: [id])
-  negocio       Negocio          @relation(fields: [negocioId], references: [id])
-  abiertaPor    Usuario          @relation("CajaApertura", fields: [abiertaPorId], references: [id])
-  cerradaPor    Usuario?         @relation("CajaCierre", fields: [cerradaPorId], references: [id])
-  ventas        Venta[]          @relation("VentaCaja")
-  anulaciones   Venta[]          @relation("VentaCajaAnulacion")
-  devoluciones  Devolucion[]
-  abonosFactura AbonoFactura[]
-  abonosCredito AbonoCredito[]
-  movimientos   MovimientoCaja[]
-  turnos        TurnoCaja[]
+  empresa        Empresa          @relation(fields: [empresaId], references: [id])
+  negocio        Negocio          @relation(fields: [negocioId], references: [id])
+  abiertaPor     Usuario          @relation("CajaApertura", fields: [abiertaPorId], references: [id])
+  cerradaPor     Usuario?         @relation("CajaCierre", fields: [cerradaPorId], references: [id])
+  ventas         Venta[]          @relation("VentaCaja")
+  anulaciones    Venta[]          @relation("VentaCajaAnulacion")
+  devoluciones   Devolucion[]
+  abonosFactura  AbonoFactura[]
+  abonosCredito  AbonoCredito[]
+  movimientos    MovimientoCaja[]
+  turnos         TurnoCaja[]
+  operacionesPac OperacionPac[]
 
   @@unique([negocioId, fecha])
   @@index([empresaId])
@@ -980,6 +987,49 @@ model TurnoCaja {
   usuario Usuario @relation(fields: [usuarioId], references: [id])
 
   @@index([empresaId])
+  @@index([cajaId])
+}
+
+enum TipoOperacionPac {
+  /// El cliente paga y se le carga plata (Nequi, celular…). Si paga en efectivo, entra plata al cajón.
+  RECARGA
+  /// El cliente saca plata: sale efectivo del cajón.
+  RETIRO
+}
+
+/// Operación del PAC (corresponsal). No es una venta: no cuenta en ventas ni en la utilidad del negocio.
+/// En el cierre de caja sale aparte. No se borra: se anula con motivo.
+model OperacionPac {
+  id              String           @id @default(cuid())
+  empresaId       String
+  negocioId       String
+  tipo            TipoOperacionPac
+  /// Lo que se recargó o se retiró, en pesos.
+  valor           Int
+  /// Lo que se gana el local por la operación, en pesos.
+  comision        Int
+  /// Recarga: cómo pagó el cliente (EFECTIVO o TRANSFERENCIA). Retiro: siempre EFECTIVO (sale del cajón).
+  medio           MedioPago
+  nota            String?
+  /// Día de la operación, en hora de Bogotá.
+  fecha           DateTime         @db.Date
+  /// Caja abierta del día en que se hizo.
+  cajaId          String?
+  usuarioId       String
+  anulado         Boolean          @default(false)
+  anuladoEn       DateTime?
+  anuladoPorId    String?
+  motivoAnulacion String?
+  creadoEn        DateTime         @default(now())
+
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  negocio    Negocio  @relation(fields: [negocioId], references: [id])
+  caja       Caja?    @relation(fields: [cajaId], references: [id])
+  usuario    Usuario  @relation("OperacionPacRegistro", fields: [usuarioId], references: [id])
+  anuladoPor Usuario? @relation("OperacionPacAnulador", fields: [anuladoPorId], references: [id])
+
+  @@index([empresaId])
+  @@index([negocioId, fecha])
   @@index([cajaId])
 }
 

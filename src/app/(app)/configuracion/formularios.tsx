@@ -160,6 +160,21 @@ export function FormularioPreferenciasVenta({ preferencias }: { preferencias: Pr
           </span>
         </span>
       </label>
+      <label className="flex items-start gap-3 rounded-lg border p-3">
+        <input
+          type="checkbox"
+          name="usaPac"
+          defaultChecked={preferencias.usaPac}
+          className="mt-0.5 size-5 accent-[var(--primary)]"
+        />
+        <span>
+          <span className="font-medium">Usar PAC (recargas y retiros)</span>
+          <span className="block text-sm text-muted-foreground">
+            En Ventas aparece &quot;PAC&quot; para anotar recargas y retiros con su comisión. No cuentan como venta ni en la
+            utilidad, y en el cierre de caja salen aparte.
+          </span>
+        </span>
+      </label>
       <AvisoError mensaje={estado.error} />
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={guardando}>
