@@ -38,6 +38,7 @@ export async function guardarPreferenciasVentaAccion(_: EstadoConfig, formulario
     usaTallas: formulario.get("usaTallas") === "on",
     aceptaTarjeta: formulario.get("aceptaTarjeta") === "on",
     aceptaSistecredito: formulario.get("aceptaSistecredito") === "on",
+    usaPac: formulario.get("usaPac") === "on",
   });
   if (!r.ok) return { error: r.error, campos: r.campos };
   revalidatePath("/", "layout");

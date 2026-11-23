@@ -53,7 +53,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja", "accionesEmy",
-      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo",
+      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo", "operacionesPac",
     ],
   },
   Negocio: {
@@ -63,7 +63,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
-      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo",
+      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo", "operacionesPac",
     ],
   },
   Usuario: {
@@ -73,7 +73,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "negocios", "movimientos", "auditorias",
       "ventas", "ventasAnuladas", "devoluciones", "cajasAbiertas", "cajasCerradas",
       "facturasCompra", "facturasAnuladas", "abonosFactura", "abonosAnulados", "adjuntosFactura", "movimientosCaja", "movimientosCajaAnulados",
-      "accionesEmy", "lecturasFactura", "abonosCredito", "abonosCreditoAnulados", "turnosCaja",
+      "accionesEmy", "lecturasFactura", "abonosCredito", "abonosCreditoAnulados", "turnosCaja", "operacionesPac", "operacionesPacAnuladas",
     ],
   },
   UsuarioNegocio: {
@@ -121,7 +121,7 @@ const MODELOS: Record<string, ReglaModelo> = {
   Caja: {
     filtro: deNegocios,
     alCrear: null,
-    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura", "abonosCredito", "movimientos", "turnos"],
+    relaciones: ["empresa", "negocio", "abiertaPor", "cerradaPor", "ventas", "anulaciones", "devoluciones", "abonosFactura", "abonosCredito", "movimientos", "turnos", "operacionesPac"],
     porNegocio: true,
     soloLectura: true,
   },
@@ -211,6 +211,14 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "caja", "usuario"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  // Recargas y retiros del PAC: solo se escriben desde pac.ts.
+  OperacionPac: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio", "caja", "usuario", "anuladoPor"],
     porNegocio: true,
     soloLectura: true,
   },

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HandCoins, History, Lock, Receipt, Users, Store, TriangleAlert, Wallet } from "lucide-react";
+import { HandCoins, History, Lock, Receipt, Smartphone, Users, Store, TriangleAlert, Wallet } from "lucide-react";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Button } from "@/components/ui/button";
 import { estadoDeCaja } from "@/lib/datos/caja";
@@ -34,6 +34,13 @@ export default async function Ventas() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/ventas/creditos">
             <HandCoins /> Créditos
+          </Link>
+        </Button>
+      )}
+      {preferencias.usaPac && (
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/ventas/pac">
+            <Smartphone /> PAC
           </Link>
         </Button>
       )}

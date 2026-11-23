@@ -65,6 +65,8 @@ async function Cierre({ params, searchParams }: PageProps<"/cierre/[id]">) {
         {!!r.pagosProveedores && <Fila nombre="Pagos a proveedores" valor={-r.pagosProveedores} />}
         {!!r.ingresosEfectivo && <Fila nombre="Otros ingresos" valor={r.ingresosEfectivo} />}
         {!!r.egresosEfectivo && <Fila nombre="Egresos" valor={-r.egresosEfectivo} />}
+        {!!r.pacEntra && <Fila nombre="PAC: entró (recargas)" valor={r.pacEntra} />}
+        {!!r.pacSale && <Fila nombre="PAC: salió (retiros)" valor={-r.pacSale} />}
         <div className="mt-1 flex justify-between font-bold tabular-nums">
           <span>Efectivo esperado</span>
           <span>{formatearPesos(esperado)}</span>
@@ -112,6 +114,14 @@ async function Cierre({ params, searchParams }: PageProps<"/cierre/[id]">) {
         {!!r.ventasCredito && <Fila nombre="Fiado (a crédito)" valor={r.ventasCredito} />}
         {!!r.abonosTransferencia && <Fila nombre="Abonos por transferencia" valor={r.abonosTransferencia} />}
         <p className="text-[11px]">Las transferencias, el datáfono, Sistecrédito y lo fiado no están en la caja.</p>
+        {r.pacOperaciones > 0 && (
+          <>
+            <Separador />
+            <p className="font-bold">PAC (no es venta)</p>
+            <Fila nombre={`Operaciones (${r.pacOperaciones}) · comisiones`} valor={r.pacComisiones} />
+            <Fila nombre="Efectivo del PAC en la caja" valor={r.pacEntra - r.pacSale} />
+          </>
+        )}
 
         {cerrada && esperado !== r.esperado && (
           <>

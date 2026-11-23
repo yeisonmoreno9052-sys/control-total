@@ -278,6 +278,7 @@ async function borrarDatos(empresaId: string) {
       await tx.detalleFacturaCompra.deleteMany({ where: w });
       await tx.facturaCompra.deleteMany({ where: w });
       await tx.movimientoCaja.deleteMany({ where: w });
+      await tx.operacionPac.deleteMany({ where: w });
       await tx.turnoCaja.deleteMany({ where: w });
       await tx.caja.deleteMany({ where: w });
       await tx.movimientoInventario.deleteMany({ where: w });

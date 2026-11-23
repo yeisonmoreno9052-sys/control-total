@@ -7,12 +7,14 @@
 //   − devoluciones pagadas en efectivo desde esta caja
 //   − pagos a proveedores en efectivo que salieron de esta caja
 //   + ingresos en efectivo − egresos en efectivo (nómina, arriendo, retiros…) de esta caja
+//   + efectivo que entró por el PAC (recargas) − efectivo que salió por el PAC (retiros)
 import { diaEnBogota, fechaDeHoy } from "@/lib/formato";
 import { exigirGestion, puedeGestionar } from "@/lib/permisos";
 import { datosDe } from "./alcance";
 import { prisma } from "./cliente";
 import type { Contexto } from "./contexto";
 import { exigirNegocioPermitido, registrarAuditoria, type Resultado, type Tx } from "./inventario";
+import { pacDeCaja } from "./pac";
 
 export type CajaVista = {
   id: string;
@@ -99,6 +101,11 @@ export type ResumenCaja = {
   pagosProveedores: number;
   ingresosEfectivo: number;
   egresosEfectivo: number;
+  /** PAC (corresponsal): no es venta. Efectivo que entró por recargas y que salió por retiros. */
+  pacOperaciones: number;
+  pacEntra: number;
+  pacSale: number;
+  pacComisiones: number;
   esperado: number;
 };
 
@@ -110,7 +117,7 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
   });
   if (!caja) return null;
 
-  const [pagos, anulados, devoluciones, ventas, proveedores, movimientos, abonos] = await Promise.all([
+  const [pagos, anulados, devoluciones, ventas, proveedores, movimientos, abonos, pac] = await Promise.all([
     db.pagoVenta.groupBy({
       by: ["medio"],
       where: { empresaId: ctx.empresaId, venta: { cajaId } },
@@ -141,6 +148,7 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
       where: { empresaId: ctx.empresaId, cajaId, anulado: false },
       _sum: { valor: true },
     }),
+    pacDeCaja(db, ctx, cajaId),
   ]);
   const porMedio = (medio: string) => pagos.find((p) => p.medio === medio)?._sum.valor ?? 0;
   const ventasEfectivo = porMedio("EFECTIVO");
@@ -167,6 +175,10 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
     pagosProveedores,
     ingresosEfectivo,
     egresosEfectivo,
+    pacOperaciones: pac.operaciones,
+    pacEntra: pac.entra,
+    pacSale: pac.sale,
+    pacComisiones: pac.comisiones,
     esperado:
       caja.base +
       ventasEfectivo +
@@ -175,7 +187,9 @@ export async function resumenDeCaja(db: Tx, ctx: Contexto, cajaId: string): Prom
       devolucionesEfectivo -
       pagosProveedores +
       ingresosEfectivo -
-      egresosEfectivo,
+      egresosEfectivo +
+      pac.entra -
+      pac.sale,
   };
 }
 

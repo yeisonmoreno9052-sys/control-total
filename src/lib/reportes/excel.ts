@@ -22,7 +22,7 @@ function nombreHoja(titulo: string, usados: Set<string>) {
   return nombre;
 }
 
-export async function reporteAExcel(reporte: Reporte, empresa: string) {
+export async function reporteAExcel(reporte: Omit<Reporte, "vista">, empresa: string) {
   const libro = new ExcelJS.Workbook();
   libro.creator = "Control Total · EMY TELECOM";
   libro.created = new Date();

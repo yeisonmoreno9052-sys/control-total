@@ -105,6 +105,16 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
               {!!resumen.egresosEfectivo && (
                 <Fila nombre="Egresos en efectivo (nómina, arriendo…)" valor={-resumen.egresosEfectivo} />
               )}
+              {resumen.pacOperaciones > 0 && (
+                <div className="space-y-1.5 rounded-xl border-2 border-amber-400 bg-amber-50 p-3 dark:bg-amber-950/40">
+                  <p className="font-semibold text-amber-900 dark:text-amber-200">PAC (recargas y retiros)</p>
+                  {!!resumen.pacEntra && <Fila nombre="Entró en efectivo" valor={resumen.pacEntra} />}
+                  {!!resumen.pacSale && <Fila nombre="Salió por retiros" valor={-resumen.pacSale} />}
+                  <p className="text-emerald-700 dark:text-emerald-400">
+                    Comisiones del día: <b className="tabular-nums">{formatearPesos(resumen.pacComisiones)}</b>
+                  </p>
+                </div>
+              )}
               <div className="flex justify-between border-t pt-2 text-base font-semibold">
                 <dt>Efectivo esperado</dt>
                 <dd className="tabular-nums">{formatearPesos(resumen.esperado)}</dd>
@@ -116,6 +126,12 @@ export default async function PaginaCaja({ searchParams }: PageProps<"/ventas/ca
                 {!!resumen.ventasSistecredito && <> · Sistecrédito {formatearPesos(resumen.ventasSistecredito)}</>}
                 {!!resumen.ventasCredito && <> · Fiado {formatearPesos(resumen.ventasCredito)}</>}
               </p>
+              {resumen.pacOperaciones > 0 && (
+                <p className="text-muted-foreground">
+                  Del efectivo esperado, {formatearPesos(resumen.esperado - (resumen.pacEntra - resumen.pacSale))} es de la
+                  tienda y {formatearPesos(resumen.pacEntra - resumen.pacSale)} es del PAC.
+                </p>
+              )}
               {deTurnos.turnos.length > 0 && <TurnosDelDia turnos={deTurnos.turnos} />}
             </dl>
           )}
