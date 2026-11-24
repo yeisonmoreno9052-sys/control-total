@@ -81,7 +81,9 @@ export async function listarHistorial(ctx: Contexto, f: FiltroHistorial) {
     id: r.id,
     creadoEn: r.creadoEn,
     accion: r.accion,
-    usuario: nombre(usuarios, r.usuarioId) ?? "Alguien",
+    usuario:
+      nombre(usuarios, r.usuarioId) ??
+      ((r.detalle as { soporteEmy?: boolean } | null)?.soporteEmy ? "Soporte EMY TELECOM" : "Alguien"),
     negocio: nombre(negocios, r.negocioId),
     ...describirAuditoria(r.accion, r.detalle, { producto: r.entidad === "Producto" ? nombre(productos, r.entidadId) : null }),
   }));

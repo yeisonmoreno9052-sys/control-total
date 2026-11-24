@@ -9,6 +9,7 @@ import { obtenerEmpresa } from "@/lib/datos/empresa";
 import {
   cambiarEstadoCliente,
   cambiarFondo,
+  cambiarFuncionesLocal,
   cambiarPaleta,
   cargarSuperadmin,
   contrasenaTemporal,
@@ -19,6 +20,8 @@ import {
   restablecerContrasenaCliente,
   type ContextoEmy,
 } from "@/lib/datos/emy";
+import { diaEnBogota } from "@/lib/formato";
+import { listarHistorial } from "@/lib/datos/historial";
 import { buscarProductos } from "@/lib/datos/productos";
 import { crearEscenario, type Escenario } from "./escenario";
 
@@ -218,5 +221,50 @@ describe("imagen del inicio de cada cliente", () => {
     expect(await cambiarFondo(ce, e.camila.id, "https://otro.sitio/x.png")).toMatchObject({ ok: false });
     await expect(cambiarFondo(null as never, e.camila.id, "caballo-cabeza")).rejects.toThrow();
     expect((await obtenerEmpresa(e.ctx.admin))?.fondoUrl).toBeNull();
+  });
+});
+
+describe("funciones de cada local desde el panel", () => {
+  const todo = (extra: Record<string, unknown> = {}) => ({
+    botonesRapidos: false,
+    permiteCredito: false,
+    usaTallas: false,
+    aceptaTarjeta: false,
+    aceptaSistecredito: false,
+    usaPac: false,
+    catalogoActivo: false,
+    catalogoSlug: "",
+    catalogoWhatsapp: "",
+    catalogoMostrarCantidad: false,
+    ...extra,
+  });
+
+  it("prende el catálogo y el PAC sin la contraseña del cliente y queda en ambos historiales", async () => {
+    const r = await cambiarFuncionesLocal(
+      ce,
+      e.camila.id,
+      e.motos.id,
+      todo({ usaPac: true, catalogoActivo: true, catalogoSlug: "motos-camila", catalogoWhatsapp: "300 257 6296" }),
+    );
+    expect(r.ok).toBe(true);
+    const n = await prisma.negocio.findUniqueOrThrow({ where: { id: e.motos.id } });
+    expect(n).toMatchObject({ usaPac: true, catalogoActivo: true, catalogoSlug: "motos-camila", catalogoWhatsapp: "300 257 6296" });
+    expect(await prisma.accionEmy.count({ where: { empresaId: e.camila.id, accion: "CAMBIAR_FUNCIONES_LOCAL" } })).toBe(1);
+    const h = await listarHistorial(e.ctx.admin, { desde: diaEnBogota(), hasta: diaEnBogota(), negocioId: null, usuarioId: null, grupo: null, pagina: 1 });
+    expect(h.entradas[0]).toMatchObject({ usuario: "Soporte EMY TELECOM" });
+  });
+
+  it("valida el link y el WhatsApp como en Configuración", async () => {
+    await prisma.negocio.update({ where: { id: e.tiendaOtra.id }, data: { catalogoSlug: "ocupado" } });
+    const r = await cambiarFuncionesLocal(ce, e.camila.id, e.motos.id, todo({ catalogoActivo: true, catalogoSlug: "ocupado", catalogoWhatsapp: "12" }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(Object.keys(r.campos ?? {}).sort()).toEqual(["catalogoSlug", "catalogoWhatsapp"]);
+  });
+
+  it("no toca un local de otra empresa ni deja entrar a quien no es superadmin", async () => {
+    const r = await cambiarFuncionesLocal(ce, e.camila.id, e.tiendaOtra.id, todo({ usaPac: true }));
+    expect(r.ok).toBe(false);
+    expect((await prisma.negocio.findUniqueOrThrow({ where: { id: e.tiendaOtra.id } })).usaPac).toBe(false);
+    await expect(cambiarFuncionesLocal(null as unknown as ContextoEmy, e.camila.id, e.motos.id, todo())).rejects.toThrow();
   });
 });

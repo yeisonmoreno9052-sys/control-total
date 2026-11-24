@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialogo } from "@/components/ui/dialogo";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { sugerirSlug } from "@/lib/catalogo/catalogo";
 import { FONDOS } from "@/lib/fondos";
 import { PALETAS } from "@/lib/paletas";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import {
   empezarDeCeroAccion,
   cambiarPaletaAccion,
   cambiarModulosAccion,
+  cambiarFuncionesLocalAccion,
   crearClienteAccion,
   editarClienteAccion,
   registrarPagoAccion,
@@ -769,5 +771,157 @@ export function BotonesDemoCliente({ id, nombre, vencida }: { id: string; nombre
         </div>
       </Dialogo>
     </div>
+  );
+}
+
+// ─── Funciones de cada local ────────────────────────────────────────────────
+
+export type FuncionesLocal = {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  botonesRapidos: boolean;
+  permiteCredito: boolean;
+  usaTallas: boolean;
+  aceptaTarjeta: boolean;
+  aceptaSistecredito: boolean;
+  usaPac: boolean;
+  catalogoActivo: boolean;
+  catalogoSlug: string | null;
+  catalogoWhatsapp: string | null;
+  catalogoMostrarCantidad: boolean;
+};
+
+const INTERRUPTORES: { campo: keyof FuncionesLocal; nombre: string; ayuda: string }[] = [
+  { campo: "usaTallas", nombre: "Tallas y colores", ayuda: "Almacenes de ropa y calzado" },
+  { campo: "botonesRapidos", nombre: "Botones rápidos en la caja", ayuda: "Cafeterías: tocar el producto" },
+  { campo: "permiteCredito", nombre: "Ventas a crédito (fiado)", ayuda: "Deudas y abonos de clientes" },
+  { campo: "aceptaTarjeta", nombre: "Pago con tarjeta", ayuda: "Aparece al cobrar" },
+  { campo: "aceptaSistecredito", nombre: "Pago con Sistecrédito", ayuda: "Aparece al cobrar" },
+  { campo: "usaPac", nombre: "PAC (recargas y retiros)", ayuda: "Corresponsal con comisión" },
+];
+
+function Casilla({
+  name,
+  marcado,
+  onChange,
+  nombre,
+  ayuda,
+}: {
+  name: string;
+  marcado: boolean;
+  onChange?: (v: boolean) => void;
+  nombre: string;
+  ayuda?: string;
+}) {
+  const [activo, setActivo] = useState(marcado);
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-center gap-3 rounded-xl border p-3 bg-card",
+        activo ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+      )}
+    >
+      <input
+        type="checkbox"
+        name={name}
+        defaultChecked={marcado}
+        onChange={(e) => {
+          setActivo(e.target.checked);
+          onChange?.(e.target.checked);
+        }}
+        className="size-5 shrink-0 accent-primary"
+      />
+      <span className="min-w-0">
+        <span className="block font-medium">{nombre}</span>
+        {ayuda && <span className="block text-sm text-muted-foreground">{ayuda}</span>}
+      </span>
+    </label>
+  );
+}
+
+export function FuncionesDeLocal({ empresaId, local }: { empresaId: string; local: FuncionesLocal }) {
+  const [catalogo, setCatalogo] = useState(local.catalogoActivo);
+  const [slug, setSlug] = useState(local.catalogoSlug ?? sugerirSlug(local.nombre));
+  const [estado, accion, guardando] = useActionState<EstadoEmy, FormData>(cambiarFuncionesLocalAccion, {});
+  const e = estado.campos ?? {};
+  return (
+    <form action={accion} className="space-y-3 rounded-xl border p-4">
+      <input type="hidden" name="empresaId" value={empresaId} />
+      <input type="hidden" name="negocioId" value={local.id} />
+      <h3 className="font-semibold">{local.nombre}</h3>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {INTERRUPTORES.map((i) => (
+          <Casilla key={i.campo} name={i.campo} marcado={local[i.campo] === true} nombre={i.nombre} ayuda={i.ayuda} />
+        ))}
+        <Casilla
+          name="catalogoActivo"
+          marcado={local.catalogoActivo}
+          onChange={setCatalogo}
+          nombre="Catálogo en línea"
+          ayuda="Página pública con pedidos por WhatsApp"
+        />
+      </div>
+      {catalogo ? (
+        <div className="grid gap-3 rounded-xl bg-muted/50 p-3 sm:grid-cols-2">
+          <Campo
+            id={`slug-${local.id}`}
+            etiqueta="Link del catálogo"
+            error={e.catalogoSlug}
+            ayuda={<span className="break-all">app.controltotalpos.com/c/{slug || "…"}</span>}
+          >
+            <Input
+              id={`slug-${local.id}`}
+              name="catalogoSlug"
+              value={slug}
+              onChange={(ev) => setSlug(ev.target.value.toLowerCase().replace(/\s+/g, "-"))}
+              maxLength={40}
+              autoCapitalize="none"
+            />
+          </Campo>
+          <Campo
+            id={`wa-${local.id}`}
+            etiqueta="WhatsApp que recibe los pedidos"
+            error={e.catalogoWhatsapp}
+            ayuda={local.telefono ? `Si lo dejas vacío, se usa el del local: ${local.telefono}` : undefined}
+          >
+            <Input
+              id={`wa-${local.id}`}
+              name="catalogoWhatsapp"
+              inputMode="tel"
+              defaultValue={local.catalogoWhatsapp ?? ""}
+              placeholder="300 123 4567"
+              maxLength={30}
+            />
+          </Campo>
+          <div className="sm:col-span-2">
+            <Casilla
+              name="catalogoMostrarCantidad"
+              marcado={local.catalogoMostrarCantidad}
+              nombre="Mostrar cuántas quedan"
+              ayuda={'"Quedan 3" en vez de solo "Disponible"'}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Apagado: se conservan el link y el número para cuando se vuelva a prender. */}
+          <input type="hidden" name="catalogoSlug" value={local.catalogoSlug ?? ""} />
+          <input type="hidden" name="catalogoWhatsapp" value={local.catalogoWhatsapp ?? ""} />
+          {local.catalogoMostrarCantidad && <input type="hidden" name="catalogoMostrarCantidad" value="on" />}
+        </>
+      )}
+      <AvisoError mensaje={estado.error} />
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={guardando}>
+          {guardando ? "Guardando…" : "Guardar cambios"}
+        </Button>
+        {estado.ok && !guardando && (
+          <span className="flex items-center gap-1 text-sm font-medium text-primary">
+            <Check className="size-4" /> Guardado. El cliente ya lo ve.
+          </span>
+        )}
+      </div>
+    </form>
   );
 }

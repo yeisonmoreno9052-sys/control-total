@@ -12,6 +12,7 @@ import type { Modulo } from "@/generated/prisma/enums";
 import { fechaDeHoy } from "@/lib/formato";
 import { erroresPorCampo } from "@/lib/inventario/esquemas";
 import { esFondo } from "@/lib/fondos";
+import { errorSlug, numeroWhatsapp } from "@/lib/catalogo/catalogo";
 import { esPaleta } from "@/lib/paletas";
 import { AccesoDenegado } from "./alcance";
 import { cifrarContrasena } from "./autenticacion";
@@ -205,7 +206,7 @@ export async function obtenerCliente(ce: ContextoEmy, id: string) {
     prisma.negocio.findMany({
       where: { empresaId: id },
       orderBy: { nombre: "asc" },
-      select: { id: true, nombre: true, direccion: true, tipo: true, activo: true },
+      select: { id: true, nombre: true, direccion: true, tipo: true, activo: true, telefono: true, ...SELECT_FUNCIONES },
     }),
     prisma.usuario.findMany({
       where: { empresaId: id },
@@ -515,6 +516,103 @@ export async function cambiarFondo(ce: ContextoEmy, id: string, fondo: unknown):
   );
 }
 
+// ─── Funciones de cada local ────────────────────────────────────────────────
+// Lo mismo que el cliente prende en Configuración, pero desde el panel, para no
+// tener que pedirle la contraseña. Queda en AccionEmy y en el historial del cliente.
+
+const SELECT_FUNCIONES = {
+  botonesRapidos: true,
+  permiteCredito: true,
+  usaTallas: true,
+  aceptaTarjeta: true,
+  aceptaSistecredito: true,
+  usaPac: true,
+  catalogoActivo: true,
+  catalogoSlug: true,
+  catalogoWhatsapp: true,
+  catalogoMostrarCantidad: true,
+} as const;
+
+export const esquemaFuncionesLocal = z.object({
+  botonesRapidos: z.boolean(),
+  permiteCredito: z.boolean(),
+  usaTallas: z.boolean(),
+  aceptaTarjeta: z.boolean(),
+  aceptaSistecredito: z.boolean(),
+  usaPac: z.boolean(),
+  catalogoActivo: z.boolean(),
+  catalogoSlug: z.string().trim().toLowerCase().max(60).default(""),
+  catalogoWhatsapp: z.string().trim().max(30).default(""),
+  catalogoMostrarCantidad: z.boolean().default(false),
+});
+
+export async function cambiarFuncionesLocal(
+  ce: ContextoEmy,
+  empresaId: string,
+  negocioId: string,
+  entrada: unknown,
+): Promise<Resultado> {
+  exigir(ce);
+  const r = esquemaFuncionesLocal.safeParse(entrada);
+  if (!r.success) return { ok: false, error: "Revisa los datos." };
+  const d = r.data;
+  const antes = await prisma.negocio.findFirst({
+    where: { id: negocioId, empresaId },
+    select: { nombre: true, telefono: true, ...SELECT_FUNCIONES },
+  });
+  if (!antes) return { ok: false, error: "No encontramos ese local." };
+
+  const campos: Record<string, string> = {};
+  // El link se revisa si se prende el catálogo o si se escribió uno.
+  if (d.catalogoActivo || d.catalogoSlug) {
+    const errSlug = errorSlug(d.catalogoSlug);
+    if (errSlug) campos.catalogoSlug = errSlug;
+    else {
+      const ocupado = await prisma.negocio.findFirst({
+        where: { catalogoSlug: d.catalogoSlug, id: { not: negocioId } },
+        select: { id: true },
+      });
+      if (ocupado) campos.catalogoSlug = "Ese link ya lo tiene otra tienda. Prueba con otro.";
+    }
+  }
+  if (d.catalogoWhatsapp && !numeroWhatsapp(d.catalogoWhatsapp)) {
+    campos.catalogoWhatsapp = "Ese número no parece un celular. Escríbelo así: 300 123 4567.";
+  } else if (d.catalogoActivo && !d.catalogoWhatsapp && !numeroWhatsapp(antes.telefono)) {
+    campos.catalogoWhatsapp = "Escribe el número de WhatsApp que recibe los pedidos.";
+  }
+  if (Object.keys(campos).length) return { ok: false, error: "Revisa los campos marcados.", campos };
+
+  const nuevo = {
+    ...d,
+    catalogoSlug: d.catalogoSlug || antes.catalogoSlug,
+    catalogoWhatsapp: d.catalogoWhatsapp || null,
+  };
+  const cambios: Record<string, { antes: unknown; despues: unknown }> = {};
+  for (const [k, v] of Object.entries(nuevo)) {
+    const previo = antes[k as keyof typeof SELECT_FUNCIONES];
+    if (previo !== v) cambios[k] = { antes: previo, despues: v };
+  }
+  if (!Object.keys(cambios).length) return { ok: true, id: negocioId };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.negocio.update({ where: { id: negocioId }, data: nuevo });
+    await registrarAccion(tx, ce, empresaId, "CAMBIAR_FUNCIONES_LOCAL", { local: antes.nombre, cambios });
+    // Para que el cliente también lo vea en su Historial.
+    await tx.auditoria.create({
+      data: {
+        empresaId,
+        negocioId,
+        usuarioId: ce.usuarioId,
+        accion: "CAMBIO_DATOS_NEGOCIO",
+        entidad: "Negocio",
+        entidadId: negocioId,
+        detalle: { negocio: antes.nombre, cambios, soporteEmy: true } as object,
+      },
+    });
+  });
+  return { ok: true, id: negocioId };
+}
+
 export async function agregarLocal(ce: ContextoEmy, empresaId: string, entrada: unknown): Promise<Resultado> {
   exigir(ce);
   const datos = esquemaLocal.safeParse(entrada);
@@ -660,6 +758,7 @@ export const NOMBRE_ACCION: Record<string, string> = {
   CAMBIAR_FONDO: "Cambió la imagen del inicio",
   EMPEZAR_DE_CERO: "Borró los datos de prueba",
   AGREGAR_LOCAL: "Agregó un local",
+  CAMBIAR_FUNCIONES_LOCAL: "Cambió las funciones de un local",
   RESTABLECER_CONTRASENA: "Restableció una contraseña",
   REINICIAR_DEMO: "Reinició la demo",
   CREAR_DEMO_CLIENTE: "Creó la demo para el cliente",
