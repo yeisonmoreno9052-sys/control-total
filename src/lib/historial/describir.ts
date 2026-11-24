@@ -39,6 +39,13 @@ const NOMBRES_CAMPO: Record<string, string> = {
   botonesRapidos: "botones rápidos en la caja",
   permiteCredito: "ventas a crédito",
   usaPac: "PAC (recargas y retiros)",
+  usaTallas: "tallas y colores",
+  aceptaTarjeta: "pago con tarjeta",
+  aceptaSistecredito: "pago con Sistecrédito",
+  catalogoActivo: "catálogo en línea",
+  catalogoSlug: "link del catálogo",
+  catalogoWhatsapp: "WhatsApp del catálogo",
+  catalogoMostrarCantidad: "mostrar cantidades en el catálogo",
 };
 
 const CATEGORIAS: Record<string, string> = {

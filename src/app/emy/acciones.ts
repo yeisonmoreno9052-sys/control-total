@@ -9,6 +9,7 @@ import {
   empezarDeCero,
   cambiarPaleta,
   cambiarModulos,
+  cambiarFuncionesLocal,
   crearCliente,
   editarCliente,
   registrarPagoCliente,
@@ -138,6 +139,27 @@ export async function agregarLocalAccion(_: EstadoEmy, f: FormData): Promise<Est
   const r = await agregarLocal(ce, id, { nombre: texto(f, "nombre"), direccion: texto(f, "direccion"), tipo: texto(f, "tipo") });
   if (!r.ok) return { error: r.error, campos: r.campos };
   refrescar(id);
+  return { ok: true };
+}
+
+export async function cambiarFuncionesLocalAccion(_: EstadoEmy, f: FormData): Promise<EstadoEmy> {
+  const ce = await obtenerSuperadmin();
+  const empresaId = texto(f, "empresaId");
+  const marcado = (k: string) => f.get(k) === "on";
+  const r = await cambiarFuncionesLocal(ce, empresaId, texto(f, "negocioId"), {
+    botonesRapidos: marcado("botonesRapidos"),
+    permiteCredito: marcado("permiteCredito"),
+    usaTallas: marcado("usaTallas"),
+    aceptaTarjeta: marcado("aceptaTarjeta"),
+    aceptaSistecredito: marcado("aceptaSistecredito"),
+    usaPac: marcado("usaPac"),
+    catalogoActivo: marcado("catalogoActivo"),
+    catalogoSlug: texto(f, "catalogoSlug"),
+    catalogoWhatsapp: texto(f, "catalogoWhatsapp"),
+    catalogoMostrarCantidad: marcado("catalogoMostrarCantidad"),
+  });
+  if (!r.ok) return { error: r.error, campos: r.campos };
+  refrescar(empresaId);
   return { ok: true };
 }
 

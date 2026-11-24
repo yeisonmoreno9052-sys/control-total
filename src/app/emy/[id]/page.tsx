@@ -14,6 +14,7 @@ import {
   ElegirFondo,
   EmpezarDeCero,
   ElegirPaleta,
+  FuncionesDeLocal,
   LimiteFotos,
   Modulos,
   RestablecerContrasena,
@@ -131,6 +132,21 @@ export default async function FichaCliente({ params }: PageProps<"/emy/[id]">) {
         <h2 className="font-semibold">Módulos activos</h2>
         <p className="text-sm text-muted-foreground">Un módulo apagado desaparece del menú del cliente y deja de funcionar.</p>
         <Modulos id={c.id} activos={c.modulosActivos} opciones={MODULOS} />
+      </section>
+
+      <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
+        <h2 className="font-semibold">Funciones de cada local</h2>
+        <p className="text-sm text-muted-foreground">
+          Lo mismo que el cliente ve en Configuración, sin pedirle la contraseña. Queda en el historial del cliente como
+          &quot;Soporte EMY TELECOM&quot;.
+        </p>
+        <div className="space-y-3">
+          {c.locales
+            .filter((l) => l.activo)
+            .map((l) => (
+              <FuncionesDeLocal key={l.id} empresaId={c.id} local={l} />
+            ))}
+        </div>
       </section>
 
       <section className="space-y-3 rounded-2xl border p-5 bg-card shadow-suave">
