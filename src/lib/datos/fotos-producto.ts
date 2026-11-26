@@ -14,10 +14,25 @@ export function urlFoto(productoId: string, fotoEn: Date | null) {
   return fotoEn ? `/api/productos/${productoId}/foto?v=${fotoEn.getTime()}` : null;
 }
 
-/** Pone, cambia o quita (null) la foto de un producto. Quien puede editar productos. */
-export async function guardarFotoProducto(ctx: Contexto, productoId: string, bytes: Uint8Array | null): Promise<Resultado> {
+/**
+ * Pone, cambia o quita (null) la foto de un producto. Quien puede editar productos.
+ *
+ * En una prenda con tallas, la foto queda también en las otras tallas del mismo color
+ * (la blusa negra S, M y L se ven iguales; la rosada tiene su propia foto).
+ * Con `soloEste` se toca únicamente ese producto.
+ */
+export async function guardarFotoProducto(
+  ctx: Contexto,
+  productoId: string,
+  bytes: Uint8Array | null,
+  opciones: { soloEste?: boolean } = {},
+): Promise<Resultado<{ id: string; ids: string[] }>> {
   exigirEdicionProductos(ctx);
-  const producto = await datosDe(ctx).producto.findFirst({ where: { id: productoId }, select: { id: true, negocioId: true } });
+  const datos = datosDe(ctx);
+  const producto = await datos.producto.findFirst({
+    where: { id: productoId },
+    select: { id: true, negocioId: true, prendaId: true, color: true },
+  });
   if (!producto) return { ok: false, error: "No encontramos ese producto." };
 
   let tipo: string | null = null;
@@ -27,21 +42,39 @@ export async function guardarFotoProducto(ctx: Contexto, productoId: string, byt
     if (!tipo) return { ok: false, error: "La foto debe ser una imagen PNG, JPG o WEBP." };
   }
 
+  const ids = [producto.id];
+  if (producto.prendaId && !opciones.soloEste) {
+    const hermanas = await datos.producto.findMany({
+      where: {
+        prendaId: producto.prendaId,
+        negocioId: producto.negocioId,
+        activo: true,
+        id: { not: producto.id },
+        color: producto.color ? { equals: producto.color, mode: "insensitive" } : null,
+      },
+      select: { id: true },
+    });
+    ids.push(...hermanas.map((h) => h.id));
+  }
+
+  const ahora = new Date();
   await prisma.$transaction(async (tx) => {
-    if (bytes && tipo) {
-      const datos = Buffer.from(bytes);
-      await tx.fotoProducto.upsert({
-        where: { productoId: producto.id },
-        create: { productoId: producto.id, empresaId: ctx.empresaId, negocioId: producto.negocioId, tipo, datos },
-        update: { tipo, datos },
-      });
-    } else {
-      await tx.fotoProducto.deleteMany({ where: { productoId: producto.id } });
+    for (const id of ids) {
+      if (bytes && tipo) {
+        const contenido = Buffer.from(bytes);
+        await tx.fotoProducto.upsert({
+          where: { productoId: id },
+          create: { productoId: id, empresaId: ctx.empresaId, negocioId: producto.negocioId, tipo, datos: contenido },
+          update: { tipo, datos: contenido },
+        });
+      } else {
+        await tx.fotoProducto.deleteMany({ where: { productoId: id } });
+      }
     }
     // Cambiar fotoEn también mueve actualizadoEn: la caja sin internet se entera del cambio.
-    await tx.producto.update({ where: { id: producto.id }, data: { fotoEn: bytes ? new Date() : null } });
+    await tx.producto.updateMany({ where: { id: { in: ids } }, data: { fotoEn: bytes ? ahora : null } });
   });
-  return { ok: true, id: producto.id };
+  return { ok: true, id: producto.id, ids };
 }
 
 /** Para comparar nombres sin fijarse en tildes, mayúsculas, espacios ni signos ("Gaseosa 1,5 L" = "gaseosa 15 l"). */

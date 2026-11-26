@@ -9,8 +9,17 @@ import { achicarFoto } from "@/lib/achicar-foto";
 import { cn } from "@/lib/utils";
 import { guardarFotoAccion } from "../acciones";
 
-type Producto = { id: string; nombre: string; codigo: string; categoria: string | null; fotoUrl: string | null };
-type Estado = { paso: "guardando" | "listo" | "error"; vista: string; error?: string };
+type Producto = {
+  id: string;
+  nombre: string;
+  codigo: string;
+  categoria: string | null;
+  fotoUrl: string | null;
+  /** Tallas de la misma prenda y color comparten grupo: una foto queda en todas. null = producto suelto. */
+  grupo: string | null;
+};
+/** copia: la foto se tomó en otra talla del mismo color y quedó también en esta. */
+type Estado = { paso: "guardando" | "listo" | "error"; vista: string; error?: string; copia?: boolean };
 
 /**
  * Lista para recorrer el local con la tablet: tocar la cámara, tomar la foto y seguir.
@@ -44,6 +53,12 @@ export function PonerFotos({
   const filas = useRef(new Map<string, HTMLLIElement>());
 
   const cambiar = (id: string, e: Estado) => setEstados((antes) => ({ ...antes, [id]: e }));
+  const quitarEstado = (id: string) =>
+    setEstados((antes) => {
+      const resto = { ...antes };
+      delete resto[id];
+      return resto;
+    });
   const tieneFoto = (p: Producto) => !!p.fotoUrl || estados[p.id]?.paso === "listo" || estados[p.id]?.paso === "guardando";
 
   function abrir(id: string, desde: "camara" | "galeria") {
@@ -52,12 +67,20 @@ export function PonerFotos({
     (desde === "camara" ? camara : galeria).current?.click();
   }
 
+  /** Las otras tallas del mismo color que están en esta lista. */
+  const hermanas = (id: string) => {
+    const grupo = lista.find((p) => p.id === id)?.grupo;
+    return grupo ? lista.filter((p) => p.grupo === grupo && p.id !== id) : [];
+  };
+
   /** Señala el siguiente sin foto y lo deja a la vista, para tocar su cámara de una vez. */
   function pasarAlSiguiente(id: string) {
     const i = lista.findIndex((p) => p.id === id);
+    // Las otras tallas del mismo color reciben esta foto: se saltan.
+    const saltar = new Set(hermanas(id).map((p) => p.id));
     const proximo =
-      lista.slice(i + 1).find((p) => !p.fotoUrl && !estados[p.id]) ??
-      (modo === "con" ? lista[i + 1] : undefined);
+      lista.slice(i + 1).find((p) => !p.fotoUrl && !estados[p.id] && !saltar.has(p.id)) ??
+      (modo === "con" ? lista.slice(i + 1).find((p) => !saltar.has(p.id)) : undefined);
     setTurno(proximo?.id ?? null);
     if (proximo) {
       // Espera a que el navegador vuelva de la cámara antes de mover la pantalla.
@@ -79,7 +102,9 @@ export function PonerFotos({
       return;
     }
     const vista = URL.createObjectURL(blob);
+    const otras = hermanas(id);
     cambiar(id, { paso: "guardando", vista });
+    for (const h of otras) cambiar(h.id, { paso: "guardando", vista, copia: true });
     pasarAlSiguiente(id);
 
     const formulario = new FormData();
@@ -87,13 +112,22 @@ export function PonerFotos({
     try {
       const r = await guardarFotoAccion(id, formulario);
       cambiar(id, r.error ? { paso: "error", vista, error: r.error } : { paso: "listo", vista });
+      // Las que el servidor también cambió quedan listas; si falló, vuelven como estaban.
+      const hechas = new Set(r.ids ?? []);
+      for (const h of otras) {
+        if (hechas.has(h.id)) cambiar(h.id, { paso: "listo", vista, copia: true });
+        else quitarEstado(h.id);
+      }
     } catch {
       cambiar(id, { paso: "error", vista, error: "No se pudo guardar. Revisa el internet y toca la cámara otra vez." });
+      for (const h of otras) quitarEstado(h.id);
     }
   }
 
-  const guardadas = Object.values(estados).filter((e) => e.paso === "listo").length;
-  const subiendo = Object.values(estados).filter((e) => e.paso === "guardando").length;
+  const propias = Object.values(estados).filter((e) => !e.copia);
+  const guardadas = propias.filter((e) => e.paso === "listo").length;
+  const subiendo = propias.filter((e) => e.paso === "guardando").length;
+  const copiadas = Object.values(estados).filter((e) => e.copia && e.paso === "listo").length;
   const pendientes = modo === "sin" ? lista.filter((p) => !tieneFoto(p)).length : 0;
 
   if (lista.length === 0) {
@@ -158,6 +192,7 @@ export function PonerFotos({
           {subiendo > 0 ? <LoaderCircle className="size-5 animate-spin" /> : <CircleCheck className="size-5" />}
           <span className="font-medium">
             {guardadas === 1 ? "1 foto guardada" : `${guardadas} fotos guardadas`}
+            {copiadas > 0 && ` · ${copiadas === 1 ? "1 talla más" : `${copiadas} tallas más`} con la misma foto`}
             {subiendo > 0 && ` · guardando ${subiendo}…`}
           </span>
         </div>
@@ -216,7 +251,9 @@ export function PonerFotos({
                 </p>
                 {estado?.paso === "guardando" && <p className="text-sm text-muted-foreground">Guardando…</p>}
                 {estado?.paso === "listo" && (
-                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Foto guardada</p>
+                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    {estado.copia ? "Misma foto de la otra talla" : "Foto guardada"}
+                  </p>
                 )}
                 {estado?.paso === "error" && (
                   <p role="alert" className="flex items-start gap-1 text-sm text-destructive">

@@ -115,6 +115,7 @@ export default async function PonerFotosPagina({ searchParams }: PageProps<"/inv
           codigo: p.codigo,
           categoria: p.categoria,
           fotoUrl: p.fotoUrl,
+          grupo: p.prendaId ? `${p.prendaId}|${(p.color ?? "").toLowerCase()}` : null,
         }))}
         hayFiltros={!!(parametros.q || parametros.categoria)}
         siguiente={hayMas ? siguiente : null}

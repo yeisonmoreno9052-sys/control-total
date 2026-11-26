@@ -158,7 +158,7 @@ export async function guardarFotoPieza(ctx: Contexto, productoId: string, bytes:
       ).map((v) => v.id)
     : [producto.id];
   for (const id of ids.length ? ids : [producto.id]) {
-    const r = await guardarFotoProducto(ctx, id, bytes);
+    const r = await guardarFotoProducto(ctx, id, bytes, { soloEste: true });
     if (!r.ok) return r;
   }
   return { ok: true, id: producto.id };
