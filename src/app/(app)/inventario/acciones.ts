@@ -210,7 +210,10 @@ export async function importarAccion(_: EstadoImportacion, formulario: FormData)
 }
 
 /** Pone o quita (sin archivo) la foto del producto. La foto ya llega achicada desde el navegador. */
-export async function guardarFotoAccion(productoId: string, formulario: FormData): Promise<EstadoFormulario> {
+export async function guardarFotoAccion(
+  productoId: string,
+  formulario: FormData,
+): Promise<EstadoFormulario & { ids?: string[] }> {
   const ctx = await contextoInventario();
   const archivo = formulario.get("foto");
   let bytes: Uint8Array | null = null;
@@ -222,7 +225,8 @@ export async function guardarFotoAccion(productoId: string, formulario: FormData
   if (!r.ok) return { error: r.error };
   revalidatePath("/inventario");
   revalidatePath("/ventas");
-  return { ok: true };
+  // En una prenda: también los ids de las otras tallas del mismo color que quedaron con la foto.
+  return { ok: true, ids: r.ids };
 }
 
 /** Una de varias fotos subidas de una vez; el nombre del archivo dice de qué producto es. */

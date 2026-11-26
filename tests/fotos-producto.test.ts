@@ -151,3 +151,52 @@ describe("poner fotos (lista sin foto primero)", () => {
     expect(con.productos.map((p) => p.id)).toEqual([conFoto]);
   });
 });
+
+describe("foto de una prenda con tallas", () => {
+  async function blusa() {
+    const { crearPrenda } = await import("@/lib/datos/prendas");
+    const r = await crearPrenda(e.ctx.admin, e.motos.id, {
+      nombre: "Blusa Lina", costo: "24.000", precioVenta: "45.000", porcentajeIva: "0", stockMinimo: "0",
+      tallas: ["S", "M", "L"], colores: ["Negro", "Rosado"], cantidades: {},
+    });
+    if (!r.ok) throw new Error(r.error);
+    const variantes = await prisma.producto.findMany({ where: { prendaId: r.prendaId }, select: { id: true, talla: true, color: true } });
+    const de = (talla: string, color: string) => variantes.find((v) => v.talla === talla && v.color === color)!.id;
+    return { de, variantes };
+  }
+  const conFoto = async () =>
+    (await prisma.producto.findMany({ where: { fotoEn: { not: null } }, select: { talla: true, color: true } }))
+      .map((p) => `${p.talla}-${p.color}`)
+      .sort();
+
+  it("la foto de una talla queda en todas las tallas del mismo color, no en los otros colores", async () => {
+    const { de } = await blusa();
+    const r = await guardarFotoProducto(e.ctx.admin, de("M", "Negro"), WEBP);
+    expect(r).toMatchObject({ ok: true });
+    expect(r.ok && r.ids).toHaveLength(3);
+    expect(await conFoto()).toEqual(["L-Negro", "M-Negro", "S-Negro"]);
+    expect(await prisma.fotoProducto.count()).toBe(3);
+    expect(new Uint8Array((await obtenerFotoProducto(e.ctx.cajero, de("L", "Negro")))!.bytes)).toEqual(WEBP);
+
+    // El otro color tiene su propia foto.
+    await guardarFotoProducto(e.ctx.admin, de("S", "Rosado"), WEBP);
+    expect(await conFoto()).toHaveLength(6);
+
+    // Quitarla la quita de las tallas de ese color.
+    await guardarFotoProducto(e.ctx.admin, de("L", "Rosado"), null);
+    expect(await conFoto()).toEqual(["L-Negro", "M-Negro", "S-Negro"]);
+  });
+
+  it("con soloEste se toca únicamente esa talla", async () => {
+    const { de } = await blusa();
+    await guardarFotoProducto(e.ctx.admin, de("M", "Negro"), WEBP, { soloEste: true });
+    expect(await conFoto()).toEqual(["M-Negro"]);
+  });
+
+  it("no pasa a tallas desactivadas", async () => {
+    const { de } = await blusa();
+    await prisma.producto.update({ where: { id: de("S", "Negro") }, data: { activo: false } });
+    await guardarFotoProducto(e.ctx.admin, de("M", "Negro"), WEBP);
+    expect(await conFoto()).toEqual(["L-Negro", "M-Negro"]);
+  });
+});

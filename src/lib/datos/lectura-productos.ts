@@ -314,7 +314,7 @@ export async function guardarProductosDeFotos(
     }
     if (!r.ok) return r;
     // Si la foto falla, el producto igual quedó creado.
-    if (foto) await guardarFotoProducto(ctx, r.id, foto).catch(() => null);
+    if (foto) await guardarFotoProducto(ctx, r.id, foto, { soloEste: true }).catch(() => null);
     return r;
   }
 }
@@ -374,7 +374,7 @@ async function sumarAExistente(ctx: Contexto, negocioId: string, item: ProductoR
     });
   }
   // La foto solo se pone si el producto no tenía: nunca se cambia una que ya escogieron.
-  if (foto && !producto.fotoEn) await guardarFotoProducto(ctx, producto.id, foto).catch(() => null);
+  if (foto && !producto.fotoEn) await guardarFotoProducto(ctx, producto.id, foto, { soloEste: true }).catch(() => null);
   return { ok: true, id: producto.id };
 }
 

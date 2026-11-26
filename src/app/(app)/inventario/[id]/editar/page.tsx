@@ -29,7 +29,11 @@ export default async function EditarProducto({ params }: PageProps<"/inventario/
   return (
     <div className="max-w-3xl">
       <EncabezadoPagina titulo="Editar producto" subtitulo={producto.nombre} volver={{ href: `/inventario/${id}`, texto: "Volver al producto" }} />
-      <FotoProducto productoId={producto.id} fotoUrl={producto.fotoUrl} />
+      <FotoProducto
+        productoId={producto.id}
+        fotoUrl={producto.fotoUrl}
+        talla={producto.prendaId ? { color: producto.color } : null}
+      />
       <FormularioProducto
         categorias={categorias}
         margenNegocio={margen}
