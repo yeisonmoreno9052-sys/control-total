@@ -138,6 +138,8 @@ model Negocio {
   catalogoWhatsapp        String?
   /// Mostrar "quedan 3" en vez de solo "disponible".
   catalogoMostrarCantidad Boolean  @default(false)
+  /// Logo pequeño de la tienda sobre las fotos del catálogo (para que se sepa de quién son).
+  catalogoMarcaAgua       Boolean  @default(true)
   /// PAC (corresponsal): recargas y retiros que hace el local y le dejan una comisión. Aparte de las ventas.
   usaPac                  Boolean  @default(false)
   activo                  Boolean  @default(true)

@@ -2,10 +2,18 @@
 // cruzarse entre empresas, negocios ni tiendas públicas.
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { AccesoDenegado } from "@/lib/datos/alcance";
-import { guardarConfigCatalogo } from "@/lib/datos/catalogo";
+import { guardarConfigCatalogo, obtenerConfigCatalogo } from "@/lib/datos/catalogo";
 import { buscarTienda, fotoCatalogoPublica, obtenerTarjeta } from "@/lib/datos/catalogo-publico";
 import { prisma } from "@/lib/datos/cliente";
-import { agregarFotoCatalogo, MAX_FOTOS_EXTRA, obtenerFotoCatalogo, obtenerGaleria, quitarFotoCatalogo } from "@/lib/datos/fotos-catalogo";
+import {
+  agregarFotoCatalogo,
+  listarGaleriasCatalogo,
+  MAX_FOTOS_EXTRA,
+  obtenerFotoCatalogo,
+  obtenerGaleria,
+  quitarFotoCatalogo,
+  siguienteSinFotos,
+} from "@/lib/datos/fotos-catalogo";
 import { guardarFotoProducto } from "@/lib/datos/fotos-producto";
 import { crearPrenda } from "@/lib/datos/prendas";
 import { claveVariante } from "@/lib/inventario/prendas";
@@ -106,5 +114,53 @@ describe("fotos extra del catálogo", () => {
     expect(await fotoCatalogoPublica(tienda, r.id)).not.toBeNull();
     await prisma.producto.updateMany({ where: { prendaId: b.prendaId }, data: { activo: false } });
     expect(await fotoCatalogoPublica(tienda, r.id)).toBeNull();
+  });
+});
+
+describe("sesión de fotos del catálogo", () => {
+  it("lista primero las prendas sin fotos extra, por color, y encuentra la etiqueta escaneada", async () => {
+    const b = await blusa();
+    const r = await agregarFotoCatalogo(e.ctx.admin, b.de("M", "Vino tinto"), "Vino tinto", WEBP);
+    if (!r.ok) throw new Error(r.error);
+
+    const lista = await listarGaleriasCatalogo(e.ctx.admin, e.motos.id);
+    const blusas = lista.filas.filter((f) => f.nombre === "Blusa Valentina");
+    expect(blusas.map((f) => [f.color, f.extras]).sort()).toEqual([
+      ["Negro", 0],
+      ["Vino tinto", 1],
+    ]);
+    // La que ya tiene fotos extra va al final.
+    const vino = lista.filas.findIndex((f) => f.color === "Vino tinto");
+    const negro = lista.filas.findIndex((f) => f.color === "Negro");
+    expect(negro).toBeLessThan(vino);
+    expect(lista.filas.slice(vino).every((f) => f.extras > 0)).toBe(true);
+
+    const codigo = (await prisma.producto.findUnique({ where: { id: b.de("S", "Negro") }, select: { codigo: true } }))!.codigo;
+    const escaneo = await listarGaleriasCatalogo(e.ctx.admin, e.motos.id, { q: codigo });
+    expect(escaneo.escaneado).toBe(b.de("S", "Negro"));
+    expect((await listarGaleriasCatalogo(e.ctx.admin, e.motos.id, { q: "valentina" })).filas).toHaveLength(2);
+
+    // La siguiente sin fotos nunca es la misma.
+    expect(await siguienteSinFotos(e.ctx.admin, e.motos.id, blusas.find((f) => f.color === "Negro")!.productoId)).not.toBe(
+      blusas.find((f) => f.color === "Negro")!.productoId,
+    );
+  });
+
+  it("no lista prendas de otro negocio ni de otra empresa", async () => {
+    await blusa();
+    await expect(listarGaleriasCatalogo(e.ctx.adminOtra, e.motos.id)).rejects.toThrow(AccesoDenegado);
+    await expect(listarGaleriasCatalogo(e.ctx.socio, e.motos.id)).rejects.toThrow(AccesoDenegado);
+  });
+
+  it("el logo sobre las fotos se puede apagar y sin logo no sale", async () => {
+    await guardarConfigCatalogo(e.ctx.admin, e.motos.id, { activo: true, slug: "dbshop", whatsapp: "3001234567" });
+    expect((await obtenerConfigCatalogo(e.ctx.admin, e.motos.id))!.marcaAgua).toBe(true);
+    // La empresa del escenario no tiene logo: no hay nada que poner.
+    expect((await buscarTienda("dbshop"))!.marcaAgua).toBe(false);
+    await prisma.empresa.update({ where: { id: e.ctx.admin.empresaId }, data: { logo: Buffer.from(WEBP), logoTipo: "image/webp" } });
+    expect((await buscarTienda("dbshop"))!.marcaAgua).toBe(true);
+    await guardarConfigCatalogo(e.ctx.admin, e.motos.id, { activo: true, slug: "dbshop", whatsapp: "3001234567", marcaAgua: false });
+    expect((await obtenerConfigCatalogo(e.ctx.admin, e.motos.id))!.marcaAgua).toBe(false);
+    expect((await buscarTienda("dbshop"))!.marcaAgua).toBe(false);
   });
 });

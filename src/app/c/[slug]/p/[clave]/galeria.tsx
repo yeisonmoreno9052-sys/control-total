@@ -8,7 +8,28 @@ import { Expand, Maximize2, X } from "lucide-react";
  * Fotos de una prenda: se deslizan con el dedo, abajo van las miniaturas y al tocar una
  * foto se abre en pantalla completa, donde se puede acercar con dos dedos o con doble toque.
  */
-export function Galeria({ fotos, nombre, sobreFoto, vacia }: { fotos: string[]; nombre: string; sobreFoto?: ReactNode; vacia: ReactNode }) {
+/** Logo pequeño de la tienda sobre las fotos (sale también en los pantallazos). */
+function MarcaAgua({ logo, className }: { logo: string | null | undefined; className: string }) {
+  if (!logo) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- logo pequeño
+    <img src={logo} alt="" aria-hidden="true" draggable={false} className={`pointer-events-none absolute rounded-full opacity-85 shadow-md ring-1 ring-[var(--ct-acentoClaro)]/60 select-none ${className}`} />
+  );
+}
+
+export function Galeria({
+  fotos,
+  nombre,
+  sobreFoto,
+  vacia,
+  marcaAgua,
+}: {
+  fotos: string[];
+  nombre: string;
+  sobreFoto?: ReactNode;
+  vacia: ReactNode;
+  marcaAgua?: string | null;
+}) {
   const carril = useRef<HTMLDivElement>(null);
   const [actual, setActual] = useState(0);
   const [grande, setGrande] = useState<number | null>(null);
@@ -49,6 +70,7 @@ export function Galeria({ fotos, nombre, sobreFoto, vacia }: { fotos: string[]; 
         ) : (
           vacia
         )}
+        {fotos.length > 0 && <MarcaAgua logo={marcaAgua} className="right-3 bottom-14 size-10" />}
         {fotos.length > 0 && (
           <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-between gap-2">
             <span className="bg-black/70 px-2.5 py-1.5 text-[11px] font-medium tracking-[0.14em] text-white">
@@ -92,6 +114,7 @@ export function Galeria({ fotos, nombre, sobreFoto, vacia }: { fotos: string[]; 
       )}
       {grande !== null && (
         <PantallaCompleta
+          marcaAgua={marcaAgua}
           fotos={fotos}
           inicial={grande}
           nombre={nombre}
@@ -105,7 +128,19 @@ export function Galeria({ fotos, nombre, sobreFoto, vacia }: { fotos: string[]; 
   );
 }
 
-function PantallaCompleta({ fotos, inicial, nombre, cerrar }: { fotos: string[]; inicial: number; nombre: string; cerrar: (i: number) => void }) {
+function PantallaCompleta({
+  fotos,
+  inicial,
+  nombre,
+  cerrar,
+  marcaAgua,
+}: {
+  fotos: string[];
+  inicial: number;
+  nombre: string;
+  cerrar: (i: number) => void;
+  marcaAgua?: string | null;
+}) {
   const carril = useRef<HTMLDivElement>(null);
   const [actual, setActual] = useState(inicial);
   const [acercada, setAcercada] = useState(false);
@@ -165,6 +200,7 @@ function PantallaCompleta({ fotos, inicial, nombre, cerrar }: { fotos: string[];
           </div>
         ))}
       </div>
+      <MarcaAgua logo={marcaAgua} className="right-4 bottom-40 size-11" />
       {pista && (
         <p className="pointer-events-none absolute inset-x-0 bottom-36 flex justify-center">
           <span className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-[12.5px] backdrop-blur">

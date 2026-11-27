@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ImageIcon, ImagePlus, X } from "lucide-react";
+import { Camera, ImageIcon, ImagePlus, X } from "lucide-react";
 import { achicarFoto } from "@/lib/achicar-foto";
 import { colorMuestra } from "@/lib/catalogo/colores";
 import type { GaleriaColor } from "@/lib/datos/fotos-catalogo";
@@ -21,6 +22,12 @@ export function FotosCatalogo({ productoId, galeria, maximo }: { productoId: str
           La foto que ya tiene queda como principal. Agrega otras (espalda, detalle, puesta) solo si quieres: los clientes las ven
           deslizando el dedo.
         </p>
+        <Link
+          href={`/inventario/fotos-catalogo/${productoId}`}
+          className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          <Camera className="size-4" /> Hacer la sesión guiada con retoque elegante
+        </Link>
       </div>
       {galeria.map((g) => (
         <GrupoColor key={g.color ?? "-"} productoId={productoId} grupo={g} maximo={maximo} mostrarColor={galeria.length > 1 || !!g.color} />

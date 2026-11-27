@@ -73,6 +73,7 @@ async function Prenda({ params }: PageProps<"/c/[slug]/p/[clave]">) {
             </>
           }
           slug={tienda.slug}
+          marcaAgua={tienda.marcaAgua ? tienda.logoUrl : null}
           tarjeta={tarjeta}
           mostrarCantidad={tienda.mostrarCantidad}
           hayWhatsapp={!!tienda.whatsapp}
