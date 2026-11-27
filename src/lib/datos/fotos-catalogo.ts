@@ -6,11 +6,12 @@
 import { tipoDeImagen } from "@/lib/imagenes";
 import { normalizar } from "@/lib/inventario/prendas";
 import { exigirEdicionProductos } from "@/lib/permisos";
+import { paraBuscar } from "@/lib/texto";
 import { datosDe } from "./alcance";
 import { prisma } from "./cliente";
 import type { Contexto } from "./contexto";
 import { FOTO_MAXIMO, urlFoto } from "./fotos-producto";
-import type { Resultado } from "./inventario";
+import { exigirNegocioPermitido, type Resultado } from "./inventario";
 
 /** Fotos extra por color (más la principal: hasta 5 en la galería). */
 export const MAX_FOTOS_EXTRA = 4;
@@ -143,4 +144,97 @@ export async function quitarFotoCatalogo(ctx: Contexto, fotoId: string): Promise
 export async function obtenerFotoCatalogo(ctx: Contexto, fotoId: string) {
   const f = await datosDe(ctx).fotoCatalogo.findFirst({ where: { id: String(fotoId).slice(0, 40) }, select: { tipo: true, datos: true } });
   return f ? { tipo: f.tipo, bytes: f.datos } : null;
+}
+
+export type FilaGaleria = {
+  /** Un producto de ese color: abre la sesión de fotos. */
+  productoId: string;
+  nombre: string;
+  color: string | null;
+  principal: string | null;
+  extras: number;
+};
+
+export const GALERIAS_POR_PAGINA = 30;
+
+/**
+ * Las prendas (por color) y los productos sueltos del negocio para la sesión de fotos:
+ * primero los que no tienen fotos extra, y entre ellos los más nuevos.
+ * Con `q` se busca por nombre o por el código exacto (lo que lee el escáner).
+ */
+export async function listarGaleriasCatalogo(ctx: Contexto, negocioId: string, opciones: { q?: string; pagina?: number } = {}) {
+  exigirNegocioPermitido(ctx, negocioId);
+  const datos = datosDe(ctx);
+  const q = String(opciones.q ?? "").trim().slice(0, 80);
+  const palabras = paraBuscar(q).split(/\s+/).filter(Boolean).slice(0, 6);
+  const productos = await datos.producto.findMany({
+    where: {
+      negocioId,
+      activo: true,
+      ...(q
+        ? {
+            OR: [
+              { codigo: { equals: q, mode: "insensitive" } },
+              { codigoBarras: q },
+              { AND: palabras.map((p) => ({ nombreBusqueda: { contains: p } })) },
+            ],
+          }
+        : {}),
+    },
+    select: { id: true, nombre: true, prendaId: true, prenda: true, color: true, fotoEn: true, creadoEn: true, codigo: true, codigoBarras: true },
+    orderBy: [{ creadoEn: "desc" }, { id: "asc" }],
+    take: 20_000,
+  });
+  const porCodigo = q ? productos.find((p) => p.codigo.toLowerCase() === q.toLowerCase() || p.codigoBarras === q) : undefined;
+
+  type Grupo = FilaGaleria & { clave: string; creadoEn: Date };
+  const grupos = new Map<string, Grupo>();
+  for (const p of productos) {
+    const clave = p.prendaId ?? p.id;
+    const llave = `${clave}|${normalizar(p.color ?? "")}`;
+    const g = grupos.get(llave);
+    if (!g) {
+      grupos.set(llave, {
+        clave,
+        productoId: p.id,
+        nombre: p.prendaId ? (p.prenda ?? p.nombre) : p.nombre,
+        color: p.prendaId ? p.color : null,
+        principal: urlFoto(p.id, p.fotoEn),
+        extras: 0,
+        creadoEn: p.creadoEn,
+      });
+    } else if (!g.principal && p.fotoEn) {
+      g.principal = urlFoto(p.id, p.fotoEn);
+      g.productoId = p.id;
+    }
+  }
+  const claves = [...new Set([...grupos.values()].map((g) => g.clave))];
+  const conteo = claves.length
+    ? await datos.fotoCatalogo.groupBy({ by: ["clave", "color"], where: { negocioId, clave: { in: claves } }, _count: { _all: true } })
+    : [];
+  for (const c of conteo) {
+    const g = grupos.get(`${c.clave}|${normalizar(c.color ?? "")}`);
+    if (g) g.extras += c._count._all;
+  }
+  const todas = [...grupos.values()].sort((a, b) => (a.extras > 0 ? 1 : 0) - (b.extras > 0 ? 1 : 0) || b.creadoEn.getTime() - a.creadoEn.getTime());
+  const faltan = todas.filter((g) => g.extras === 0).length;
+  const pagina = Math.max(1, Math.floor(Number(opciones.pagina) || 1));
+  const filas: FilaGaleria[] = todas
+    .slice((pagina - 1) * GALERIAS_POR_PAGINA, pagina * GALERIAS_POR_PAGINA)
+    .map(({ productoId, nombre, color, principal, extras }) => ({ productoId, nombre, color, principal, extras }));
+  return {
+    filas,
+    total: todas.length,
+    faltan,
+    pagina,
+    paginas: Math.max(1, Math.ceil(todas.length / GALERIAS_POR_PAGINA)),
+    /** Si se escaneó un código exacto: el producto de esa etiqueta. */
+    escaneado: porCodigo?.id ?? null,
+  };
+}
+
+/** La siguiente prenda (por color) que todavía no tiene fotos extra, sin contar esta. */
+export async function siguienteSinFotos(ctx: Contexto, negocioId: string, productoId: string) {
+  const { filas } = await listarGaleriasCatalogo(ctx, negocioId);
+  return filas.find((f) => f.extras === 0 && f.productoId !== productoId)?.productoId ?? null;
 }

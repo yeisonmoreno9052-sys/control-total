@@ -18,6 +18,7 @@ export function SelectorPrenda({
   linkPrenda,
   cabecera,
   sobreFoto,
+  marcaAgua,
 }: {
   slug: string;
   tarjeta: TarjetaCatalogo;
@@ -26,6 +27,8 @@ export function SelectorPrenda({
   linkPrenda: string;
   cabecera: ReactNode;
   sobreFoto: ReactNode;
+  /** Logo de la tienda para poner sobre las fotos (null = sin logo). */
+  marcaAgua: string | null;
 }) {
   const { agregar, pedir, abrir } = useBolsa();
   const tallas = useMemo(() => [...tarjeta.tallas].sort((a, b) => ordenTalla(a.talla, b.talla)), [tarjeta.tallas]);
@@ -88,6 +91,7 @@ export function SelectorPrenda({
         fotos={fotos}
         nombre={tarjeta.nombre}
         sobreFoto={sobreFoto}
+        marcaAgua={marcaAgua}
         vacia={
           <span className="flex size-full items-center justify-center font-[family-name:var(--ct-serif)] text-7xl text-[var(--ct-acento)]/40">
             {tarjeta.nombre.slice(0, 1)}

@@ -22,6 +22,8 @@ export type TiendaPublica = {
   whatsapp: string | null;
   mostrarCantidad: boolean;
   logoUrl: string | null;
+  /** Poner el logo pequeño sobre las fotos (solo si la empresa tiene logo). */
+  marcaAgua: boolean;
   paleta: Paleta;
 };
 
@@ -39,6 +41,7 @@ export async function buscarTienda(slugCrudo: string): Promise<TiendaPublica | n
       telefono: true,
       catalogoWhatsapp: true,
       catalogoMostrarCantidad: true,
+      catalogoMarcaAgua: true,
       empresa: { select: { activo: true, estadoSuscripcion: true, pruebaHasta: true, logoTipo: true, actualizadoEn: true, paleta: true, modulosActivos: true } },
     },
   });
@@ -56,6 +59,7 @@ export async function buscarTienda(slugCrudo: string): Promise<TiendaPublica | n
     whatsapp: numeroWhatsapp(n.catalogoWhatsapp) ?? numeroWhatsapp(n.telefono),
     mostrarCantidad: n.catalogoMostrarCantidad,
     logoUrl: e.logoTipo ? `/c/${slug}/logo?v=${e.actualizadoEn.getTime()}` : null,
+    marcaAgua: n.catalogoMarcaAgua && !!e.logoTipo,
     paleta: esPaleta(e.paleta) ? e.paleta : PALETA_POR_DEFECTO,
   };
 }

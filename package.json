@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "node scripts/copiar-ort.mjs && prisma generate && next build",
     "prestart": "sh scripts/preparar-base.sh",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "prisma db seed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate && node scripts/copiar-ort.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
@@ -31,6 +31,7 @@
     "lucide-react": "^1.52.0",
     "next": "16.4.6",
     "next-auth": "^5.0.0-beta.32",
+    "onnxruntime-web": "1.31.1",
     "papaparse": "^5.7.0",
     "pg": "^8.23.1",
     "react": "19.3.0",

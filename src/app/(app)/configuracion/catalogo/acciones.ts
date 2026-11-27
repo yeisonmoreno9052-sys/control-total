@@ -16,6 +16,7 @@ export async function guardarCatalogoAccion(_: EstadoCatalogo, formulario: FormD
     slug: String(formulario.get("slug") ?? ""),
     whatsapp: String(formulario.get("whatsapp") ?? ""),
     mostrarCantidad: formulario.get("mostrarCantidad") === "on",
+    marcaAgua: formulario.get("marcaAgua") === "on",
   });
   if (!r.ok) return { error: r.error, campos: r.campos };
   revalidatePath("/configuracion/catalogo");

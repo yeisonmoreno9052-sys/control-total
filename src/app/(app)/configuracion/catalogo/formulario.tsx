@@ -62,6 +62,12 @@ export function FormularioCatalogo({ config, base }: { config: ConfigCatalogo; b
         titulo='Mostrar cuántas quedan ("quedan 3")'
         ayuda='Si está apagado, el cliente solo ve "Disponible". Mostrarlo apura la compra cuando quedan pocas.'
       />
+      <Interruptor
+        name="marcaAgua"
+        defaultChecked={config.marcaAgua}
+        titulo="Poner mi logo sobre las fotos"
+        ayuda="Un logo pequeño en la esquina de cada foto. Si otra tienda copia la foto con un pantallazo, se sabe que es tuya."
+      />
       <AvisoError mensaje={estado.error} />
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" disabled={guardando}>

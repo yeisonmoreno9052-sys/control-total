@@ -14,6 +14,7 @@ export type ConfigCatalogo = {
   slug: string;
   whatsapp: string;
   mostrarCantidad: boolean;
+  marcaAgua: boolean;
   /** Teléfono del negocio, que se usa si no se escribe otro WhatsApp. */
   telefonoNegocio: string | null;
   nombreNegocio: string;
@@ -23,7 +24,7 @@ export async function obtenerConfigCatalogo(ctx: Contexto, negocioId: string): P
   exigirNegocioPermitido(ctx, negocioId);
   const n = await datosDe(ctx).negocio.findFirst({
     where: { id: negocioId },
-    select: { nombre: true, telefono: true, catalogoActivo: true, catalogoSlug: true, catalogoWhatsapp: true, catalogoMostrarCantidad: true },
+    select: { nombre: true, telefono: true, catalogoActivo: true, catalogoSlug: true, catalogoWhatsapp: true, catalogoMostrarCantidad: true, catalogoMarcaAgua: true },
   });
   if (!n) return null;
   return {
@@ -31,6 +32,7 @@ export async function obtenerConfigCatalogo(ctx: Contexto, negocioId: string): P
     slug: n.catalogoSlug ?? sugerirSlug(n.nombre),
     whatsapp: n.catalogoWhatsapp ?? "",
     mostrarCantidad: n.catalogoMostrarCantidad,
+    marcaAgua: n.catalogoMarcaAgua,
     telefonoNegocio: n.telefono,
     nombreNegocio: n.nombre,
   };
@@ -48,6 +50,7 @@ export const esquemaConfigCatalogo = z.object({
   slug: z.string().trim().toLowerCase().max(60),
   whatsapp: z.string().trim().max(30).default(""),
   mostrarCantidad: z.boolean().default(false),
+  marcaAgua: z.boolean().default(true),
 });
 
 export async function guardarConfigCatalogo(ctx: Contexto, negocioId: string, entrada: unknown): Promise<Resultado> {
@@ -62,7 +65,7 @@ export async function guardarConfigCatalogo(ctx: Contexto, negocioId: string, en
   if (d.whatsapp && !numeroWhatsapp(d.whatsapp)) campos.whatsapp = "Ese número no parece un celular. Escríbelo así: 300 123 4567.";
   const antes = await datosDe(ctx).negocio.findFirst({
     where: { id: negocioId },
-    select: { nombre: true, telefono: true, catalogoActivo: true, catalogoSlug: true, catalogoWhatsapp: true, catalogoMostrarCantidad: true },
+    select: { nombre: true, telefono: true, catalogoActivo: true, catalogoSlug: true, catalogoWhatsapp: true, catalogoMostrarCantidad: true, catalogoMarcaAgua: true },
   });
   if (!antes) return { ok: false, error: "No encontramos ese negocio." };
   if (d.activo && !d.whatsapp && !numeroWhatsapp(antes.telefono)) {
@@ -80,6 +83,7 @@ export async function guardarConfigCatalogo(ctx: Contexto, negocioId: string, en
     catalogoSlug: d.slug,
     catalogoWhatsapp: d.whatsapp || null,
     catalogoMostrarCantidad: d.mostrarCantidad,
+    catalogoMarcaAgua: d.marcaAgua,
   };
   await prisma.$transaction(async (tx) => {
     await tx.negocio.update({ where: { id: negocioId }, data: nuevo });

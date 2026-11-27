@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgePercent, Camera, FileSpreadsheet, FolderInput, FolderTree, Package, Plus, Recycle, Ruler, SearchX, Share2, Shirt, Sparkles, TriangleAlert } from "lucide-react";
+import { BadgePercent, Camera, Images, FileSpreadsheet, FolderInput, FolderTree, Package, Plus, Recycle, Ruler, SearchX, Share2, Shirt, Sparkles, TriangleAlert } from "lucide-react";
 import { EncabezadoPagina } from "@/components/layout/encabezado-pagina";
 import { EstadoVacio } from "@/components/layout/estado-vacio";
 import { Miniatura } from "@/components/inventario/miniatura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { slugCatalogo } from "@/lib/datos/catalogo";
 import { listarCategorias } from "@/lib/datos/categorias";
 import { obtenerPreferenciasVenta } from "@/lib/datos/negocios";
 import { buscarProductos, type ProductoVista } from "@/lib/datos/productos";
@@ -53,7 +54,7 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
   // Cargar con fotos usa la misma lectura con IA (y el mismo límite) que las facturas con foto.
   const conFotos = gestiona && tieneModulo(ctx, "FACTURA_FOTO") && hayLector();
 
-  const [resultado, categorias, preferencias] = await Promise.all([
+  const [resultado, categorias, preferencias, catalogo] = await Promise.all([
     buscarProductos(ctx, negocioId, {
       q: parametros.q,
       categoriaId: parametros.categoria,
@@ -62,6 +63,7 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
     }),
     listarCategorias(ctx, negocioId),
     obtenerPreferenciasVenta(ctx, negocioId),
+    crea ? slugCatalogo(ctx, negocioId) : null,
   ]);
   const hayFiltros = !!(parametros.q || parametros.categoria || parametros.bajo);
 
@@ -132,6 +134,13 @@ export default async function Inventario({ searchParams }: PageProps<"/inventari
                     <Camera /> Poner fotos
                   </Link>
                 </Button>
+                {catalogo && (
+                  <Button asChild variant="outline" className="border-primary/40 text-primary">
+                    <Link href="/inventario/fotos-catalogo">
+                      <Images /> Fotos del catálogo
+                    </Link>
+                  </Button>
+                )}
 
                 {preferencias.usaTallas ? (
                   <>
