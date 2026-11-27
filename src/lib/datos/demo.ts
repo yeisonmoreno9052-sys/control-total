@@ -286,6 +286,7 @@ async function borrarDatos(empresaId: string) {
       await tx.avisoTalla.deleteMany({ where: w });
       await tx.vistaCatalogo.deleteMany({ where: w });
       await tx.fotoProducto.deleteMany({ where: w });
+      await tx.fotoCatalogo.deleteMany({ where: w });
       await tx.producto.deleteMany({ where: w });
       await tx.categoria.deleteMany({ where: w });
       await tx.proveedor.deleteMany({ where: w });

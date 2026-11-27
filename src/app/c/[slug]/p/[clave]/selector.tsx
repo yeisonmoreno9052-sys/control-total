@@ -6,6 +6,7 @@ import { ordenTalla, type TarjetaCatalogo, type VarianteCatalogo } from "@/lib/c
 import { colorMuestra } from "@/lib/catalogo/colores";
 import { normalizar } from "@/lib/inventario/prendas";
 import { contarEvento, IconoWhatsapp, useBolsa } from "../../bolsa";
+import { Galeria } from "./galeria";
 
 const igual = (a: string | null | undefined, b: string | null | undefined) => normalizar(a ?? "") === normalizar(b ?? "");
 
@@ -56,15 +57,20 @@ export function SelectorPrenda({
   const variante = completa ? (variantesDe(talla, color)[0] ?? null) : null;
   const agotada = completa && (!variante || variante.stock <= 0);
 
-  // Fotos: la del color escogido primero; abajo, una por color.
-  const fotos = useMemo(() => {
-    const lista: { foto: string; color: string | null }[] = [];
-    for (const v of tarjeta.variantes) if (v.foto && !lista.some((f) => f.foto.split("?")[0] === v.foto!.split("?")[0] || (v.color && igual(f.color, v.color)))) lista.push({ foto: v.foto, color: v.color });
-    return lista;
-  }, [tarjeta.variantes]);
-  const [fotoElegida, setFotoElegida] = useState<string | null>(null);
-  const fotoColor = color ? fotos.find((f) => igual(f.color, color))?.foto : null;
-  const foto = fotoElegida ?? fotoColor ?? tarjeta.foto;
+  // Fotos del color escogido: la principal (la del producto) y luego las extra de ese color.
+  const fotoDeColor = (c: string | null) => (c ? tarjeta.variantes.find((v) => v.foto && igual(v.color, c))?.foto : null) ?? null;
+  const principal = fotoDeColor(color) ?? tarjeta.foto;
+  const colorFotos = color ?? tarjeta.variantes.find((v) => v.foto === principal)?.color ?? null;
+  const fotos = useMemo(
+    () => [
+      ...(principal ? [`/c/${slug}/foto/${principal}`] : []),
+      ...tarjeta.fotosExtra.filter((f) => igual(f.color, colorFotos)).map((f) => `/c/${slug}/fotos/${f.id}`),
+    ],
+    [principal, colorFotos, tarjeta.fotosExtra, slug],
+  );
+  const foto = principal;
+  // Si hay foto de cada color, los colores se escogen tocando la foto.
+  const conFotoPorColor = colores.length > 1 && colores.some((c) => fotoDeColor(c.color) && fotoDeColor(c.color) !== tarjeta.foto);
 
   const precio = variante ? (variante.precioPromo ?? variante.precio) : (tarjeta.precioPromo ?? tarjeta.precio);
 
@@ -77,44 +83,25 @@ export function SelectorPrenda({
 
   return (
     <div className="md:grid md:grid-cols-2 md:gap-8 md:px-4 md:pt-6">
-      <div>
-        <div className="relative aspect-[4/5] bg-[var(--ct-suave)] md:overflow-hidden md:rounded-3xl">
-          {sobreFoto}
-          {foto ? (
-            // eslint-disable-next-line @next/next/no-img-element -- la foto ya viene achicada
-            <img src={`/c/${slug}/foto/${foto}`} alt={tarjeta.nombre} className="size-full object-contain" />
-          ) : (
-            <span className="flex size-full items-center justify-center text-7xl font-bold text-[var(--ct-acento)]/40">{tarjeta.nombre.slice(0, 1)}</span>
-          )}
-        </div>
-        {fotos.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto px-4 pt-3 md:px-0">
-            {fotos.map((f) => (
-              <button
-                key={f.foto}
-                type="button"
-                onClick={() => {
-                  setFotoElegida(f.foto);
-                  if (f.color) setColor(f.color);
-                }}
-                aria-label={f.color ? `Ver en ${f.color}` : "Ver foto"}
-                className={`size-16 shrink-0 overflow-hidden rounded-xl ring-2 ${foto === f.foto ? "ring-[var(--ct-noche)]" : "ring-transparent"}`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- miniatura */}
-                <img src={`/c/${slug}/foto/${f.foto}`} alt="" className="size-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <Galeria
+        key={colorFotos ?? "-"}
+        fotos={fotos}
+        nombre={tarjeta.nombre}
+        sobreFoto={sobreFoto}
+        vacia={
+          <span className="flex size-full items-center justify-center font-[family-name:var(--ct-serif)] text-7xl text-[var(--ct-acento)]/40">
+            {tarjeta.nombre.slice(0, 1)}
+          </span>
+        }
+      />
 
-      <div className="relative -mt-5 space-y-4 rounded-t-3xl bg-[var(--ct-fondo)] px-5 pt-5 md:mt-0 md:rounded-none md:px-0 md:pt-0">
+      <div className="space-y-5 px-4 pt-5 md:px-0 md:pt-0">
         <div className="space-y-2">{cabecera}</div>
 
         {tallas.length > 0 && (
           <div>
-            <p className={`pb-2 text-sm font-bold ${falta && !talla ? "text-[#c62f3f]" : ""}`}>
-              {falta && !talla ? "👇 Escoge tu talla" : "Talla"}
+            <p className={`border-t border-[var(--ct-borde)] pt-5 pb-3 text-[13px] font-semibold ${falta && !talla ? "text-[#8c2a2a]" : ""}`}>
+              {falta && !talla ? "Escoge tu talla" : "Talla"}
             </p>
             <div className="flex flex-wrap gap-2">
               {tallas.map((t) => {
@@ -129,12 +116,12 @@ export function SelectorPrenda({
                       setFalta(false);
                     }}
                     aria-pressed={activa}
-                    className={`flex h-12 min-w-12 items-center justify-center rounded-xl px-3 text-base font-bold ring-1 ${
+                    className={`flex h-12 min-w-[52px] items-center justify-center px-3 text-sm font-medium ring-1 ${
                       activa
-                        ? "bg-[var(--ct-noche)] text-[var(--ct-acentoClaro)] ring-[var(--ct-noche)]"
+                        ? "bg-[var(--ct-tinta)] text-[var(--ct-fondo)] ring-[var(--ct-tinta)]"
                         : hay
                           ? "bg-white ring-[var(--ct-borde)]"
-                          : "bg-black/[0.04] text-[var(--ct-gris)] line-through ring-transparent"
+                          : "text-[var(--ct-gris)]/70 line-through ring-[var(--ct-borde)]"
                     }`}
                   >
                     {t.talla}
@@ -147,7 +134,7 @@ export function SelectorPrenda({
 
         {colores.length > 0 && (
           <div>
-            <p className={`pb-2 text-sm font-bold ${falta && !color ? "text-[#c62f3f]" : ""}`}>
+            <p className={`border-t border-[var(--ct-borde)] pt-5 pb-3 text-[13px] font-semibold ${falta && !color ? "text-[#8c2a2a]" : ""}`}>
               Color{color ? <span className="font-normal">: {color}</span> : null}
             </p>
             <div className="flex flex-wrap gap-3">
@@ -155,34 +142,61 @@ export function SelectorPrenda({
                 const hex = colorMuestra(c.color);
                 const activo = igual(color, c.color);
                 const hay = colorDisponible(c.color);
+                const miniatura = conFotoPorColor ? fotoDeColor(c.color) : null;
+                const elegir = () => {
+                  setColor(c.color);
+                  setFalta(false);
+                };
+                if (conFotoPorColor) {
+                  return (
+                    <button
+                      key={c.color}
+                      type="button"
+                      onClick={elegir}
+                      aria-pressed={activo}
+                      className={`flex w-[58px] flex-col items-center gap-1.5 text-[10.5px] ${activo ? "font-semibold text-[var(--ct-tinta)]" : "text-[var(--ct-gris)]"} ${hay ? "" : "opacity-45"}`}
+                    >
+                      <span
+                        className={`relative block h-[70px] w-[56px] overflow-hidden bg-[var(--ct-suave)] ${
+                          activo ? "ring-[1.5px] ring-[var(--ct-tinta)] ring-offset-2 ring-offset-[var(--ct-fondo)]" : "ring-1 ring-[var(--ct-borde)]"
+                        }`}
+                      >
+                        {miniatura ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- miniatura
+                          <img src={`/c/${slug}/foto/${miniatura}`} alt="" className="size-full object-cover" />
+                        ) : (
+                          <span className="block size-full" style={{ background: hex ?? "linear-gradient(135deg,#ddd,#999)" }} />
+                        )}
+                      </span>
+                      <span className="w-full truncate text-center">{c.color}</span>
+                    </button>
+                  );
+                }
                 return (
                   <button
                     key={c.color}
                     type="button"
-                    onClick={() => {
-                      setColor(c.color);
-                      setFotoElegida(null);
-                      setFalta(false);
-                    }}
+                    onClick={elegir}
                     aria-pressed={activo}
                     aria-label={c.color}
                     title={c.color}
-                    className={`relative flex items-center gap-2 rounded-full ${hex ? "size-11 justify-center" : "h-11 px-4 text-sm font-semibold ring-1 ring-[var(--ct-borde)]"} ${
-                      activo ? "outline-2 outline-offset-2 outline-[var(--ct-noche)]" : ""
+                    className={`relative flex items-center gap-2 rounded-full ${hex ? "size-11 justify-center" : "h-11 px-4 text-sm font-medium ring-1 ring-[var(--ct-borde)]"} ${
+                      activo ? "outline-[1.5px] outline-offset-2 outline-[var(--ct-tinta)]" : ""
                     } ${hay ? "" : "opacity-40"}`}
                     style={hex ? { background: hex, boxShadow: "inset 0 0 0 1px rgb(0 0 0 / 0.15)" } : undefined}
                   >
                     {hex ? null : c.color}
-                    {!hay && hex && <span className="absolute h-0.5 w-12 rotate-45 bg-[#c62f3f]" aria-hidden="true" />}
+                    {!hay && hex && <span className="absolute h-0.5 w-12 rotate-45 bg-[#8c2a2a]" aria-hidden="true" />}
                   </button>
                 );
               })}
             </div>
+            {conFotoPorColor && <p className="pt-3 text-xs text-[var(--ct-acento)] italic">✦ Toca un color y las fotos cambian a ese color</p>}
           </div>
         )}
 
         {completa && !agotada && variante && (
-          <p className="text-sm font-semibold text-emerald-700">
+          <p className="text-[13px] font-medium text-emerald-700">
             ● {mostrarCantidad && variante.stock < 99 ? `Disponible: ${variante.stock === 1 ? "queda 1" : `quedan ${variante.stock}`}` : "Disponible"}
             {variante.talla ? ` en talla ${variante.talla}` : ""}
             {variante.color ? ` ${variante.color.toLowerCase()}` : ""}
@@ -192,14 +206,14 @@ export function SelectorPrenda({
         {agotada ? (
           <AvisoTalla slug={slug} clave={tarjeta.clave} talla={talla} color={color} />
         ) : (
-          <div className="space-y-2 pt-1">
+          <div className="space-y-2.5 pt-2">
             {hayWhatsapp && (
               <button
                 type="button"
                 onClick={() => exigir() && pedir([linea()], [tarjeta.clave])}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#25d366] text-lg font-bold text-white shadow-lg shadow-[#25d366]/30"
+                className="flex h-14 w-full items-center justify-center gap-2.5 bg-[var(--ct-noche)] text-xs font-semibold tracking-[0.2em] text-[var(--ct-acentoClaro)] uppercase"
               >
-                <IconoWhatsapp className="size-6" /> Pedir por WhatsApp
+                <IconoWhatsapp className="size-5" /> Pedir por WhatsApp
               </button>
             )}
             <button
@@ -218,9 +232,9 @@ export function SelectorPrenda({
                 });
                 setAgregada(true);
               }}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-white text-base font-bold ring-2 ring-[var(--ct-noche)]"
+              className="flex h-[52px] w-full items-center justify-center gap-2.5 border border-[var(--ct-tinta)] text-xs font-medium tracking-[0.2em] uppercase"
             >
-              {agregada ? <Check className="size-5 text-emerald-600" /> : <ShoppingBag className="size-5" />}
+              {agregada ? <Check className="size-4 text-emerald-600" /> : <ShoppingBag className="size-4" />}
               {agregada ? "Agregada a la bolsa" : "Agregar a la bolsa"}
             </button>
             {agregada && (
