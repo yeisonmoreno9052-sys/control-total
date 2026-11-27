@@ -173,6 +173,8 @@ export type FilaCatalogo = {
 
 export type VarianteCatalogo = { id: string; talla: string | null; color: string | null; stock: number; precio: number; precioPromo: number | null; foto: string | null };
 
+export type FotoExtraCatalogo = { id: string; color: string | null };
+
 export type TarjetaCatalogo = {
   /** prendaId o, en productos sueltos, el id del producto. */
   clave: string;
@@ -184,6 +186,10 @@ export type TarjetaCatalogo = {
   promo: { nombre: string; etiqueta: string; termina: string | null } | null;
   /** "<productoId>?v=<versión>" de la foto que se muestra (null = sin foto). */
   foto: string | null;
+  /** Fotos extra (espalda, detalle…) por color, en orden. Se piden en /c/<slug>/fotos/<id>. */
+  fotosExtra: FotoExtraCatalogo[];
+  /** Cuántas fotos tiene la galería del color que sale en la tarjeta (principal + extra). */
+  numFotos: number;
   tallas: { talla: string; disponible: boolean }[];
   colores: { color: string; disponible: boolean }[];
   variantes: VarianteCatalogo[];
@@ -219,7 +225,12 @@ export const UNIDADES_ULTIMAS = 2;
  * agotados se dejan marcados como no disponibles (para el "avísame"); si no queda ninguna
  * unidad de la prenda, la tarjeta no sale.
  */
-export function armarTarjetas(filas: FilaCatalogo[], hoy: string, ahora: Date = new Date()): TarjetaCatalogo[] {
+export function armarTarjetas(
+  filas: FilaCatalogo[],
+  hoy: string,
+  ahora: Date = new Date(),
+  extras: Map<string, FotoExtraCatalogo[]> = new Map(),
+): TarjetaCatalogo[] {
   const grupos = new Map<string, FilaCatalogo[]>();
   for (const f of filas) {
     const clave = f.prendaId ?? f.id;
@@ -265,6 +276,9 @@ export function armarTarjetas(filas: FilaCatalogo[], hoy: string, ahora: Date = 
     const controla = g.some((f) => f.controlaStock);
     // La foto: primero una de una talla que haya; si no, cualquiera.
     const foto = conStock.find((v) => v.foto)?.foto ?? variantes.find((v) => v.foto)?.foto ?? null;
+    const fotosExtra = extras.get(clave) ?? [];
+    const colorFoto = variantes.find((v) => v.foto === foto)?.color ?? null;
+    const numFotos = (foto ? 1 : 0) + fotosExtra.filter((f) => normalizar(f.color ?? "") === normalizar(colorFoto ?? "")).length;
     tarjetas.push({
       clave,
       nombre: base.prendaId ? (base.prenda ?? base.nombre) : base.nombre,
@@ -276,6 +290,8 @@ export function armarTarjetas(filas: FilaCatalogo[], hoy: string, ahora: Date = 
           ? { nombre: filaPromo.nombre, etiqueta: etiquetaPromo(masBarata.precio, masBarata.precioPromo), termina: cuentaRegresiva(filaPromo.hasta, hoy) }
           : null,
       foto,
+      fotosExtra,
+      numFotos,
       tallas,
       colores,
       variantes,

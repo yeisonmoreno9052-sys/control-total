@@ -7,7 +7,7 @@ import { obtenerTarjeta, parecidas } from "@/lib/datos/catalogo-publico";
 import { formatearPesos } from "@/lib/formato";
 import { urlPublica } from "@/lib/url-publica";
 import { BarraInferior, BotonBolsa } from "../../bolsa";
-import { Encabezado, Etiquetas, Pie, Precio, TarjetaPrenda, urlFotoPublica } from "../../componentes";
+import { Encabezado, Etiquetas, Pie, Precio, serif, TarjetaPrenda, urlFotoPublica, versalitas } from "../../componentes";
 import { tiendaDe } from "../../tienda";
 import { SelectorPrenda } from "./selector";
 
@@ -39,11 +39,10 @@ async function Prenda({ params }: PageProps<"/c/[slug]/p/[clave]">) {
         <Encabezado tienda={tienda}>
           <BotonBolsa />
         </Encabezado>
-        <div className="mx-4 mt-8 space-y-3 rounded-3xl bg-white p-8 text-center ring-1 ring-[var(--ct-borde)]">
-          <p className="text-4xl">😢</p>
-          <p className="text-lg font-semibold">Esta prenda ya se agotó</p>
+        <div className="mx-4 mt-8 space-y-3 bg-white p-8 text-center ring-1 ring-[var(--ct-borde)]">
+          <p className={`${serif} text-3xl font-medium`}>Esta prenda ya se agotó</p>
           <p className="text-sm text-[var(--ct-gris)]">Mira lo que tenemos ahora: llegan prendas nuevas seguido.</p>
-          <Link href={`/c/${tienda.slug}`} className="inline-flex h-12 items-center rounded-xl bg-[var(--ct-noche)] px-6 font-semibold text-white">
+          <Link href={`/c/${tienda.slug}`} className="inline-flex h-12 items-center bg-[var(--ct-noche)] px-6 text-xs font-semibold tracking-[0.18em] text-[var(--ct-acentoClaro)] uppercase">
             Ver el catálogo
           </Link>
         </div>
@@ -64,11 +63,11 @@ async function Prenda({ params }: PageProps<"/c/[slug]/p/[clave]">) {
               <Link
                 href={`/c/${tienda.slug}`}
                 aria-label="Volver al catálogo"
-                className="absolute top-3 left-3 z-10 flex size-11 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/5"
+                className="absolute top-3 left-3 z-10 flex size-11 items-center justify-center rounded-full bg-white/92 shadow-md"
               >
                 <ChevronLeft className="size-6" />
               </Link>
-              <span className="absolute top-3 right-3 z-10">
+              <span className="absolute top-4 right-3 z-10">
                 <Etiquetas tarjeta={tarjeta} grande />
               </span>
             </>
@@ -80,12 +79,12 @@ async function Prenda({ params }: PageProps<"/c/[slug]/p/[clave]">) {
           linkPrenda={`${base}/c/${tienda.slug}/p/${tarjeta.clave}`}
           cabecera={
             <>
-              {tarjeta.categoria && <p className="text-sm font-semibold text-[var(--ct-acento)]">{tarjeta.categoria.replace(" - ", " · ")}</p>}
-              <h1 className="text-2xl leading-tight font-bold">{tarjeta.nombre}</h1>
+              {tarjeta.categoria && <p className={`${versalitas} text-[var(--ct-acento)]`}>{tarjeta.categoria.replace(" - ", " · ")}</p>}
+              <h1 className={`${serif} text-[34px] leading-[1.05] font-medium`}>{tarjeta.nombre}</h1>
               <Precio tarjeta={tarjeta} grande />
               {tarjeta.promo && (
-                <p className="inline-flex rounded-xl bg-[#fdecee] px-3 py-1.5 text-sm font-semibold text-[#c62f3f]">
-                  🔥 {tarjeta.promo.nombre}
+                <p className="inline-flex bg-[#8c2a2a]/10 px-3 py-1.5 text-[13px] font-medium text-[#8c2a2a]">
+                  {tarjeta.promo.nombre}
                   {tarjeta.promo.termina ? ` · ${tarjeta.promo.termina}` : ""}
                 </p>
               )}
@@ -95,8 +94,10 @@ async function Prenda({ params }: PageProps<"/c/[slug]/p/[clave]">) {
 
       {otras.length > 0 && (
         <section className="pt-8">
-          <h2 className="px-4 pb-3 text-lg font-bold">También te puede gustar</h2>
-          <div className="grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 lg:grid-cols-6">
+          <h2 className={`${serif} px-4 pb-4 text-[28px] font-medium`}>
+            También te puede <i className="text-[var(--ct-acento)]">gustar</i>
+          </h2>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-6 px-4 sm:grid-cols-3 lg:grid-cols-6">
             {otras.map((t) => (
               <TarjetaPrenda key={t.clave} tienda={tienda} tarjeta={t} />
             ))}

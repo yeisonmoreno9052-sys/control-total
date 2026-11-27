@@ -140,11 +140,11 @@ export function BotonBolsa() {
       type="button"
       onClick={abrir}
       aria-label={n ? `Ver mi bolsa: ${n} prendas` : "Ver mi bolsa"}
-      className="relative flex size-11 items-center justify-center rounded-full bg-white/10 text-[var(--ct-acentoClaro)] ring-1 ring-white/15"
+      className="relative flex size-10 items-center justify-center rounded-full text-[var(--ct-acentoClaro)] ring-1 ring-[var(--ct-acentoClaro)]/40"
     >
       <ShoppingBag className="size-5" />
       {n > 0 && (
-        <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-[#25d366] px-1 text-xs font-bold text-white">
+        <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-[var(--ct-acento)] px-1 text-xs font-bold text-white">
           {n}
         </span>
       )}
@@ -163,7 +163,7 @@ export function BarraInferior({ soloBolsa = false }: { soloBolsa?: boolean }) {
         <button
           type="button"
           onClick={abrir}
-          className="mx-auto flex h-14 w-full max-w-xl items-center justify-between rounded-2xl bg-[var(--ct-noche)] px-5 text-base font-bold text-white shadow-xl shadow-black/25"
+          className="mx-auto flex h-14 w-full max-w-xl items-center justify-between bg-[var(--ct-noche)] px-5 text-sm font-semibold tracking-[0.08em] text-white shadow-xl shadow-black/25"
         >
           <span className="flex items-center gap-2">
             <ShoppingBag className="size-5 text-[var(--ct-acentoClaro)]" /> Ver mi pedido ({n})
@@ -181,9 +181,9 @@ export function BarraInferior({ soloBolsa = false }: { soloBolsa?: boolean }) {
         href={linkWhatsapp(whatsapp, `¡Hola ${tienda}! Vi el catálogo y quiero preguntar por una prenda.`)}
         target="_blank"
         rel="noopener"
-        className="mx-auto flex h-14 w-full max-w-xl items-center justify-center gap-2 rounded-2xl bg-[#25d366] text-base font-bold text-white shadow-xl shadow-[#25d366]/30"
+        className="mx-auto flex h-14 w-full max-w-xl items-center justify-center gap-2.5 bg-[var(--ct-noche)] text-xs font-semibold tracking-[0.2em] text-[var(--ct-acentoClaro)] uppercase shadow-xl shadow-black/25"
       >
-        <IconoWhatsapp className="size-6" /> Escríbenos por WhatsApp
+        <IconoWhatsapp className="size-5" /> Escríbenos por WhatsApp
       </a>
     </div>
   );

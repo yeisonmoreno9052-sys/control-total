@@ -53,7 +53,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "negocios", "usuarios", "usuarioNegocios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja", "accionesEmy",
-      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo", "operacionesPac",
+      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo", "operacionesPac", "fotosCatalogo",
     ],
   },
   Negocio: {
@@ -63,7 +63,7 @@ const MODELOS: Record<string, ReglaModelo> = {
       "empresa", "usuarios", "categorias", "productos", "movimientos", "auditorias",
       "clientes", "cajas", "ventas", "detallesVenta", "pagosVenta", "devoluciones", "detallesDevolucion",
       "proveedores", "facturasCompra", "detallesCompra", "abonosFactura", "adjuntosFactura", "movimientosCaja",
-      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo", "operacionesPac",
+      "lecturasFactura", "fotosProducto", "abonosCredito", "turnosCaja", "promociones", "avisosTalla", "vistasCatalogo", "operacionesPac", "fotosCatalogo",
     ],
   },
   Usuario: {
@@ -256,6 +256,13 @@ const MODELOS: Record<string, ReglaModelo> = {
     filtro: deNegocios,
     alCrear: null,
     relaciones: ["empresa", "negocio", "producto"],
+    porNegocio: true,
+    soloLectura: true,
+  },
+  FotoCatalogo: {
+    filtro: deNegocios,
+    alCrear: null,
+    relaciones: ["empresa", "negocio"],
     porNegocio: true,
     soloLectura: true,
   },

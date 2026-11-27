@@ -6,6 +6,7 @@ import { z } from "zod";
 import { MotivoAjuste } from "@/generated/prisma/enums";
 import { asignarCategoria, guardarCategoria, guardarMargenNegocio } from "@/lib/datos/categorias";
 import { registrarPiezaSegunda } from "@/lib/datos/compras";
+import { agregarFotoCatalogo, quitarFotoCatalogo } from "@/lib/datos/fotos-catalogo";
 import { FOTO_MAXIMO, guardarFotoPorArchivo, guardarFotoProducto } from "@/lib/datos/fotos-producto";
 import { analizarImportacion, ejecutarImportacion, type AnalisisImportacion } from "@/lib/datos/importacion";
 import { actualizarProducto, ajustarStock, cambiarActivoProducto, crearProducto } from "@/lib/datos/inventario";
@@ -227,6 +228,27 @@ export async function guardarFotoAccion(
   revalidatePath("/ventas");
   // En una prenda: también los ids de las otras tallas del mismo color que quedaron con la foto.
   return { ok: true, ids: r.ids };
+}
+
+/** Agrega una foto extra para el catálogo en línea (espalda, detalle…) en un color de la prenda. */
+export async function agregarFotoCatalogoAccion(productoId: string, color: string | null, formulario: FormData): Promise<EstadoFormulario> {
+  const ctx = await contextoInventario();
+  const archivo = formulario.get("foto");
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Falta la foto." };
+  if (archivo.size > FOTO_MAXIMO) return { error: "La foto pesa demasiado. Prueba con otra." };
+  const r = await agregarFotoCatalogo(ctx, productoId, color, new Uint8Array(await archivo.arrayBuffer()));
+  if (!r.ok) return { error: r.error };
+  revalidatePath(`/inventario/${productoId}/editar`);
+  return { ok: true };
+}
+
+/** Quita una foto extra del catálogo. */
+export async function quitarFotoCatalogoAccion(productoId: string, fotoId: string): Promise<EstadoFormulario> {
+  const ctx = await contextoInventario();
+  const r = await quitarFotoCatalogo(ctx, fotoId);
+  if (!r.ok) return { error: r.error };
+  revalidatePath(`/inventario/${productoId}/editar`);
+  return { ok: true };
 }
 
 /** Una de varias fotos subidas de una vez; el nombre del archivo dice de qué producto es. */

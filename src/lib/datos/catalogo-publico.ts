@@ -199,7 +199,14 @@ async function tarjetasDe(negocioId: string, claves: string[], hoy: string) {
     select: camposPublicos,
     orderBy: [{ creadoEn: "asc" }, { id: "asc" }],
   });
-  const tarjetas = armarTarjetas(filas.map(aFila), hoy);
+  const fotos = await prisma.fotoCatalogo.findMany({
+    where: { negocioId, clave: { in: claves } },
+    select: { id: true, clave: true, color: true },
+    orderBy: [{ orden: "asc" }, { creadoEn: "asc" }],
+  });
+  const extras = new Map<string, { id: string; color: string | null }[]>();
+  for (const f of fotos) extras.set(f.clave, [...(extras.get(f.clave) ?? []), { id: f.id, color: f.color }]);
+  const tarjetas = armarTarjetas(filas.map(aFila), hoy, new Date(), extras);
   const orden = new Map(claves.map((c, i) => [c, i]));
   return tarjetas.sort((a, b) => (orden.get(a.clave) ?? 0) - (orden.get(b.clave) ?? 0));
 }
@@ -250,6 +257,19 @@ export async function fotoPublica(tienda: TiendaPublica, productoId: string) {
     select: { datos: true, tipo: true },
   });
   return foto ? { bytes: foto.datos, tipo: foto.tipo } : null;
+}
+
+/** Foto extra de una prenda, solo si es de esta tienda y la prenda sigue activa. */
+export async function fotoCatalogoPublica(tienda: TiendaPublica, fotoId: string) {
+  const foto = await prisma.fotoCatalogo.findFirst({
+    where: { id: String(fotoId).slice(0, 40), negocioId: tienda.negocioId },
+    select: { datos: true, tipo: true, clave: true },
+  });
+  if (!foto) return null;
+  const activa = await prisma.producto.count({
+    where: { negocioId: tienda.negocioId, activo: true, OR: [{ prendaId: foto.clave }, { id: foto.clave, prendaId: null }] },
+  });
+  return activa ? { bytes: foto.datos, tipo: foto.tipo } : null;
 }
 
 export async function logoPublico(tienda: TiendaPublica) {

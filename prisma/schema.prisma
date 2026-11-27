@@ -91,6 +91,7 @@ model Empresa {
   turnosCaja         TurnoCaja[]
   adjuntosFactura    AdjuntoFactura[]
   fotosProducto      FotoProducto[]
+  fotosCatalogo      FotoCatalogo[]
   movimientosCaja    MovimientoCaja[]
   accionesEmy        AccionEmy[]
   lecturasFactura    LecturaFactura[]
@@ -167,6 +168,7 @@ model Negocio {
   turnosCaja         TurnoCaja[]
   adjuntosFactura    AdjuntoFactura[]
   fotosProducto      FotoProducto[]
+  fotosCatalogo      FotoCatalogo[]
   movimientosCaja    MovimientoCaja[]
   lecturasFactura    LecturaFactura[]
   operacionesPac     OperacionPac[]
@@ -832,6 +834,29 @@ model FotoProducto {
   negocio  Negocio  @relation(fields: [negocioId], references: [id])
   producto Producto @relation(fields: [productoId], references: [id])
 
+  @@index([empresaId])
+}
+
+/// Fotos extra de una prenda para el catálogo en línea (espalda, detalle, puesta…).
+/// La foto principal sigue siendo la del producto (FotoProducto); estas son opcionales.
+/// Van por prenda (o producto suelto) y por color: al tocar un color se ven las de ese color.
+model FotoCatalogo {
+  id        String   @id @default(cuid())
+  empresaId String
+  negocioId String
+  /// prendaId de la prenda o, en un producto suelto, su id.
+  clave     String
+  /// Color de la prenda tal como está escrito en el producto. null = sin color.
+  color     String?
+  orden     Int      @default(0)
+  tipo      String
+  datos     Bytes
+  creadoEn  DateTime @default(now())
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  negocio Negocio @relation(fields: [negocioId], references: [id])
+
+  @@index([negocioId, clave])
   @@index([empresaId])
 }
 
